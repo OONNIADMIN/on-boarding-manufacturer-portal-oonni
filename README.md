@@ -2,7 +2,7 @@
 
 Modern Next.js frontend application for uploading and managing manufacturer product catalogs. conect db
 
-## Features
+## Features  
 
 ✨ **Drag & Drop File Upload** - Intuitive file upload with drag and drop support
 📊 **Real-time Preview** - See data preview immediately after upload
