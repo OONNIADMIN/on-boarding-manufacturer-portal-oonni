@@ -1,6 +1,6 @@
 # Oonni Onboarding Frontend
 
-Modern Next.js frontend application for uploading and managing manufacturer product catalogs.
+Modern Next.js frontend application for uploading and managing manufacturer product catalogs. conect db
 
 ## Features
 
