@@ -10,10 +10,11 @@
  *   NEXT_PUBLIC_APP_URL – URL base de la app (ej: https://tu-app.vercel.app)
  */
 
-const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
-const FROM_EMAIL    = process.env.SMTP_FROM_EMAIL ?? "noreply@oonni.com";
-const FROM_NAME     = process.env.SMTP_FROM_NAME  ?? "OONNI Platform";
-const APP_URL       = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const BREVO_API_KEY  = process.env.BREVO_API_KEY  ?? "";
+const BREVO_API_URL  = process.env.BREVO_API_URL  ?? "https://api.brevo.com/v3/smtp/email";
+const FROM_EMAIL     = process.env.SMTP_FROM_EMAIL ?? "noreply@oonni.com";
+const FROM_NAME      = process.env.SMTP_FROM_NAME  ?? "OONNI Platform";
+const APP_URL        = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 interface SendResult {
   ok: boolean;
@@ -47,7 +48,7 @@ async function sendViaBrevo(
     htmlContent: html,
   };
 
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+  const res = await fetch(BREVO_API_URL, {
     method: "POST",
     headers: {
       "api-key": BREVO_API_KEY,
