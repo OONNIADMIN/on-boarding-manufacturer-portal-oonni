@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     select: { email: true },
   });
 
-  const adminEmails = adminUsers.map((a) => a.email);
+  const adminEmails = adminUsers.map((u: { email: string }) => u.email);
   if (adminEmails.length) {
     sendCatalogUploadNotification({
       adminEmails,
