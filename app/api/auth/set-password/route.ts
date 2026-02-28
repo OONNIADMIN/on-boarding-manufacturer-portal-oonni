@@ -5,10 +5,12 @@ import { ok, err } from "@/lib/api-response";
 
 export async function POST(req: NextRequest) {
   try {
-    const { token, password } = await req.json();
+    const { token: rawToken, password } = await req.json();
 
-    if (!token || !password) return err("token and password are required");
+    if (!rawToken || !password) return err("token and password are required");
     if (password.length < 8) return err("Password must be at least 8 characters");
+
+    const token = typeof rawToken === "string" ? rawToken.trim() : "";
 
     const user = await prisma.user.findUnique({
       where: { invitation_token: token },

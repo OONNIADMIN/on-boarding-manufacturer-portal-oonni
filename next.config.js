@@ -8,10 +8,6 @@ const nextConfig = {
   sassOptions: {
     includePaths: [path.join(__dirname, 'styles')],
   },
-  // Permite el build aunque haya errores TS que Vercel no resuelve por caché de Prisma
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 }
 
 module.exports = nextConfig

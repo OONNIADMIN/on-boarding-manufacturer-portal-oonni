@@ -4,7 +4,10 @@ import { isInvitationTokenExpired } from "@/lib/auth";
 import { ok } from "@/lib/api-response";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+  const { token: rawToken } = await params;
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+
+  if (!token) return ok({ valid: false, message: "Invalid invitation token" });
 
   const user = await prisma.user.findUnique({ where: { invitation_token: token } });
 

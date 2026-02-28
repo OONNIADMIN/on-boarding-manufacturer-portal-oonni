@@ -48,6 +48,7 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   }
 }
 
+/** Genera un token aleatorio de 64 caracteres hex para invitación. Mismo valor se guarda en DB y se envía en el link del correo. */
 export function generateInvitationToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);

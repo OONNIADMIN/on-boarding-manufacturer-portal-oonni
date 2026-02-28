@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: { role: true, manufacturer: true },
     orderBy: { id: "asc" },
   })) as unknown as UserRow[];
-
+  
   return ok(
     users.map((u: UserRow) => ({
       id: u.id,
