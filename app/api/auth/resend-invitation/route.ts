@@ -37,7 +37,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    sendManufacturerInvitation(user.email, user.name, token).catch(console.error);
+    // Awaitar garantiza que el token en el correo == token actualizado en DB.
+    const emailSent = await sendManufacturerInvitation(user.email, user.name, token);
+    if (!emailSent) console.error("[resend-invitation] Email not sent for", user.email);
 
     return ok({
       message: "Invitation email resent successfully",

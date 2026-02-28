@@ -53,8 +53,10 @@ export async function POST(req: NextRequest) {
       include: { role: true, manufacturer: true },
     });
 
-    // Send invitation email (non-blocking)
-    sendManufacturerInvitation(emailNorm, name.trim(), token).catch(console.error);
+    // Awaitar el envío garantiza que el token en el correo == token en DB.
+    // Si el envío falla, se loguea pero igual se retorna el usuario creado.
+    const emailSent = await sendManufacturerInvitation(emailNorm, name.trim(), token);
+    if (!emailSent) console.error("[invite-manufacturer] Email not sent for", emailNorm);
 
     return created({
       id: newUser.id,
