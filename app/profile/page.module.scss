@@ -1,0 +1,134 @@
+// ============================================
+// Profile Page Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  @include flex-column;
+}
+
+.loadingContainer {
+  min-height: 100vh;
+  @include flex-center;
+  background-color: $oonni-bg;
+}
+
+.spinner {
+  @include spinner(3rem, $oonni-green);
+}
+
+
+// Content
+.content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+}
+
+// User Info Section
+.userInfoSection {
+  margin-bottom: $spacing-xl;
+}
+
+.card {
+  @include card;
+  border-radius: $radius-2xl;
+}
+
+.cardHeader {
+  @include flex-between;
+  margin-bottom: $spacing-lg;
+  padding-bottom: $spacing-md;
+  border-bottom: 2px solid $gray-100;
+  min-height: 60px;
+  align-items: center;
+}
+
+.cardTitle {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.badge {
+  padding: $spacing-sm $spacing-md;
+  background: $oonni-green;
+  color: $white;
+  border-radius: $radius-full;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 60px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.cardContent {
+  @include flex-column;
+  gap: $spacing-md;
+}
+
+.infoRow {
+  @include flex-between;
+  padding: 0.75rem;
+  background: $gray-50;
+  border-radius: $radius-lg;
+}
+
+.infoLabel {
+  font-weight: $font-weight-medium;
+  color: $gray-600;
+  font-size: $font-size-base;
+}
+
+.infoValue {
+  color: $gray-900;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-base;
+}
+
+.activeStatus {
+  color: $success;
+}
+
+.inactiveStatus {
+  color: $error;
+}
+
+
+// Responsive
+@include respond-to('md') {
+  .main {
+    padding: $spacing-md;
+  }
+}
+
+@include respond-to('sm') {
+  .card {
+    padding: $spacing-lg;
+  }
+
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-md;
+  }
+
+  .infoRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-sm;
+  }
+}

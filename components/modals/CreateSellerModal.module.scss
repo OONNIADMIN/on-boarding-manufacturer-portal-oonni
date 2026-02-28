@@ -1,0 +1,211 @@
+// ============================================
+// CreateSellerModal Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  @include flex-center;
+  z-index: $z-index-modal;
+  padding: $spacing-md;
+  backdrop-filter: blur(4px);
+  animation: fadeIn $transition-base;
+}
+
+.modal {
+  background: $white;
+  border-radius: $radius-2xl;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: $shadow-xl;
+  animation: slideIn $transition-slow;
+}
+
+.header {
+  @include flex-between;
+  padding: $spacing-lg;
+  border-bottom: 1px solid $gray-200;
+}
+
+.title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  padding: $spacing-sm;
+  cursor: pointer;
+  color: $gray-600;
+  @include flex-center;
+  border-radius: $radius-lg;
+  transition: all $transition-base;
+
+  &:hover {
+    background: $gray-100;
+    color: $gray-900;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.form {
+  padding: $spacing-lg;
+  @include flex-column;
+  gap: 1.25rem;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: #991b1b;
+  font-size: $font-size-sm;
+  animation: shake $transition-slow;
+}
+
+.errorIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.success {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-sm;
+  animation: slideDown $transition-slow;
+}
+
+.successIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.infoBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: $radius-lg;
+  color: #1e40af;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+
+  p {
+    margin: 0;
+  }
+}
+
+.infoIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.formGroup {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+}
+
+.input {
+  @include input-base;
+  padding: 0.75rem;
+  font-size: $font-size-base;
+}
+
+.hint {
+  font-size: $font-size-xs;
+  color: $gray-600;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: $spacing-sm;
+}
+
+.cancelButton,
+.submitButton {
+  flex: 1;
+  @include button-base;
+  padding: 0.75rem $spacing-lg;
+  font-size: $font-size-base;
+}
+
+.cancelButton {
+  background: $gray-100;
+  color: $gray-700;
+
+  &:hover:not(:disabled) {
+    background: $gray-200;
+  }
+}
+
+.submitButton {
+  @include button-primary;
+  padding: 0.75rem $spacing-lg;
+  font-size: $font-size-base;
+}
+
+.spinner {
+  @include spinner(16px, $white);
+}
+
+@include respond-to('sm') {
+  .modal {
+    max-width: 100%;
+    margin: $spacing-md;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .submitButton {
+    width: 100%;
+  }
+}
+

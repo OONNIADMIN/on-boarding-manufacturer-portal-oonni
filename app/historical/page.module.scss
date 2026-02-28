@@ -1,0 +1,362 @@
+// ============================================
+// Catalogs Page Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+// Progress Indicator Section
+.progressSection {
+  width: 100%;
+  margin-bottom: $spacing-2xl;
+}
+
+.progressBar {
+  @include flex-center;
+  gap: $spacing-md;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: $spacing-lg;
+  background: $white;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-md;
+}
+
+.progressStep {
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.progressLine {
+  flex: 1;
+  height: 3px;
+  background: $gray-200;
+  border-radius: $radius-full;
+  transition: all $transition-base;
+}
+
+.lineComplete {
+  background: $oonni-green;
+}
+
+// Upload Steps Section
+.uploadSteps {
+  width: 100%;
+  margin-bottom: $spacing-xl;
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-xl;
+}
+
+// Step Section
+.stepSection {
+  width: 100%;
+  margin-bottom: $spacing-xl;
+}
+
+// Management Section
+.managementSection {
+  width: 100%;
+  display: center;
+}
+
+.managementGrid {
+  display: center;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-xl;
+}
+
+.managementCard {
+  @include card;
+  @include flex-column;
+  gap: $spacing-lg;
+  padding: $spacing-xl;
+  background: $white;
+  border: 1px solid $gray-200;
+}
+
+.managementCardHeader {
+  @include flex-column;
+  gap: $spacing-xs;
+  border-bottom: 1px solid $gray-200;
+  padding-bottom: $spacing-lg;
+}
+
+.managementCardTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.managementCardDescription {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  margin: 0;
+}
+
+.managementCardContent {
+  width: 100%;
+  flex: 1;
+}
+
+@include respond-to('md') {
+.main {
+    min-height: 100vh;
+    background-color: $oonni-bg;
+    }
+    
+    .container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    }
+    
+    // Progress Indicator Section
+    .progressSection {
+    width: 100%;
+    margin-bottom: $spacing-2xl;
+    }
+    
+    .progressBar {
+    @include flex-center;
+    gap: $spacing-md;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: $spacing-lg;
+    background: $white;
+    border-radius: $radius-2xl;
+    box-shadow: $shadow-md;
+    }
+    
+    .progressStep {
+    @include flex-column;
+    align-items: center;
+    gap: $spacing-sm;
+    }
+    
+    .progressLine {
+    flex: 1;
+    height: 3px;
+    background: $gray-200;
+    border-radius: $radius-full;
+    transition: all $transition-base;
+    }
+    
+    .lineComplete {
+    background: $oonni-green;
+    }
+    
+    // Upload Steps Section
+    .uploadSteps {
+    width: 100%;
+    margin-bottom: $spacing-xl;
+    }
+    
+    .stepsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-xl;
+    }
+    
+    // Step Section
+    .stepSection {
+    width: 100%;
+    margin-bottom: $spacing-xl;
+    }
+    
+    // Management Section
+    .managementSection {
+    width: 100%;
+    }
+    
+    .managementGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-xl;
+    }
+    
+    .managementCard {
+    @include card;
+    @include flex-column;
+    gap: $spacing-lg;
+    padding: $spacing-xl;
+    background: $white;
+    border: 1px solid $gray-200;
+    }
+    
+    .managementCardHeader {
+    @include flex-column;
+    gap: $spacing-xs;
+    border-bottom: 1px solid $gray-200;
+    padding-bottom: $spacing-lg;
+    }
+    
+    .managementCardTitle {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $gray-900;
+    margin: 0;
+    }
+    
+    .managementCardDescription {
+    font-size: $font-size-sm;
+    color: $gray-600;
+    margin: 0;
+    }
+    
+    .managementCardContent {
+    width: 100%;
+    flex: 1;
+    }
+}
+
+@include respond-to('sm') {
+    .main {
+        min-height: 100vh;
+        background-color: $oonni-bg;
+    }
+    
+    .container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    // Progress Indicator Section
+    .progressSection {
+        width: 100%;
+        margin-bottom: $spacing-2xl;
+    }
+    
+    .progressBar {
+        @include flex-center;
+        gap: $spacing-md;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: $spacing-lg;
+        background: $white;
+        border-radius: $radius-2xl;
+        box-shadow: $shadow-md;
+    }
+    
+    .progressStep {
+        @include flex-column;
+        align-items: center;
+        gap: $spacing-sm;
+    }
+    
+    .progressLine {
+        flex: 1;
+        height: 3px;
+        background: $gray-200;
+        border-radius: $radius-full;
+        transition: all $transition-base;
+    }
+    
+    .lineComplete {
+        background: $oonni-green;
+    }
+    
+    // Upload Steps Section
+    .uploadSteps {
+        width: 100%;
+        margin-bottom: $spacing-xl;
+    }
+    
+    .stepsGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-xl;
+    }
+    
+    // Step Section
+        .stepSection {
+        width: 100%;
+        margin-bottom: $spacing-xl;
+    }
+    
+    // Management Section
+    .managementSection {
+        width: 100%;
+    }
+    
+    .managementGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-xl;
+    }
+    
+    .managementCard {
+        @include card;
+        @include flex-column;
+        gap: $spacing-lg;
+        padding: $spacing-xl;
+        background: $white;
+        border: 1px solid $gray-200;
+    }
+    
+    .managementCardHeader {
+        @include flex-column;
+        gap: $spacing-xs;
+        border-bottom: 1px solid $gray-200;
+        padding-bottom: $spacing-lg;
+    }
+    
+    .managementCardTitle {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $gray-900;
+        margin: 0;
+    }
+    
+    .managementCardDescription {
+        font-size: $font-size-sm;
+        color: $gray-600;
+        margin: 0;
+    }
+    
+    .managementCardContent {
+        width: 100%;
+        flex: 1;
+    }
+}
+
+// Product Creation Section
+.productCreationSection {
+  margin: $spacing-xl 0;
+  
+  .sectionHeader {
+    text-align: center;
+    margin-bottom: $spacing-lg;
+    
+    .sectionTitle {
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
+      color: $gray-900;
+      margin-bottom: $spacing-sm;
+    }
+    
+    .sectionDescription {
+      font-size: $font-size-lg;
+      color: $gray-600;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+  }
+}

@@ -1,0 +1,187 @@
+.main {
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 3rem;
+  color: var(--white);
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 300px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.userName {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.userRole {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.loginButton,
+.dashboardButton,
+.logoutButton {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.loginButton {
+  background: rgba(255, 255, 255, 0.95);
+  color: #667eea;
+}
+
+.loginButton:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dashboardButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dashboardButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.logoutButton {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+.logoutButton:hover {
+  background: #ef4444;
+  transform: translateY(-2px);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.uploadSection {
+  width: 100%;
+}
+
+.resultsSection {
+  width: 100%;
+  animation: slideIn 0.3s ease-out;
+}
+
+.filesSection {
+  width: 100%;
+}
+
+.footer {
+  margin-top: 4rem;
+  text-align: center;
+  color: var(--white);
+  opacity: 0.8;
+  font-size: 0.875rem;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 1rem;
+  }
+
+  .headerTop {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .headerRight {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .userSection {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+}
+

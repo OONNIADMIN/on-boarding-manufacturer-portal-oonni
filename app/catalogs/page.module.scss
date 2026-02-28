@@ -1,0 +1,231 @@
+// ============================================
+// FilesList Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.container {
+  background: $white;
+  border-radius: $radius-lg;
+  padding: 0;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+}
+
+.header {
+  @include flex-between;
+  padding: $spacing-lg $spacing-xl;
+  border-bottom: 1px solid $table-border;
+}
+
+.title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.refreshButton {
+  @include button-secondary;
+  display: flex;
+  align-items: right;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-sm;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+}
+
+.viewButton {
+  @include button-ghost;
+  padding: $spacing-xs;
+  color: $gray-600;
+  border-radius: $radius-md;
+
+  &:hover {
+    color: $oonni-green;
+    background-color: rgba($oonni-green, 0.1);
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.loading {
+  @include loading-container;
+}
+
+.spinner {
+  @include spinner(40px, $oonni-green);
+}
+
+.error {
+  padding: $spacing-lg;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: $error;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin: $spacing-lg;
+}
+
+.errorIcon {
+  font-size: $font-size-2xl;
+}
+
+.empty {
+  @include loading-container;
+}
+
+.emptyIcon {
+  font-size: $font-size-4xl;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  @include table-base;
+}
+
+.fileIcon {
+  font-size: $font-size-lg;
+}
+
+.catalogId {
+  font-weight: $font-weight-medium;
+  color: $oonni-green;
+  font-family: monospace;
+  font-size: $font-size-sm;
+}
+
+.fileName {
+  font-weight: $font-weight-medium;
+  color: $gray-900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.slug {
+  color: $gray-600;
+  font-size: $font-size-sm;
+  font-family: monospace;
+}
+
+.fileSize,
+.fileDate {
+  color: $gray-600;
+  white-space: nowrap;
+}
+
+.deleteButton {
+  padding: 0.375rem 0.75rem;
+  background: transparent;
+  border: 1px solid $gray-300;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  transition: all $transition-base;
+  color: $error;
+
+  &:hover {
+    background: #fef2f2;
+    border-color: $error;
+  }
+}
+
+.footer {
+  padding: $spacing-md $spacing-xl;
+  background-color: $gray-50;
+  text-align: center;
+  border-top: 1px solid $table-border;
+}
+
+.totalCount {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  font-weight: $font-weight-medium;
+}
+
+.pagination {
+  @include flex-center;
+  gap: $spacing-sm;
+  padding: $spacing-md $spacing-xl;
+  border-top: 1px solid $table-border;
+}
+
+.paginationButton {
+  padding: $spacing-sm $spacing-md;
+  background: $white;
+  border: 1px solid $gray-300;
+  border-radius: $radius-sm;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  transition: all $transition-base;
+  color: $gray-700;
+
+  &:hover:not(:disabled) {
+    background: $gray-50;
+    border-color: $gray-400;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.active {
+    background: $oonni-teal;
+    color: $white;
+    border-color: $oonni-teal;
+  }
+}
+
+@include respond-to('md') {
+  .container {
+    border-radius: 0;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-md;
+    padding: $spacing-md;
+  }
+
+  .refreshButton {
+    width: 100%;
+  }
+
+  .table {
+    th,
+    td {
+      padding: 0.75rem $spacing-md;
+    }
+  }
+
+  .fileName {
+    max-width: 150px;
+  }
+
+  .pagination {
+    padding: $spacing-md;
+  }
+}
+

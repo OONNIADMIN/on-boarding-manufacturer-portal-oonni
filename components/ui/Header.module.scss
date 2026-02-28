@@ -1,0 +1,212 @@
+// ============================================
+// Header Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.header {
+  background-color: $oonni-teal;
+  padding: $spacing-md $spacing-xl;
+  box-shadow: $shadow-md;
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  @include flex-between;
+  gap: $spacing-md;
+}
+
+.logo {
+  height: 2.5rem;
+  width: auto;
+  object-fit: contain;
+}
+
+.title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $white;
+  margin: 0 0 $spacing-xs 0;
+}
+
+.subtitle {
+  font-size: $font-size-sm;
+  color: $white;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.headerActions {
+  @include flex-center;
+  gap: $spacing-md;
+}
+
+.userButton {
+  @include button-ghost;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: $radius-full;
+  @include flex-center;
+  transition: all $transition-base;
+
+  &:hover:not(.disabled) {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+
+  &.disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+.homeButton {
+  @include button-ghost;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: $radius-full;
+  @include flex-center;
+  transition: all $transition-base;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+.logoutButton {
+  @include button-ghost;
+}
+
+// Navigation Bar
+.navigation {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding: $spacing-sm $spacing-xl;
+}
+
+.navigationFlat {
+  background-color: transparent;
+  border-top: none;
+}
+
+.navContent {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.navLinks {
+  @include flex-center;
+  gap: $spacing-lg;
+  flex-wrap: wrap;
+}
+
+.navLink {
+  @include flex-center;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-md;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: $radius-lg;
+  color: $white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+  transition: all $transition-base;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: $white;
+    font-weight: $font-weight-semibold;
+  }
+
+  svg {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+  }
+}
+
+// Responsive
+@include respond-to('md') {
+  .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .title {
+    font-size: $font-size-2xl;
+  }
+
+  .navigation {
+    padding: $spacing-sm $spacing-lg;
+  }
+
+  .navLinks {
+    gap: $spacing-md;
+  }
+
+  .navLink {
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-xs;
+  }
+}
+
+@include respond-to('sm') {
+  .header {
+    padding: $spacing-lg;
+  }
+
+  .headerActions {
+    flex-direction: column;
+    width: 100%;
+    gap: $spacing-sm;
+  }
+
+  .userButton {
+    align-self: flex-start;
+  }
+
+  .navigation {
+    padding: $spacing-sm;
+  }
+
+  .navLinks {
+    flex-direction: column;
+    gap: $spacing-sm;
+    width: 100%;
+  }
+
+  .navLink {
+    width: 100%;
+    justify-content: flex-start;
+    padding: $spacing-sm;
+  }
+}

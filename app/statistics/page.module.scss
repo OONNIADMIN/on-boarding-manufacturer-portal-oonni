@@ -1,0 +1,403 @@
+// ============================================
+// Statistics Page Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  @include flex-column;
+}
+
+.header {
+  background-color: $oonni-teal;
+  padding: $spacing-lg $spacing-xl;
+  box-shadow: $shadow-md;
+  color: $white;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-sm;
+  background: none;
+  border: none;
+  color: $white;
+  font-size: $font-size-base;
+  cursor: pointer;
+  padding: $spacing-sm;
+  border-radius: $radius-md;
+  transition: all $transition-fast;
+  margin-bottom: $spacing-md;
+
+  &:hover {
+    background: rgba($white, 0.1);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.title {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  margin: 0 0 $spacing-sm 0;
+  color: $white;
+}
+
+.subtitle {
+  font-size: $font-size-lg;
+  margin: 0;
+  color: rgba($white, 0.9);
+}
+
+.content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  @include flex-column;
+  gap: $spacing-2xl;
+}
+
+.section {
+  background: $white;
+  border-radius: $radius-2xl;
+  padding: $spacing-2xl;
+  box-shadow: $shadow-sm;
+  border: 1px solid $gray-200;
+}
+
+.sectionTitle {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-xl 0;
+  padding-bottom: $spacing-md;
+  border-bottom: 2px solid $gray-100;
+}
+
+// Key Metrics Grid
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: $spacing-xl;
+}
+
+.metricCard {
+  @include card;
+  padding: $spacing-xl;
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  transition: all $transition-base;
+  border: 1px solid $gray-200;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+    border-color: $primary;
+  }
+}
+
+.metricIcon {
+  width: 64px;
+  height: 64px;
+  padding: $spacing-md;
+  background: linear-gradient(135deg, $oonni-green, lighten($oonni-green, 10%));
+  border-radius: $radius-xl;
+  color: $white;
+  flex-shrink: 0;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.metricContent {
+  flex: 1;
+}
+
+.metricTitle {
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: $gray-600;
+  margin: 0 0 $spacing-xs 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metricValue {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  color: $gray-900;
+  margin: 0 0 $spacing-xs 0;
+  line-height: 1;
+}
+
+.metricChange {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $oonni-green;
+  background: rgba($oonni-green, 0.1);
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-full;
+  display: inline-block;
+}
+
+// User Distribution
+.distributionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: $spacing-lg;
+}
+
+.distributionCard {
+  @include card;
+  padding: $spacing-xl;
+  text-align: center;
+  transition: all $transition-base;
+  border: 1px solid $gray-200;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+    border-color: $primary;
+  }
+}
+
+.distributionIcon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto $spacing-md;
+  padding: $spacing-sm;
+  background: linear-gradient(135deg, $oonni-teal, lighten($oonni-teal, 10%));
+  border-radius: $radius-lg;
+  color: $white;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.distributionContent {
+  text-align: center;
+}
+
+.distributionTitle {
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: $gray-600;
+  margin: 0 0 $spacing-sm 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.distributionValue {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $gray-900;
+  margin: 0 0 $spacing-xs 0;
+  line-height: 1;
+}
+
+.distributionPercentage {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
+  background: rgba($oonni-teal, 0.1);
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-full;
+  display: inline-block;
+}
+
+// Top Manufacturers
+.topManufacturers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: $spacing-lg;
+}
+
+.manufacturerCard {
+  @include card;
+  padding: $spacing-lg;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  transition: all $transition-base;
+  border: 1px solid $gray-200;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+    border-color: $primary;
+  }
+}
+
+.manufacturerRank {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, $oonni-green, lighten($oonni-green, 10%));
+  color: $white;
+  border-radius: $radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-lg;
+  flex-shrink: 0;
+}
+
+.manufacturerInfo {
+  flex: 1;
+}
+
+.manufacturerName {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-xs 0;
+}
+
+.manufacturerStats {
+  display: flex;
+  gap: $spacing-md;
+}
+
+.manufacturerStat {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  background: $gray-50;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-sm;
+}
+
+// Loading and Error States
+.loadingContainer {
+  min-height: 100vh;
+  @include flex-center;
+  background-color: $oonni-bg;
+  @include flex-column;
+  gap: $spacing-lg;
+}
+
+.loadingSection {
+  @include flex-center;
+  @include flex-column;
+  gap: $spacing-lg;
+  padding: $spacing-2xl;
+  background: $white;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-sm;
+  border: 1px solid $gray-200;
+}
+
+.spinner {
+  @include spinner(3rem, $oonni-green);
+}
+
+.errorSection {
+  @include flex-center;
+  @include flex-column;
+  gap: $spacing-lg;
+  padding: $spacing-2xl;
+  background: $white;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-sm;
+  border: 1px solid $gray-200;
+  color: $error;
+}
+
+.errorIcon {
+  width: 3rem;
+  height: 3rem;
+  color: $error;
+}
+
+.emptySection {
+  @include flex-center;
+  padding: $spacing-2xl;
+  background: $white;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-sm;
+  border: 1px solid $gray-200;
+  color: $gray-600;
+}
+
+// Responsive Design
+@include respond-to('md') {
+  .content {
+    padding: $spacing-lg;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: $spacing-lg;
+  }
+
+  .distributionGrid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: $spacing-md;
+  }
+
+  .topManufacturers {
+    grid-template-columns: 1fr;
+  }
+}
+
+@include respond-to('sm') {
+  .header {
+    padding: $spacing-md $spacing-lg;
+  }
+
+  .title {
+    font-size: $font-size-2xl;
+  }
+
+  .subtitle {
+    font-size: $font-size-base;
+  }
+
+  .content {
+    padding: $spacing-md;
+    gap: $spacing-lg;
+  }
+
+  .section {
+    padding: $spacing-lg;
+  }
+
+  .metricsGrid {
+    grid-template-columns: 1fr;
+    gap: $spacing-md;
+  }
+
+  .distributionGrid {
+    grid-template-columns: 1fr;
+    gap: $spacing-md;
+  }
+
+  .metricCard {
+    padding: $spacing-md;
+  }
+
+  .metricIcon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .metricValue {
+    font-size: $font-size-2xl;
+  }
+}

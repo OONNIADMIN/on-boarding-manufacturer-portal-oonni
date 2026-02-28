@@ -1,0 +1,368 @@
+// ============================================
+// Invite Manufacturer Modal Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  @include flex-center;
+  z-index: 1000;
+  padding: $spacing-md;
+  backdrop-filter: blur(4px);
+  animation: fadeIn $transition-base;
+}
+
+.modal {
+  background: $white;
+  border-radius: $radius-2xl;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: $shadow-xl;
+  animation: slideIn $transition-slow;
+}
+
+.header {
+  @include flex-between;
+  padding: $spacing-xl;
+  border-bottom: 1px solid $gray-200;
+  position: sticky;
+  top: 0;
+  background: $white;
+  z-index: 10;
+  border-radius: $radius-2xl $radius-2xl 0 0;
+}
+
+.title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.closeButton {
+  @include button-ghost;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: $radius-full;
+  @include flex-center;
+  
+  &:hover:not(:disabled) {
+    background: $gray-100;
+  }
+
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+.content {
+  padding: $spacing-xl;
+}
+
+.form {
+  padding: $spacing-xl;
+  @include flex-column;
+  gap: $spacing-lg;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: $spacing-md;
+  margin: 0 $spacing-xl;
+  margin-top: $spacing-md;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: #991b1b;
+  font-size: $font-size-sm;
+  animation: shake $transition-slow;
+}
+
+.errorIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+.success {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: $spacing-md;
+  margin: 0 $spacing-xl;
+  margin-top: $spacing-md;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-sm;
+  animation: slideDown $transition-slow;
+}
+
+.successIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: #22c55e;
+}
+
+// Search Box
+.searchBox {
+  position: relative;
+  margin-bottom: $spacing-lg;
+}
+
+.searchIcon {
+  position: absolute;
+  left: $spacing-md;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  color: $gray-400;
+  pointer-events: none;
+}
+
+.searchInput {
+  @include input-base;
+  width: 100%;
+  padding-left: 2.75rem;
+}
+
+// Manufacturer List
+.manufacturerList {
+  @include flex-column;
+  gap: $spacing-sm;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: $spacing-lg;
+  padding: $spacing-xs;
+}
+
+.manufacturerItem {
+  @include flex-between;
+  padding: $spacing-md;
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  cursor: pointer;
+  transition: all $transition-base;
+  text-align: left;
+  width: 100%;
+
+  &:hover {
+    border-color: $oonni-green;
+    background: $gray-50;
+    transform: translateX(4px);
+  }
+
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: $gray-400;
+    flex-shrink: 0;
+    transition: color $transition-base;
+  }
+
+  &:hover svg {
+    color: $oonni-green;
+  }
+}
+
+.manufacturerInfo {
+  flex: 1;
+
+  h3 {
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    color: $gray-900;
+    margin: 0 0 $spacing-xs 0;
+  }
+}
+
+.slug {
+  font-size: $font-size-sm;
+  color: $gray-500;
+  margin: 0;
+}
+
+.emptyState {
+  @include flex-center;
+  padding: $spacing-2xl;
+  text-align: center;
+  color: $gray-500;
+}
+
+.loadingContainer {
+  @include flex-center;
+  @include flex-column;
+  gap: $spacing-md;
+  padding: $spacing-2xl;
+}
+
+.spinner {
+  @include spinner(2rem, $oonni-green);
+}
+
+.createNewButton {
+  @include button-secondary;
+  width: 100%;
+  @include flex-center;
+  gap: $spacing-sm;
+
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+// Selected Manufacturer
+.selectedManufacturer {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $gray-50;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+
+  svg {
+    width: 2rem;
+    height: 2rem;
+    color: $oonni-green;
+    flex-shrink: 0;
+  }
+
+  div {
+    flex: 1;
+  }
+}
+
+.selectedLabel {
+  font-size: $font-size-xs;
+  color: $gray-500;
+  margin: 0 0 $spacing-xs 0;
+  text-transform: uppercase;
+  font-weight: $font-weight-medium;
+}
+
+.selectedName {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+// Form Elements
+.formGroup {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+}
+
+.input {
+  @include input-base;
+}
+
+.hint {
+  font-size: $font-size-xs;
+  color: $gray-500;
+  margin: 0;
+}
+
+.infoBox {
+  display: flex;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: $radius-lg;
+
+  p {
+    font-size: $font-size-sm;
+    color: #1e40af;
+    margin: 0;
+    line-height: 1.5;
+  }
+}
+
+.infoIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+
+// Actions
+.actions {
+  @include flex-between;
+  gap: $spacing-md;
+  padding-top: $spacing-md;
+}
+
+.cancelButton {
+  @include button-ghost;
+  flex: 1;
+}
+
+.submitButton {
+  @include button-primary;
+  flex: 1;
+  @include flex-center;
+  gap: $spacing-sm;
+
+  .spinner {
+    @include spinner(1rem, $white);
+  }
+}
+
+// Responsive
+@include respond-to('sm') {
+  .modal {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .header {
+    padding: $spacing-lg;
+    border-radius: 0;
+  }
+
+  .content {
+    padding: $spacing-lg;
+  }
+
+  .form {
+    padding: $spacing-lg;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .submitButton {
+    width: 100%;
+  }
+}
+

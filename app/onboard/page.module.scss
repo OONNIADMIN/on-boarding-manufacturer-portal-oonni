@@ -1,0 +1,948 @@
+// ============================================
+// Catalogs Page Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background-color: $oonni-teal;
+  padding: $spacing-md $spacing-xl;
+  box-shadow: $shadow-md;
+}
+
+.headerTop {
+  max-width: 1400px;
+  margin: 0 auto;
+  @include flex-between;
+  gap: $spacing-xl;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.logo {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $white;
+  letter-spacing: 0.05em;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+}
+
+.title {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin-bottom: $spacing-sm;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: $font-size-base;
+  color: $gray-600;
+  text-align: center;
+  margin-bottom: $spacing-xl;
+}
+
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.userInfo {
+  @include flex-column;
+  gap: $spacing-xs;
+  color: $white;
+}
+
+.userName {
+  font-weight: $font-weight-medium;
+  font-size: $font-size-sm;
+}
+
+.userRole {
+  font-size: $font-size-xs;
+  opacity: 0.8;
+  text-transform: capitalize;
+}
+
+.navLink {
+  @include button-ghost;
+}
+
+.loginButton,
+.dashboardButton,
+.logoutButton {
+  @include button-ghost;
+}
+
+.content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  @include flex-column;
+  gap: $spacing-xl;
+}
+
+// Success Messages
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: $spacing-md 1.25rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: $radius-xl;
+  color: #166534;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  animation: slideIn $transition-slow;
+}
+
+.successIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #22c55e;
+}
+
+// Section Headers
+.sectionHeader {
+  text-align: center;
+  margin-bottom: $spacing-lg;
+}
+
+.sectionTitle {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-md 0;
+}
+
+.sectionDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Welcome Section
+.welcomeSection {
+  width: 100%;
+  margin-bottom: $spacing-lg;
+}
+
+.welcomeCard {
+  @include card;
+  @include flex-center;
+  gap: $spacing-lg;
+  padding: $spacing-xl;
+  background: linear-gradient(135deg, $oonni-teal 0%, $oonni-green 100%);
+  color: $white;
+  border: none;
+  box-shadow: $shadow-lg;
+}
+
+.welcomeIcon {
+  @include flex-center;
+  width: 4rem;
+  height: 4rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-full;
+  flex-shrink: 0;
+
+  svg {
+    width: 2rem;
+    height: 2rem;
+    color: $white;
+  }
+}
+
+.welcomeContent {
+  @include flex-column;
+  gap: $spacing-sm;
+  flex: 1;
+}
+
+.welcomeTitle {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $white;
+  margin: 0;
+}
+
+.welcomeDescription {
+  font-size: $font-size-base;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  line-height: 1.6;
+}
+
+// Progress Indicator Section
+.progressSection {
+  width: 100%;
+  margin-bottom: $spacing-2xl;
+}
+
+.progressBar {
+  @include flex-center;
+  gap: $spacing-md;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: $spacing-lg;
+  background: $white;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-md;
+}
+
+.progressStep {
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.stepNumber {
+  @include flex-center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: $radius-full;
+  background: $gray-200;
+  color: $gray-600;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-lg;
+  transition: all $transition-base;
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.stepActive .stepNumber {
+  background: $oonni-teal;
+  color: $white;
+}
+
+.stepComplete .stepNumber {
+  background: $oonni-green;
+  color: $white;
+}
+
+.stepLocked .stepNumber {
+  background: $gray-200;
+  color: $gray-400;
+}
+
+.stepInactive .stepNumber {
+  background: $gray-100;
+  color: $gray-400;
+}
+
+.stepLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+  text-align: center;
+}
+
+.stepInactive .stepLabel {
+  color: $gray-400;
+}
+
+.progressLine {
+  flex: 1;
+  height: 3px;
+  background: $gray-200;
+  border-radius: $radius-full;
+  transition: all $transition-base;
+}
+
+.lineComplete {
+  background: $oonni-green;
+}
+
+// Upload Steps Section
+.uploadSteps {
+  width: 100%;
+  margin-bottom: $spacing-xl;
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-xl;
+}
+
+// Step Section
+.stepSection {
+  width: 100%;
+  margin-bottom: $spacing-xl;
+}
+
+.stepCard {
+  @include card;
+  @include flex-column;
+  gap: $spacing-lg;
+  padding: $spacing-xl;
+  background: $white;
+  border: 2px solid $gray-200;
+  position: relative;
+  transition: all $transition-base;
+}
+
+.stepCardActive {
+  border-color: $oonni-green;
+  box-shadow: 0 4px 20px rgba($oonni-green, 0.1);
+}
+
+.stepCardLocked {
+  border-color: $gray-200;
+  opacity: 0.7;
+}
+
+.stepCardHeader {
+  display: flex;
+  gap: $spacing-lg;
+  align-items: flex-start;
+}
+
+.stepBadge {
+  @include flex-center;
+  min-width: 3.5rem;
+  height: 3.5rem;
+  border-radius: $radius-lg;
+  background: $oonni-teal;
+  color: $white;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-sm;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+
+  svg {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+}
+
+.stepBadgeComplete {
+  background: $oonni-green;
+}
+
+.stepCardLocked .stepBadge {
+  background: $gray-300;
+  color: $gray-600;
+}
+
+.stepCardTitleArea {
+  @include flex-column;
+  gap: $spacing-xs;
+  flex: 1;
+}
+
+.stepCardTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.stepCardDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.stepCardContent {
+  width: 100%;
+}
+
+.stepCardSuccess {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  animation: slideDown $transition-slow;
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    color: #22c55e;
+  }
+}
+
+// Locked Overlay
+.lockedOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: $radius-xl;
+  backdrop-filter: blur(2px);
+  z-index: 10;
+}
+
+.lockedContent {
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-md;
+  text-align: center;
+  padding: $spacing-xl;
+  max-width: 400px;
+}
+
+.lockedIcon {
+  width: 4rem;
+  height: 4rem;
+  color: $gray-400;
+}
+
+.lockedTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-700;
+  margin: 0;
+}
+
+.lockedDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+}
+
+// Upload Button Section
+.uploadButtonSection {
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-md;
+  width: 100%;
+  margin-bottom: $spacing-xl;
+  padding: $spacing-xl;
+  background: $white;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-md;
+}
+
+.uploadAllButton {
+  @include button-primary;
+  font-size: $font-size-lg;
+  padding: $spacing-md $spacing-2xl;
+  min-width: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  &:disabled {
+    background: $gray-300;
+    color: $gray-600;
+    cursor: not-allowed;
+    opacity: 0.6;
+
+    &:hover {
+      background: $gray-300;
+      transform: none;
+    }
+  }
+}
+
+.uploadButtonHint {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  text-align: center;
+  margin: 0;
+}
+
+.spinner {
+  @include spinner(20px, $white);
+}
+
+// Error Message
+.errorMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: $spacing-md 1.25rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-xl;
+  color: #991b1b;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  animation: shake $transition-slow;
+}
+
+.errorIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+
+// Results Section
+.resultsSection {
+  width: 100%;
+  animation: slideIn $transition-slow;
+  margin-bottom: $spacing-xl;
+}
+
+// Management Section
+.managementSection {
+  width: 100%;
+}
+
+.managementGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-xl;
+}
+
+.managementCard {
+  @include card;
+  @include flex-column;
+  gap: $spacing-lg;
+  padding: $spacing-xl;
+  background: $white;
+  border: 1px solid $gray-200;
+}
+
+.managementCardHeader {
+  @include flex-column;
+  gap: $spacing-xs;
+  border-bottom: 1px solid $gray-200;
+  padding-bottom: $spacing-lg;
+}
+
+.managementCardTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.managementCardDescription {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  margin: 0;
+}
+
+.managementCardContent {
+  width: 100%;
+  flex: 1;
+}
+
+.footer {
+  background-color: $oonni-teal;
+  color: $white;
+  text-align: center;
+  padding: $spacing-md;
+  font-size: $font-size-sm;
+  margin-top: auto;
+}
+
+@include respond-to('md') {
+  .main {
+    padding: $spacing-md;
+  }
+
+  .headerTop {
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  .headerRight {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .userSection {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .title {
+    font-size: $font-size-xl;
+  }
+
+  .subtitle {
+    font-size: $font-size-base;
+  }
+
+  .welcomeCard {
+    flex-direction: column;
+    text-align: center;
+    padding: $spacing-lg;
+  }
+
+  .welcomeIcon {
+    width: 3rem;
+    height: 3rem;
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  .welcomeTitle {
+    font-size: $font-size-xl;
+  }
+
+  .progressBar {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .progressLine {
+    width: 3px;
+    height: 2rem;
+    flex: 0;
+  }
+
+  .stepCardHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stepBadge {
+    align-self: flex-start;
+  }
+
+  .stepsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .uploadAllButton {
+    min-width: 100%;
+  }
+
+  .managementGrid {
+    grid-template-columns: 1fr;
+    gap: $spacing-lg;
+  }
+}
+
+@include respond-to('sm') {
+  .content {
+    padding: $spacing-md;
+  }
+
+  .welcomeCard {
+    padding: $spacing-md;
+  }
+
+  .welcomeTitle {
+    font-size: $font-size-lg;
+  }
+
+  .welcomeDescription {
+    font-size: $font-size-sm;
+  }
+
+  .progressBar {
+    padding: $spacing-md;
+  }
+
+  .stepNumber {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: $font-size-base;
+
+    svg {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+
+  .stepLabel {
+    font-size: $font-size-xs;
+  }
+
+  .stepCard {
+    padding: $spacing-md;
+  }
+
+  .stepBadge {
+    min-width: 3rem;
+    height: 3rem;
+    font-size: $font-size-xs;
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  .stepCardTitle {
+    font-size: $font-size-lg;
+  }
+
+  .stepCardDescription {
+    font-size: $font-size-sm;
+  }
+
+  .lockedIcon {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .lockedTitle {
+    font-size: $font-size-lg;
+  }
+
+  .lockedDescription {
+    font-size: $font-size-sm;
+  }
+
+  .managementCard {
+    padding: $spacing-lg;
+  }
+
+  .managementCardTitle {
+    font-size: $font-size-base;
+  }
+}
+
+// Product Creation Section
+.productCreationSection {
+  margin: $spacing-xl 0;
+  
+  .sectionHeader {
+    text-align: center;
+    margin-bottom: $spacing-lg;
+    
+    .sectionTitle {
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
+      color: $gray-900;
+      margin-bottom: $spacing-sm;
+    }
+    
+    .sectionDescription {
+      font-size: $font-size-lg;
+      color: $gray-600;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+  }
+}
+
+.productCreationCard {
+  background: white;
+  border-radius: $radius-lg;
+  padding: $spacing-xl;
+  box-shadow: $shadow-md;
+  border: 1px solid $gray-200;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.columnSelection {
+  margin-bottom: $spacing-lg;
+  
+  .columnLabel {
+    display: block;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    color: $gray-700;
+    margin-bottom: $spacing-sm;
+  }
+  
+  .columnSelect {
+    width: 100%;
+    padding: $spacing-sm $spacing-md;
+    border: 2px solid $gray-300;
+    border-radius: $radius-md;
+    font-size: $font-size-base;
+    background: white;
+    color: $gray-900;
+    transition: border-color 0.2s ease;
+    
+    &:focus {
+      outline: none;
+      border-color: $oonni-green;
+      box-shadow: 0 0 0 3px rgba(90, 158, 142, 0.1);
+    }
+    
+    &:disabled {
+      background: $gray-100;
+      color: $gray-500;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.skuPreview {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-lg;
+  background: $gray-50;
+  border-radius: $radius-md;
+  border: 1px solid $gray-200;
+  
+  .previewTitle {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $gray-800;
+    margin-bottom: $spacing-md;
+  }
+  
+  .previewList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+    
+    .previewSku {
+      background: $oonni-green;
+      color: white;
+      padding: $spacing-xs $spacing-sm;
+      border-radius: $radius-sm;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+    }
+  }
+  
+  .previewNote {
+    font-size: $font-size-sm;
+    color: $gray-600;
+    font-style: italic;
+  }
+}
+
+.createProductsButton {
+  text-align: center;
+  margin-bottom: $spacing-lg;
+}
+
+.createProductsBtn {
+  background: $oonni-green;
+  color: white;
+  border: none;
+  padding: $spacing-md $spacing-xl;
+  border-radius: $radius-md;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-sm;
+  
+  &:hover:not(:disabled) {
+    background: $oonni-green-hover;
+    transform: translateY(-1px);
+    box-shadow: $shadow-lg;
+  }
+  
+  &:disabled {
+    background: $gray-400;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+.productCreationResult {
+  background: $gray-50;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  padding: $spacing-lg;
+  text-align: center;
+  
+  .resultTitle {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $gray-800;
+    margin-bottom: $spacing-sm;
+  }
+  
+  .resultMessage {
+    font-size: $font-size-base;
+    color: $gray-700;
+  }
+}
+
+// Responsive design for product creation
+@media (max-width: 768px) {
+  .productCreationCard {
+    padding: $spacing-lg;
+  }
+  
+  .columnSelection {
+    .columnSelect {
+      font-size: $font-size-sm;
+    }
+  }
+  
+  .skuPreview {
+    padding: $spacing-md;
+    
+    .previewList {
+      .previewSku {
+        font-size: $font-size-xs;
+      }
+    }
+  }
+  
+  .createProductsBtn {
+    padding: $spacing-sm $spacing-lg;
+    font-size: $font-size-base;
+  }
+}
+

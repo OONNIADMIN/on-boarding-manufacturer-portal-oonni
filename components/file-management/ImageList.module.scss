@@ -1,0 +1,361 @@
+// ============================================
+// Image List Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.container {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-xl;
+  padding-bottom: $spacing-md;
+  border-bottom: 1px solid $gray-200;
+}
+
+.title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.refreshButton {
+  @include button-secondary;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-sm;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+}
+
+.searchControls {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
+  padding: $spacing-lg;
+  background-color: $gray-50;
+  border-radius: $radius-lg;
+  border: 1px solid $gray-200;
+
+  @include respond-to('sm') {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-md;
+  }
+}
+
+.searchInput {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+
+  svg {
+    position: absolute;
+    left: $spacing-sm;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: $gray-400;
+  }
+
+  input {
+    @include input-base;
+    width: 100%;
+    padding-left: 2.5rem;
+    font-size: $font-size-sm;
+  }
+}
+
+.sortSelect {
+  @include input-base;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-sm;
+  min-width: 150px;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.1);
+  }
+}
+
+.clearSearchButton {
+  @include button-primary;
+  margin-top: $spacing-sm;
+}
+
+.imageGrid {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xl;
+}
+
+.imageCard {
+  @include card;
+  overflow: hidden;
+  transition: all $transition-base;
+  border: 1px solid $gray-200;
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  gap: $spacing-md;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+    border-color: $oonni-green;
+  }
+}
+
+.imagePreview {
+  position: relative;
+  width: 120px;
+  height: 80px;
+  background-color: $gray-100;
+  overflow: hidden;
+  border-radius: $radius-md;
+  flex-shrink: 0;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform $transition-base;
+
+  .imageCard:hover & {
+    transform: scale(1.05);
+  }
+}
+
+.imagePlaceholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+  background-color: $gray-100;
+  color: $gray-400;
+  opacity: 0;
+  transition: opacity $transition-base;
+
+  &.show {
+    opacity: 1;
+  }
+
+  svg {
+    width: 3rem;
+    height: 3rem;
+  }
+}
+
+.imageInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  flex: 1;
+  min-width: 0;
+}
+
+.imageDetails {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1;
+  min-width: 0;
+}
+
+.imageIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.imageMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.imageName {
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: $gray-900;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.imageSize {
+  font-size: $font-size-sm;
+  color: $gray-500;
+  margin: 0;
+}
+
+.imageDate {
+  font-size: $font-size-sm;
+  color: $gray-400;
+  margin: 0;
+}
+
+.imageActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.viewButton {
+  @include button-ghost;
+  padding: $spacing-xs;
+  color: $gray-600;
+  border-radius: $radius-md;
+
+  &:hover {
+    color: $oonni-green;
+    background-color: rgba($oonni-green, 0.1);
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.downloadButton {
+  @include button-ghost;
+  padding: $spacing-xs;
+  color: $gray-600;
+  border-radius: $radius-md;
+
+  &:hover {
+    color: $oonni-teal;
+    background-color: rgba($oonni-teal, 0.1);
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.deleteButton {
+  @include button-ghost;
+  padding: $spacing-xs;
+  color: $gray-600;
+  border-radius: $radius-md;
+
+  &:hover {
+    color: $error;
+    background-color: rgba($error, 0.1);
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.footer {
+  text-align: center;
+  padding-top: $spacing-lg;
+  border-top: 1px solid $gray-200;
+}
+
+.totalCount {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  margin: 0;
+}
+
+// Loading and Error States
+.loadingContainer {
+  @include loading-container;
+  min-height: 400px;
+}
+
+.spinner {
+  @include spinner(2rem, $oonni-green);
+}
+
+.errorContainer {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: $spacing-xl;
+  text-align: center;
+  color: $gray-600;
+
+  svg {
+    width: 3rem;
+    height: 3rem;
+    color: $error;
+  }
+
+  p {
+    margin: 0;
+    font-size: $font-size-base;
+  }
+}
+
+.retryButton {
+  @include button-primary;
+  margin-top: $spacing-sm;
+}
+
+.emptyContainer {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: $spacing-2xl;
+  text-align: center;
+  color: $gray-600;
+
+  h3 {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $gray-900;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    font-size: $font-size-base;
+  }
+}
+
+.emptyIcon {
+  width: 4rem;
+  height: 4rem;
+  color: $gray-400;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}

@@ -1,0 +1,267 @@
+// ============================================
+// Image Upload Progress Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.progressContainer {
+  @include card;
+  padding: $spacing-xl;
+  background: $white;
+  border: 2px solid $gray-200;
+  border-radius: $radius-xl;
+  margin-bottom: $spacing-lg;
+  animation: slideIn $transition-slow;
+}
+
+.progressHeader {
+  @include flex-between;
+  align-items: center;
+  margin-bottom: $spacing-lg;
+}
+
+.progressTitle {
+  @include flex-center;
+  gap: $spacing-sm;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+}
+
+.uploadIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: $oonni-teal;
+}
+
+.cancelButton {
+  @include button-ghost;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-sm;
+  color: $gray-600;
+  border: 1px solid $gray-300;
+  
+  &:hover {
+    background: $gray-50;
+    color: $gray-800;
+    border-color: $gray-400;
+  }
+}
+
+.progressBar {
+  width: 100%;
+  height: 12px;
+  background: $gray-200;
+  border-radius: $radius-full;
+  overflow: hidden;
+  margin-bottom: $spacing-md;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $oonni-teal 0%, $oonni-green 100%);
+  border-radius: $radius-full;
+  transition: width $transition-base;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 100%
+    );
+    animation: shimmer 2s infinite;
+  }
+}
+
+.progressStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.statItem {
+  @include flex-column;
+  gap: $spacing-xs;
+  text-align: center;
+  padding: $spacing-sm;
+  background: $gray-50;
+  border-radius: $radius-lg;
+}
+
+.statLabel {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  font-weight: $font-weight-medium;
+}
+
+.statValue {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $gray-900;
+  
+  &.success {
+    color: $oonni-green;
+  }
+  
+  &.error {
+    color: #ef4444;
+  }
+  
+  &.warning {
+    color: #f59e0b;
+  }
+}
+
+.progressPercentage {
+  text-align: center;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $oonni-teal;
+  margin-bottom: $spacing-md;
+}
+
+.uploadingIndicator {
+  @include flex-center;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: $radius-lg;
+  color: #0369a1;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.spinner {
+  @include spinner(16px, #0369a1);
+}
+
+.completionMessage {
+  @include flex-center;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  animation: slideDown $transition-slow;
+}
+
+.successIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+// Animations
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive Design
+@include respond-to('md') {
+  .progressContainer {
+    padding: $spacing-lg;
+  }
+  
+  .progressStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .progressTitle {
+    font-size: $font-size-base;
+  }
+  
+  .statValue {
+    font-size: $font-size-base;
+  }
+  
+  .progressPercentage {
+    font-size: $font-size-base;
+  }
+}
+
+@include respond-to('sm') {
+  .progressContainer {
+    padding: $spacing-md;
+  }
+  
+  .progressHeader {
+    flex-direction: column;
+    gap: $spacing-sm;
+    align-items: stretch;
+  }
+  
+  .progressTitle {
+    justify-content: center;
+    font-size: $font-size-sm;
+  }
+  
+  .progressStats {
+    grid-template-columns: 1fr;
+    gap: $spacing-sm;
+  }
+  
+  .statItem {
+    padding: $spacing-xs;
+  }
+  
+  .statLabel {
+    font-size: $font-size-xs;
+  }
+  
+  .statValue {
+    font-size: $font-size-sm;
+  }
+  
+  .progressPercentage {
+    font-size: $font-size-sm;
+  }
+  
+  .uploadingIndicator,
+  .completionMessage {
+    font-size: $font-size-xs;
+    padding: $spacing-sm;
+  }
+}

@@ -1,0 +1,538 @@
+// ============================================
+// Dashboard Page Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  @include flex-column;
+}
+
+.loadingContainer {
+  min-height: 100vh;
+  @include flex-center;
+  background-color: $oonni-bg;
+}
+
+.spinner {
+  @include spinner(3rem, $oonni-green);
+}
+
+
+// Content
+.content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+}
+
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: $spacing-md 1.25rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: $radius-xl;
+  color: #166534;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-xl;
+  animation: slideIn $transition-slow;
+}
+
+.successIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #22c55e;
+}
+
+// Actions Section
+.actionsSection {
+  margin-bottom: $spacing-xl;
+}
+
+.sectionTitle {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-lg 0;
+}
+
+.actionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: $spacing-lg;
+}
+
+.actionCard {
+  @include card;
+  border-radius: $radius-2xl;
+  transition: all $transition-slow;
+  cursor: pointer;
+  border: 2px solid transparent;
+  text-align: center;
+  outline: none;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $shadow-xl;
+    border-color: $oonni-green;
+  }
+}
+
+.actionIcon {
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto $spacing-md;
+  padding: $spacing-md;
+  background: $oonni-green;
+  border-radius: $radius-2xl;
+  color: $white;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.actionTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-sm 0;
+}
+
+.actionDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+}
+
+// Dashboard Grid Section
+.dashboardGrid {
+  margin-bottom: $spacing-2xl;
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-xl;
+  margin-top: $spacing-lg;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: stretch;
+}
+
+.dashboardCard {
+  display: flex;
+  flex-direction: column;
+  height: 350px;
+  width: 100%;
+}
+
+.cardButton {
+  @include card;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: $spacing-2xl;
+  border: none;
+  background: $white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    border-color: $primary;
+  }
+  
+  &:focus {
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+  }
+}
+
+.cardIcon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: $spacing-lg;
+  color: $primary;
+  
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.cardTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-md 0;
+}
+
+.cardDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+// Admin Management Section (legacy - keeping for compatibility)
+.adminSection {
+  margin-bottom: $spacing-2xl;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: $spacing-xl;
+}
+
+.sectionTitle {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-md 0;
+}
+
+.sectionDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.adminContent {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.adminInfo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: $spacing-lg;
+}
+
+.infoCard {
+  @include card;
+  padding: $spacing-xl;
+  text-align: center;
+  border-radius: $radius-2xl;
+  transition: all $transition-slow;
+  border: 2px solid transparent;
+  cursor: pointer;
+  outline: none;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+    border-color: $oonni-green;
+  }
+
+  &:focus {
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.1);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Statistics Card
+.statsCard {
+  @include card;
+  padding: $spacing-2xl;
+  border-radius: $radius-lg;
+  border: 1px solid $gray-200;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: $white;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    border-color: $primary;
+  }
+}
+
+.statsHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: $spacing-md;
+  flex-shrink: 0;
+}
+
+.statsIcon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: $spacing-sm;
+  color: $primary;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.statsTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.statsLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  text-align: center;
+
+  .spinner {
+    @include spinner(2rem, $oonni-green);
+    margin-bottom: $spacing-lg;
+  }
+
+  p {
+    color: $gray-600;
+    margin: 0;
+  }
+}
+
+.statsError {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  text-align: center;
+
+  .errorIcon {
+    width: 3rem;
+    height: 3rem;
+    color: $error;
+    margin-bottom: $spacing-lg;
+  }
+
+  p {
+    color: $error;
+    margin: 0;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.statsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  text-align: center;
+
+  p {
+    color: $gray-500;
+    margin: 0;
+  }
+}
+
+.statsContent {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.statsFooter {
+  margin-top: $spacing-sm;
+  text-align: center;
+  
+  p {
+    font-size: $font-size-xs;
+    color: $gray-500;
+    margin: 0;
+    font-style: italic;
+  }
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-xs;
+  flex: 1;
+  min-height: 0;
+}
+
+.statItem {
+  text-align: center;
+  padding: $spacing-sm;
+  background: $gray-50;
+  border-radius: $radius-md;
+  border: 1px solid $gray-200;
+  transition: all $transition-fast;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+
+  &:hover {
+    background: $white;
+    box-shadow: $shadow-sm;
+    border-color: $oonni-green;
+  }
+}
+
+.statValue {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $oonni-green;
+  margin: 0 0 $spacing-xs 0;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $gray-600;
+  margin: 0 0 $spacing-xs 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statChange {
+  font-size: $font-size-xs;
+  color: $oonni-green;
+  background: rgba($oonni-green, 0.1);
+  padding: 2px $spacing-xs;
+  border-radius: $radius-sm;
+  font-weight: $font-weight-medium;
+  display: inline-block;
+}
+
+.infoIcon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto $spacing-md;
+  padding: $spacing-md;
+  background: linear-gradient(135deg, $oonni-green, lighten($oonni-green, 10%));
+  border-radius: $radius-xl;
+  color: $white;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.infoTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-sm 0;
+}
+
+.infoDescription {
+  font-size: $font-size-base;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+}
+
+// Responsive
+@include respond-to('md') {
+  .main {
+    padding: $spacing-md;
+  }
+
+  .actionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-lg;
+    max-width: 800px;
+  }
+
+  .dashboardCard {
+    height: 320px;
+  }
+
+  .dashboardCard:nth-child(3),
+  .dashboardCard:nth-child(4) {
+    grid-column: span 1;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $spacing-md;
+  }
+
+  .statItem {
+    padding: $spacing-md;
+  }
+
+  .statValue {
+    font-size: $font-size-2xl;
+  }
+}
+
+@include respond-to('sm') {
+  .main {
+    padding: $spacing-lg;
+  }
+
+  .cardsGrid {
+    grid-template-columns: 1fr;
+    gap: $spacing-md;
+    max-width: 400px;
+  }
+
+  .dashboardCard {
+    height: 280px;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: $spacing-sm;
+  }
+
+  .statItem {
+    padding: $spacing-sm;
+  }
+
+  .statValue {
+    font-size: $font-size-xl;
+  }
+}
+

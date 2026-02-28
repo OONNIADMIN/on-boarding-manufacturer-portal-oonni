@@ -1,0 +1,359 @@
+// ============================================
+// Image Upload Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: $spacing-xl;
+  text-align: center;
+}
+
+.title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0 0 $spacing-sm 0;
+}
+
+.subtitle {
+  color: $gray-600;
+  font-size: $font-size-base;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.dropZone {
+  border: 2px dashed $gray-300;
+  border-radius: $radius-xl;
+  padding: $spacing-2xl;
+  text-align: center;
+  cursor: pointer;
+  transition: all $transition-base;
+  background-color: $gray-50;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    border-color: $oonni-green;
+    background-color: rgba($oonni-green, 0.05);
+  }
+
+  &.dragging {
+    border-color: $oonni-green;
+    background-color: rgba($oonni-green, 0.05);
+    transform: scale(1.02);
+  }
+
+  &.error {
+    border-color: $error;
+    background-color: rgba($error, 0.05);
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+.fileInput {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  font-size: 0;
+}
+
+.dropContent {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-lg;
+  pointer-events: none;
+  
+  * {
+    pointer-events: none;
+  }
+}
+
+.uploadIcon {
+  width: 3rem;
+  height: 3rem;
+  color: $gray-400;
+  transition: color $transition-base;
+
+  .dropZone:hover & {
+    color: $oonni-green;
+  }
+
+  .dropZone.dragging & {
+    color: $oonni-green;
+  }
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.uploadText {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.primaryText {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+  margin: 0;
+}
+
+.secondaryText {
+  font-size: $font-size-sm;
+  color: $gray-500;
+  margin: 0;
+}
+
+.filesPreview {
+  margin-top: $spacing-xl;
+  background-color: $gray-50;
+  border-radius: $radius-lg;
+  border: 1px solid $gray-200;
+  overflow: hidden;
+}
+
+.filesHeader {
+  @include flex-between;
+  padding: $spacing-lg;
+  background-color: $white;
+  border-bottom: 1px solid $gray-200;
+}
+
+.filesTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.clearAllButton {
+  @include button-ghost;
+  padding: $spacing-xs $spacing-sm;
+  font-size: $font-size-sm;
+  color: $gray-600;
+  
+  &:hover {
+    color: $error;
+    background-color: rgba($error, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.filesList {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: $spacing-sm;
+}
+
+.fileItem {
+  @include flex-between;
+  align-items: center;
+  padding: $spacing-md;
+  background-color: $white;
+  border-radius: $radius-md;
+  border: 1px solid $gray-200;
+  margin-bottom: $spacing-sm;
+  transition: all $transition-base;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  &:hover {
+    border-color: $oonni-green;
+    box-shadow: $shadow-sm;
+  }
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex: 1;
+  min-width: 0;
+}
+
+.fileIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: $gray-500;
+  flex-shrink: 0;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.fileDetails {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  min-width: 0;
+  flex: 1;
+}
+
+.fileName {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-900;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileSize {
+  font-size: $font-size-xs;
+  color: $gray-500;
+  margin: 0;
+}
+
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background-color: $gray-200;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  margin-top: $spacing-xs;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: $oonni-green;
+  border-radius: $radius-sm;
+  transition: width $transition-base;
+}
+
+.removeButton {
+  @include button-ghost;
+  padding: $spacing-xs;
+  color: $gray-400;
+  flex-shrink: 0;
+  
+  &:hover {
+    color: $error;
+    background-color: rgba($error, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.uploadActions {
+  padding: $spacing-lg;
+  background-color: $white;
+  border-top: 1px solid $gray-200;
+  @include flex-center;
+}
+
+.uploadButton {
+  @include button-primary;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-lg;
+  font-size: $font-size-sm;
+  flex-shrink: 0;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.spinner {
+  @include spinner(1rem, $oonni-green);
+}
+
+.errorMessage {
+  margin-top: $spacing-lg;
+  padding: $spacing-md;
+  background-color: rgba($error, 0.1);
+  border: 1px solid rgba($error, 0.2);
+  border-radius: $radius-lg;
+  color: $error;
+  font-size: $font-size-sm;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  animation: shake $transition-slow;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+}
+
+// Responsive design
+@include respond-to('sm') {
+  .container {
+    padding: 0 $spacing-md;
+  }
+
+  .dropZone {
+    padding: $spacing-xl;
+  }
+
+  .filesList {
+    max-height: 200px;
+  }
+
+  .fileItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-sm;
+  }
+
+  .fileInfo {
+    justify-content: flex-start;
+  }
+
+  .removeButton {
+    align-self: flex-end;
+  }
+
+  .uploadButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

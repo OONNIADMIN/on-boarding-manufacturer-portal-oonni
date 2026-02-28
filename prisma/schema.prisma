@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(50)
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  users User[]
+
+  @@map("roles")
+}
+
+model Manufacturer {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(255)
+  slug       String    @unique @db.VarChar(100)
+  thumbnail  String?   @db.VarChar(500)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
+
+  users    User[]
+  catalogs Catalog[]
+  images   Image[]
+  products Product[]
+
+  @@map("manufacturers")
+}
+
+model User {
+  id                          Int       @id @default(autoincrement())
+  email                       String    @unique @db.VarChar(255)
+  name                        String    @db.VarChar(255)
+  password_hash               String?   @db.VarChar(255)
+  role_id                     Int
+  manufacturer_id             Int?
+  is_active                   Int       @default(1)
+  invitation_token            String?   @unique @db.VarChar(255)
+  invitation_token_expires_at DateTime? @db.Timestamptz
+  password_set_at             DateTime? @db.Timestamptz
+  created_at                  DateTime  @default(now()) @db.Timestamptz
+  updated_at                  DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at                  DateTime? @db.Timestamptz
+
+  role         Role          @relation(fields: [role_id], references: [id])
+  manufacturer Manufacturer? @relation(fields: [manufacturer_id], references: [id])
+  images       Image[]
+
+  @@map("users")
+}
+
+model Catalog {
+  id              Int       @id @default(autoincrement())
+  manufacturer_id Int
+  name            String    @db.VarChar(255)
+  slug            String    @unique @db.VarChar(100)
+  description     String?
+  catalog_file    String?   @db.VarChar(500)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at      DateTime? @db.Timestamptz
+
+  manufacturer Manufacturer @relation(fields: [manufacturer_id], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@map("catalogs")
+}
+
+model Image {
+  id                Int       @id @default(autoincrement())
+  manufacturer_id   Int
+  user_id           Int
+  product_id        Int?
+  original_filename String    @db.VarChar(255)
+  s3_key            String    @unique @db.VarChar(500)
+  s3_url            String    @db.VarChar(500)
+  imagekit_file_id  String?   @db.VarChar(100)
+  file_size         BigInt
+  mime_type         String    @db.VarChar(100)
+  width             Int?
+  height            Int?
+  optimized         Int       @default(1)
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at        DateTime? @db.Timestamptz
+
+  manufacturer Manufacturer @relation(fields: [manufacturer_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [product_id], references: [id], onDelete: SetNull)
+
+  @@map("images")
+}
+
+model Product {
+  id              Int       @id @default(autoincrement())
+  sku             String    @db.VarChar(100)
+  manufacturer_id Int
+  catalog_id      Int?
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at      DateTime? @db.Timestamptz
+
+  manufacturer Manufacturer @relation(fields: [manufacturer_id], references: [id], onDelete: Cascade)
+  catalog      Catalog?     @relation(fields: [catalog_id], references: [id], onDelete: SetNull)
+  images       Image[]
+
+  @@map("products")
+}

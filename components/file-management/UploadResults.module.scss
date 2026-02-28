@@ -1,0 +1,167 @@
+// ============================================
+// UploadResults Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.container {
+  @include card;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+}
+
+.successIcon {
+  font-size: $font-size-3xl;
+}
+
+.title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+}
+
+.infoCard {
+  background: $gray-50;
+  padding: $spacing-md;
+  border-radius: $radius-lg;
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.infoLabel {
+  font-size: $font-size-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: $gray-500;
+  font-weight: $font-weight-semibold;
+}
+
+.infoValue {
+  font-size: $font-size-base;
+  color: $gray-900;
+  font-weight: $font-weight-medium;
+  word-break: break-all;
+}
+
+.dataSection {
+  margin-bottom: $spacing-xl;
+  padding-top: $spacing-xl;
+  border-top: 1px solid $gray-200;
+}
+
+.sectionTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin-bottom: $spacing-md;
+}
+
+.dataStats {
+  display: flex;
+  gap: $spacing-xl;
+  margin-bottom: $spacing-lg;
+}
+
+.stat {
+  @include flex-column;
+  align-items: center;
+  padding: $spacing-md $spacing-xl;
+  background: $oonni-green;
+  border-radius: $radius-lg;
+  color: $white;
+}
+
+.statValue {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-xs;
+}
+
+.statLabel {
+  font-size: $font-size-sm;
+  opacity: 0.9;
+}
+
+.columns {
+  background: $gray-50;
+  padding: $spacing-md;
+  border-radius: $radius-lg;
+}
+
+.columnsTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $gray-700;
+  margin-bottom: 0.75rem;
+}
+
+.columnsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.columnBadge {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  background: $white;
+  border: 1px solid $gray-300;
+  border-radius: $radius-full;
+  font-size: $font-size-sm;
+  color: $gray-700;
+  font-weight: $font-weight-medium;
+}
+
+.previewSection {
+  padding-top: $spacing-xl;
+  border-top: 1px solid $gray-200;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  border-radius: $radius-lg;
+  border: 1px solid $gray-200;
+}
+
+.previewTable {
+  @include table-base;
+  font-size: $font-size-sm;
+}
+
+@include respond-to('md') {
+  .container {
+    padding: $spacing-lg;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dataStats {
+    flex-direction: column;
+    gap: $spacing-md;
+  }
+
+  .stat {
+    padding: $spacing-md;
+  }
+
+  .tableWrapper {
+    max-width: 100%;
+  }
+}
+

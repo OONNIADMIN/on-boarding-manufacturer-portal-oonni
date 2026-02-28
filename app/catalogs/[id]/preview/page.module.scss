@@ -1,0 +1,110 @@
+// ============================================
+// Catalog Preview Page Styles
+// ============================================
+
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.main {
+  padding: $spacing-xl;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xl;
+}
+
+.loading {
+  padding: $spacing-xl;
+}
+
+.error {
+  padding: $spacing-md $spacing-xl;
+  color: #9b1c1c;
+  background: #fde8e8;
+  border: 1px solid #f8b4b4;
+  border-radius: $radius-lg;
+  margin: $spacing-md $spacing-xl;
+}
+
+.controlsRow {
+  @include card;
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-lg;
+  padding: $spacing-lg;
+}
+
+.selectGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  label {
+    font-size: $font-size-sm;
+    color: $gray-700;
+  }
+
+  select {
+    @include input-base;
+    min-width: 280px;
+  }
+}
+
+.primaryBtn {
+  @include button-primary;
+  padding: $spacing-sm $spacing-lg;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.previewPanel {
+  margin-top: $spacing-lg;
+  border: 1px solid #e5e7eb;
+  border-radius: $radius-lg;
+  background: $white;
+  box-shadow: $shadow-sm;
+}
+
+.previewHeader {
+  font-weight: $font-weight-semibold;
+  padding: $spacing-md $spacing-lg;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.empty {
+  padding: $spacing-lg;
+  color: $gray-600;
+}
+
+.previewList {
+  list-style: none;
+  margin: 0;
+  padding: $spacing-md $spacing-lg;
+}
+
+.previewList li {
+  padding: $spacing-xs 0;
+  border-bottom: 1px dashed #f3f4f6;
+}
+
+.previewList li:last-child {
+  border-bottom: none;
+}
+
+

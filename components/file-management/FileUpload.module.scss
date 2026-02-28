@@ -1,0 +1,170 @@
+// ============================================
+// FileUpload Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.container {
+  @include card;
+}
+
+.uploadHeader {
+  @include flex-column;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
+}
+
+.sectionLabel {
+  font-size: $font-size-sm;
+  color: $gray-700;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-sm;
+}
+
+.dropzone {
+  border: 2px dashed $gray-300;
+  border-radius: $radius-lg;
+  padding: $spacing-lg $spacing-md;
+  text-align: left;
+  cursor: pointer;
+  transition: all $transition-base;
+  background: $gray-50;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  width: 100%;
+
+  &:hover {
+    border-color: $oonni-green;
+    background: $white;
+    box-shadow: 0 2px 8px rgba($oonni-green, 0.1);
+  }
+
+  &.dragging {
+    border-color: $oonni-green;
+    background: rgba($oonni-green, 0.05);
+    box-shadow: 0 2px 12px rgba($oonni-green, 0.15);
+  }
+
+  &.hasFile {
+    border-color: $success;
+    border-style: solid;
+    background: rgba($success, 0.05);
+  }
+}
+
+.fileInput {
+  display: none;
+}
+
+.dropzoneContent {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1;
+}
+
+.selectButton {
+  @include button-secondary;
+  border-radius: $radius-full;
+  padding: $spacing-sm 1.25rem;
+  font-size: $font-size-sm;
+  white-space: nowrap;
+}
+
+.uploadIcon,
+.fileIcon {
+  font-size: $font-size-lg;
+}
+
+.dropzoneText {
+  font-size: $font-size-sm;
+  color: $gray-700;
+  flex: 1;
+}
+
+.dropzoneHint {
+  font-size: $font-size-xs;
+  color: $gray-500;
+}
+
+.fileName {
+  font-size: $font-size-sm;
+  color: $gray-900;
+  font-weight: $font-weight-medium;
+  word-break: break-all;
+  flex: 1;
+}
+
+.fileSize {
+  font-size: $font-size-xs;
+  color: $gray-500;
+}
+
+.error {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-md;
+  color: $error;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.errorIcon {
+  font-size: $font-size-lg;
+}
+
+.controls {
+  display: none; // Deprecated - now using inline layout
+}
+
+.inputGroup {
+  @include flex-column;
+  gap: $spacing-sm;
+  width: 100%;
+}
+
+.label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+}
+
+.input {
+  @include input-base;
+}
+
+.select {
+  @include input-base;
+  cursor: pointer;
+}
+
+.uploadButton {
+  @include button-primary;
+  width: 100%;
+  max-width: 300px;
+  align-self: center;
+}
+
+.spinner {
+  @include spinner(16px, $white);
+}
+
+@include respond-to('md') {
+  .container {
+    padding: $spacing-lg;
+  }
+
+  .dropzone {
+    padding: 0.75rem;
+  }
+
+  .uploadButton {
+    max-width: 100%;
+  }
+}
+

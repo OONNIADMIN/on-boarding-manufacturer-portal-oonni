@@ -1,0 +1,200 @@
+// ============================================
+// Pagination Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.pagination {
+  @include flex-between;
+  align-items: center;
+  gap: $spacing-lg;
+  padding: $spacing-lg;
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  margin-top: $spacing-lg;
+}
+
+.info {
+  @include flex-center;
+  gap: $spacing-lg;
+  flex: 1;
+}
+
+.itemCount {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  font-weight: $font-weight-medium;
+}
+
+.itemsPerPage {
+  @include flex-center;
+  gap: $spacing-sm;
+  
+  label {
+    font-size: $font-size-sm;
+    color: $gray-600;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.select {
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  background: $white;
+  color: $gray-700;
+  cursor: pointer;
+  transition: all $transition-base;
+  
+  &:hover {
+    border-color: $oonni-teal;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: $oonni-teal;
+    box-shadow: 0 0 0 3px rgba($oonni-teal, 0.1);
+  }
+}
+
+.controls {
+  @include flex-center;
+  gap: $spacing-sm;
+}
+
+.navButton {
+  @include flex-center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  background: $white;
+  color: $gray-600;
+  cursor: pointer;
+  transition: all $transition-base;
+  
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  &:hover:not(:disabled) {
+    background: $gray-50;
+    border-color: $oonni-teal;
+    color: $oonni-teal;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: $gray-100;
+  }
+}
+
+.pageNumbers {
+  @include flex-center;
+  gap: $spacing-xs;
+}
+
+.pageButton {
+  @include flex-center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0 $spacing-sm;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  background: $white;
+  color: $gray-700;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all $transition-base;
+  
+  &:hover:not(:disabled) {
+    background: $gray-50;
+    border-color: $oonni-teal;
+    color: $oonni-teal;
+  }
+  
+  &.active {
+    background: $oonni-teal;
+    border-color: $oonni-teal;
+    color: $white;
+    
+    &:hover {
+      background: $oonni-green;
+      border-color: $oonni-green;
+    }
+  }
+  
+  &.dots {
+    cursor: default;
+    border: none;
+    background: transparent;
+    color: $gray-400;
+    
+    &:hover {
+      background: transparent;
+      color: $gray-400;
+    }
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Responsive Design
+@include respond-to('md') {
+  .pagination {
+    flex-direction: column;
+    gap: $spacing-md;
+    padding: $spacing-md;
+  }
+  
+  .info {
+    flex-direction: column;
+    gap: $spacing-sm;
+    align-items: flex-start;
+  }
+  
+  .controls {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@include respond-to('sm') {
+  .pagination {
+    padding: $spacing-sm;
+  }
+  
+  .navButton,
+  .pageButton {
+    min-width: 2rem;
+    height: 2rem;
+    font-size: $font-size-xs;
+    
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+  
+  .pageNumbers {
+    gap: 2px;
+  }
+  
+  .itemCount {
+    font-size: $font-size-xs;
+  }
+  
+  .select {
+    font-size: $font-size-xs;
+    padding: 4px $spacing-xs;
+  }
+}

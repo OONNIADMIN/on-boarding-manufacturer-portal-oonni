@@ -1,0 +1,244 @@
+// ============================================
+// Oonni Design System - Mixins
+// ============================================
+
+@use 'variables' as *;
+
+// Flexbox helpers
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// Button styles
+@mixin button-base {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all $transition-base;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-sm;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@mixin button-primary {
+  @include button-base;
+  background: $oonni-green;
+  color: $white;
+
+  &:hover:not(:disabled) {
+    background: $oonni-green-hover;
+  }
+}
+
+@mixin button-secondary {
+  @include button-base;
+  background: $oonni-teal;
+  color: $white;
+
+  &:hover:not(:disabled) {
+    background: $oonni-teal-dark;
+  }
+}
+
+@mixin button-ghost {
+  @include button-base;
+  background: transparent;
+  color: $white;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Card styles
+@mixin card {
+  background: $white;
+  border-radius: $radius-lg;
+  padding: $spacing-xl;
+  box-shadow: $shadow-sm;
+}
+
+// Input styles
+@mixin input-base {
+  padding: 0.625rem $spacing-md;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  transition: border-color $transition-base;
+  background: $white;
+
+  &:focus {
+    outline: none;
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.1);
+  }
+
+  &:disabled {
+    background: $gray-100;
+    cursor: not-allowed;
+  }
+}
+
+// Table styles
+@mixin table-base {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead {
+    background-color: $table-header-bg;
+  }
+
+  th {
+    padding: $spacing-md $spacing-lg;
+    text-align: left;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $gray-700;
+    border-bottom: 1px solid $table-border;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $spacing-md $spacing-lg;
+    font-size: $font-size-sm;
+    color: $gray-900;
+    border-bottom: 1px solid $table-border;
+  }
+
+  tbody tr {
+    &:hover {
+      background-color: $table-hover;
+    }
+
+    &:last-child td {
+      border-bottom: none;
+    }
+  }
+}
+
+// Responsive breakpoints
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == 'sm' {
+    @media (max-width: $breakpoint-sm) {
+      @content;
+    }
+  } @else if $breakpoint == 'md' {
+    @media (max-width: $breakpoint-md) {
+      @content;
+    }
+  } @else if $breakpoint == 'lg' {
+    @media (max-width: $breakpoint-lg) {
+      @content;
+    }
+  } @else if $breakpoint == 'xl' {
+    @media (max-width: $breakpoint-xl) {
+      @content;
+    }
+  }
+}
+
+// Spinner animation
+@mixin spinner($size: 40px, $color: $oonni-green) {
+  width: $size;
+  height: $size;
+  border: 4px solid transparent;
+  border-top-color: $color;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  position: relative;
+  
+  // Add a subtle background ring
+  &::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border: 4px solid $color;
+    border-radius: 50%;
+    opacity: 0.2;
+  }
+}
+
+// Loading state
+@mixin loading-container {
+  @include flex-center;
+  @include flex-column;
+  gap: $spacing-md;
+  padding: $spacing-2xl;
+  color: $gray-500;
+}
+
+// Animations
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
+

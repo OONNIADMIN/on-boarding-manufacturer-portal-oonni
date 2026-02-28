@@ -1,0 +1,81 @@
+# ============================================
+# OONNI On Boarding - Todo en Next.js
+# Levantar desde la carpeta frontend: docker compose up -d
+# ===========================================
+#
+# Variables en .env (en esta carpeta):
+#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+#   POSTGRES_PASSWORD_ENCODED (contraseña URL-encoded para DATABASE_URL)
+#   DATABASE_URL (host=db, puerto 5432, para uso dentro del contenedor)
+#   JWT_SECRET, INITIAL_ADMIN_*, IMAGEKIT_*, SMTP_*, NEXT_PUBLIC_APP_URL
+#
+# Uso:
+#   docker compose up -d
+#   docker compose up -d --build
+
+services:
+  # --------------------------------------------
+  # Base de datos - PostgreSQL 15
+  # --------------------------------------------
+  db:
+    image: postgres:15
+    container_name: oonni_postgres_onboarding
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5435}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # --------------------------------------------
+  # App - Next.js (frontend + API)
+  # --------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: oonni-app:latest
+    container_name: oonni_app
+    working_dir: /app
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD_ENCODED:-${POSTGRES_PASSWORD}}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
+      IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY}
+      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY}
+      IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT}
+      NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-Admin}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@oonni.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-OONNI Platform}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      INVITATION_TOKEN_EXPIRE_HOURS: ${INVITATION_TOKEN_EXPIRE_HOURS:-72}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:

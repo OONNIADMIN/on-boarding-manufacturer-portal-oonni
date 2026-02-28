@@ -1,0 +1,196 @@
+// ============================================
+// FilePicker Component Styles
+// ============================================
+
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.filePicker {
+  width: 100%;
+}
+
+.fileInput {
+  display: none;
+}
+
+.dropzone {
+  border: 2px dashed $gray-300;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  text-align: left;
+  cursor: pointer;
+  transition: all $transition-base;
+  background: $gray-50;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  width: 100%;
+  min-height: 120px;
+
+  &:hover {
+    border-color: $oonni-green;
+    background: $white;
+    box-shadow: 0 2px 8px rgba($oonni-green, 0.1);
+  }
+
+  &.hasFile {
+    border-color: $success;
+    border-style: solid;
+    background: rgba($success, 0.05);
+  }
+}
+
+.selectButton {
+  @include button-secondary;
+  border-radius: $radius-full;
+  padding: $spacing-sm $spacing-lg;
+  font-size: $font-size-sm;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.dropzoneContent {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex: 1;
+}
+
+.dropzoneText {
+  font-size: $font-size-sm;
+  color: $gray-500;
+  text-align: center;
+  width: 100%;
+}
+
+.fileIcon {
+  width: 2rem;
+  height: 2rem;
+  color: $oonni-teal;
+  flex-shrink: 0;
+}
+
+.fileDetails {
+  @include flex-column;
+  gap: $spacing-xs;
+  flex: 1;
+}
+
+.fileName {
+  font-size: $font-size-sm;
+  color: $gray-900;
+  font-weight: $font-weight-medium;
+  word-break: break-word;
+}
+
+.fileSize {
+  font-size: $font-size-xs;
+  color: $gray-500;
+}
+
+// Images List Styles
+.imagesList {
+  @include flex-column;
+  gap: $spacing-md;
+  width: 100%;
+}
+
+.imagesHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.imagesCount {
+  font-size: $font-size-sm;
+  color: $gray-900;
+  font-weight: $font-weight-medium;
+}
+
+.filesListContainer {
+  @include flex-column;
+  gap: $spacing-sm;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: $spacing-xs;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $gray-100;
+    border-radius: $radius-sm;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $gray-300;
+    border-radius: $radius-sm;
+
+    &:hover {
+      background: $gray-400;
+    }
+  }
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm;
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $oonni-green;
+    box-shadow: 0 1px 4px rgba($oonni-green, 0.1);
+  }
+
+  .fileName {
+    flex: 1;
+    font-size: $font-size-xs;
+  }
+
+  .fileSize {
+    font-size: $font-size-xs;
+    color: $gray-500;
+    white-space: nowrap;
+  }
+}
+
+.removeButton {
+  width: 24px;
+  height: 24px;
+  border-radius: $radius-full;
+  border: none;
+  background: $gray-200;
+  color: $gray-600;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all $transition-fast;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $error;
+    color: $white;
+  }
+}
+
+@include respond-to('md') {
+  .dropzone {
+    min-height: 100px;
+    padding: $spacing-md;
+  }
+
+  .selectButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
