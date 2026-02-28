@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: { role: true, manufacturer: true },
     orderBy: { id: "asc" },
   });
-  return ok(users.map((u) => ({
+  type UserRow = (typeof users)[number];
+  return ok(users.map((u: UserRow) => ({
     id: u.id, email: u.email, name: u.name, is_active: u.is_active,
     role_id: u.role_id, manufacturer_id: u.manufacturer_id,
     created_at: u.created_at, updated_at: u.updated_at,
