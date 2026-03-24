@@ -10,11 +10,11 @@
  *   NEXT_PUBLIC_APP_URL – URL base de la app (ej: https://tu-app.vercel.app)
  */
 
-const BREVO_API_KEY  = process.env.BREVO_API_KEY;
-const BREVO_API_URL  = process.env.BREVO_API_URL;
-const FROM_EMAIL     = process.env.SMTP_FROM_EMAIL;
-const FROM_NAME      = process.env.SMTP_FROM_NAME;
-const APP_URL        = process.env.NEXT_PUBLIC_APP_URL;
+const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
+const BREVO_API_URL = process.env.BREVO_API_URL?.trim();
+const FROM_EMAIL = process.env.SMTP_FROM_EMAIL?.trim();
+const FROM_NAME = process.env.SMTP_FROM_NAME?.trim();
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
 interface SendResult {
   ok: boolean;
@@ -37,6 +37,19 @@ async function sendViaBrevo(
       error: "BREVO_API_KEY no configurada. Créala en Brevo → Settings → API Keys y añádela en las variables de entorno.",
     };
   }
+  if (!BREVO_API_URL) {
+    console.error("[email] BREVO_API_URL no configurada");
+    return { ok: false, error: "BREVO_API_URL no configurada." };
+  }
+  if (!FROM_EMAIL) {
+    console.error("[email] SMTP_FROM_EMAIL no configurada");
+    return { ok: false, error: "SMTP_FROM_EMAIL no configurada." };
+  }
+  if (!FROM_NAME) {
+    console.error("[email] SMTP_FROM_NAME no configurada");
+    return { ok: false, error: "SMTP_FROM_NAME no configurada." };
+  }
+  const brevoApiUrl = BREVO_API_URL;
 
   const toList = Array.isArray(to) ? to : [to];
 
@@ -48,7 +61,7 @@ async function sendViaBrevo(
     htmlContent: html,
   };
 
-  const res = await fetch(BREVO_API_URL, {
+  const res = await fetch(brevoApiUrl, {
     method: "POST",
     headers: {
       "api-key": BREVO_API_KEY,
@@ -127,6 +140,9 @@ function emailWrapper(content: string): string {
 
 /** Correo de prueba para validar la configuración de Brevo. */
 export async function sendTestEmail(to: string): Promise<SendResult> {
+  if (!FROM_EMAIL) {
+    return { ok: false, error: "SMTP_FROM_EMAIL no configurada." };
+  }
   const html = emailWrapper(`
     ${oonniHeader()}
     <tr><td style="padding:36px;">
@@ -153,6 +169,10 @@ export async function sendManufacturerInvitation(
   name: string,
   invitationToken: string
 ): Promise<boolean> {
+  if (!APP_URL) {
+    console.error("[email] NEXT_PUBLIC_APP_URL no configurada");
+    return false;
+  }
   const link = `${APP_URL}/set-password?token=${invitationToken}`;
   const hours = process.env.INVITATION_TOKEN_EXPIRE_HOURS ?? "72";
 
@@ -216,6 +236,10 @@ export async function sendCatalogUploadNotification(opts: {
   imagesFailed?: number;
 }): Promise<boolean> {
   if (!opts.adminEmails.length) return true;
+  if (!APP_URL) {
+    console.error("[email] NEXT_PUBLIC_APP_URL no configurada");
+    return false;
+  }
 
   const date = new Date().toLocaleString("en-US");
   const html = emailWrapper(`

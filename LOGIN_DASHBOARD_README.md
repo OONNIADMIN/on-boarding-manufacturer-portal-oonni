@@ -143,7 +143,7 @@ Esto creará un usuario admin con:
 ### Probar el Flujo Completo
 
 1. **Login como Admin**:
-   - Ve a `http://localhost:4200/login`
+   - Ve a `http://localhost:3000/login`
    - Ingresa credenciales de admin
    - Deberías ser redirigido a `/dashboard`
 

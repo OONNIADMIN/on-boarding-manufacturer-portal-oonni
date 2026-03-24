@@ -49,7 +49,7 @@ npm run dev
 
 5. Open your browser and visit:
 ```
-http://localhost:4200
+http://localhost:3000
 ```
 
 ## Project Structure
@@ -77,7 +77,7 @@ frontend/
 
 ## Available Scripts
 
-- `npm run dev` - Start development server (http://localhost:4200)
+- `npm run dev` - Start development server (http://localhost:3000)
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
