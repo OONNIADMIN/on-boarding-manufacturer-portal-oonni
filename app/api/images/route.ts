@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { isAdminUser, requireAuth } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
+import { serializeImageForListJson } from "@/lib/image-list-json";
+import { buildNonAdminImagesWhere } from "@/lib/manufacturer-image-scope";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth(req);
@@ -9,22 +13,39 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const manufacturerId = searchParams.get("manufacturer_id");
+  const productId = searchParams.get("product_id");
   const limit = parseInt(searchParams.get("limit") ?? "50", 10);
   const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
-  const isAdmin = user.role.name === "admin";
+  const isAdmin = isAdminUser(user);
 
-  const images = await prisma.image.findMany({
-    where: {
-      deleted_at: null,
-      ...(manufacturerId ? { manufacturer_id: parseInt(manufacturerId, 10) } : {}),
-      ...(isAdmin ? {} : { manufacturer_id: user.manufacturer_id ?? -1 }),
-    },
-    include: { manufacturer: true, product: true },
-    orderBy: { created_at: "desc" },
-    take: limit,
-    skip: offset,
+  const productClause = productId ? { product_id: parseInt(productId, 10) } : {};
+  const visibility = isAdmin ? {} : await buildNonAdminImagesWhere(user);
+  const where = isAdmin
+    ? {
+        deleted_at: null as null,
+        ...productClause,
+        ...(manufacturerId ? { manufacturer_id: parseInt(manufacturerId, 10) } : {}),
+      }
+    : {
+        deleted_at: null as null,
+        ...productClause,
+        ...visibility,
+      };
+
+  const [images, total] = await Promise.all([
+    prisma.image.findMany({
+      where,
+      include: { manufacturer: true, product: true },
+      orderBy: { created_at: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.image.count({ where }),
+  ]);
+
+  return ok({
+    total_images: total,
+    images: images.map(serializeImageForListJson),
   });
-
-  return ok(images);
 }

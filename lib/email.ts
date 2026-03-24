@@ -13,7 +13,7 @@
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
 const FROM_EMAIL    = process.env.SMTP_FROM_EMAIL ?? "noreply@oonni.com";
 const FROM_NAME     = process.env.SMTP_FROM_NAME  ?? "OONNI Platform";
-const APP_URL       = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL       = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:4200";
 
 interface SendResult {
   ok: boolean;

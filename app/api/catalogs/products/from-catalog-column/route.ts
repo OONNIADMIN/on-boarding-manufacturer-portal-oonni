@@ -61,7 +61,9 @@ export async function POST(req: NextRequest) {
     return ok({
       message: "Products created from catalog",
       total_skus: skus.length,
+      total_requested: skus.length,
       created,
+      created_count: created,
       skipped,
       catalog_id,
       manufacturer_id,

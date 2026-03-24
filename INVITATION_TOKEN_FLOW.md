@@ -33,7 +33,7 @@ El enlace del correo debe construirse en `lib/email.ts` así:
 const link = `${APP_URL}/set-password?token=${invitationToken}`;
 ```
 
-donde `APP_URL` = `process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"`.
+donde `APP_URL` = `process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:4200"`.
 
 ---
 

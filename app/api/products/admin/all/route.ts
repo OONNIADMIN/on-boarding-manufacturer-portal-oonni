@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
+import { withCanonicalImageUrl } from "@/lib/imagekit";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAdmin(req);
@@ -31,5 +32,10 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  return ok({ products, total, limit, offset });
+  const productsOut = products.map((p) => ({
+    ...p,
+    images: p.images.map(withCanonicalImageUrl),
+  }));
+
+  return ok({ products: productsOut, total, limit, offset });
 }

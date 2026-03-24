@@ -359,3 +359,11 @@
     height: 100%;
   }
 }
+
+.emptyHint {
+  max-width: 28rem;
+  margin-top: $spacing-sm !important;
+  font-size: $font-size-sm !important;
+  line-height: 1.5;
+  color: $gray-500 !important;
+}

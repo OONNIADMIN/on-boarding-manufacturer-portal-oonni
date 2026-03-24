@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
-    "dev:3002": "next dev -p 3002",
+    "dev:4200": "next dev -p 4200",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
@@ -13,6 +14,7 @@
     "test:ui": "vitest --ui",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "dotenv -e .env -e .env.local -- prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
     "db:studio": "prisma studio"

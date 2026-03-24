@@ -118,9 +118,25 @@ export async function requireAuth(req: NextRequest) {
   return { user, error: null };
 }
 
+export function isAdminUser(user: { role: { name: string } }): boolean {
+  return user.role.name.trim().toLowerCase() === "admin";
+}
+
 export async function requireAdmin(req: NextRequest) {
   const { user, error } = await requireAuth(req);
   if (error || !user) return { user: null, error: error ?? "Unauthorized" };
-  if (user.role.name !== "admin") return { user: null, error: "Admin access required" };
+  if (!isAdminUser(user)) return { user: null, error: "Admin access required" };
   return { user, error: null };
+}
+
+/** Scope DAM/catalog rows: prefer FK, then loaded manufacturer relation (handles stale clients / partial rows). */
+export function effectiveManufacturerId(user: {
+  manufacturer_id: number | null | undefined;
+  manufacturer?: { id: number } | null;
+}): number | null {
+  const raw = user.manufacturer_id ?? user.manufacturer?.id;
+  if (raw == null) return null;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n < 1) return null;
+  return n;
 }
