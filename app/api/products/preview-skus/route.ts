@@ -42,7 +42,18 @@ export async function POST(req: NextRequest) {
     }
 
     const skus = [...new Set(rows.map((r) => String(r[sku_column] ?? "").trim()).filter(Boolean))];
-    return ok({ skus: skus.slice(0, 50), total: skus.length, column: sku_column });
+    const preview = skus.slice(0, 50);
+    return ok({
+      message: "SKU preview",
+      sku_column,
+      catalog_id,
+      preview_skus: preview,
+      skus: preview,
+      total_skus: skus.length,
+      total: skus.length,
+      column: sku_column,
+      has_more: skus.length > 50,
+    });
   } catch (e) {
     console.error("Preview SKUs error:", e);
     return err("Failed to preview SKUs", 500);

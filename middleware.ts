@@ -33,7 +33,9 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === "/login" && payload) {
-    return NextResponse.redirect(new URL("/catalogs", request.url));
+    const isAdmin = payload.role?.trim().toLowerCase() === "admin";
+    const home = isAdmin ? "/dashboard" : "/onboard/template";
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   return NextResponse.next();

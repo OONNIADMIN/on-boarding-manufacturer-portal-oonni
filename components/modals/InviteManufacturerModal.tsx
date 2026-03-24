@@ -87,8 +87,14 @@ export default function InviteManufacturerModal({ isOpen, onClose, onSuccess }: 
         throw new Error('No authentication token')
       }
 
-      // Generate slug from manufacturer name
-      const slug = manufacturerName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      // Generate slug from manufacturer name (match server slugify: no leading/trailing hyphens)
+      const slug = manufacturerName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .trim()
 
       const newManufacturer = await manufacturerAPI.createManufacturer(token, {
         name: manufacturerName,

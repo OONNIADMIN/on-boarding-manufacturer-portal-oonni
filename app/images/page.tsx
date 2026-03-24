@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { authAPI, imageAPI, manufacturerAPI, productAPI, ImageInfo } from '@/lib/api'
+import { authAPI, imageAPI, manufacturerAPI, productAPI, ImageInfo, ImagesListResponse } from '@/lib/api'
 import { User, ManufacturerListItem, Product } from '@/types'
 import { Header } from '@/components'
 import Pagination from '@/components/ui/Pagination'
@@ -81,9 +81,15 @@ export default function ImagesPage() {
         itemsPerPage,
         offset
       )
-      
-      setImages(response.images)
-      setTotalImages(response.total_images)
+
+      const list = Array.isArray(response) ? response : (response?.images ?? [])
+      const total =
+        typeof (response as ImagesListResponse)?.total_images === "number"
+          ? (response as ImagesListResponse).total_images
+          : list.length
+
+      setImages(Array.isArray(list) ? list : [])
+      setTotalImages(total)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load images')
     }
@@ -96,7 +102,8 @@ export default function ImagesPage() {
   }, [currentPage, itemsPerPage, selectedManufacturer, selectedProduct])
 
   useEffect(() => {
-    let filtered = [...images]
+    const source = images ?? []
+    let filtered = [...source]
 
     // Filter by search term
     if (searchTerm) {

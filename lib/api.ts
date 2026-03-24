@@ -11,6 +11,7 @@ import {
   Product,
   ProductListResponse
 } from '@/types'
+import { mimeToListFileType } from '@/lib/image-list-json'
 
 // All API calls go to Next.js API routes (same origin — no CORS, no external backend needed)
 const API_URL = '/api'
@@ -82,11 +83,79 @@ export interface ImageInfo {
   user_id?: number
   created_at?: string
   updated_at?: string
+  /** Present when row comes from ImageKit folder listing only (no `images` DB row yet). */
+  imagekit_only?: boolean
+  imagekit_file_id?: string
 }
 
 export interface ImagesListResponse {
   total_images: number
   images: ImageInfo[]
+}
+
+/** Response from GET /api/imagekit/list-folder (ImageKit GET /v1/files for a manufacturer folder). */
+export interface ImageKitListFolderResponse {
+  folder_path: string
+  scope: 'images' | 'catalogs'
+  limit: number
+  skip: number
+  count: number
+  files: Array<{
+    fileId: string
+    name: string
+    filePath: string
+    url: string
+    thumbnail?: string
+    size?: number
+    width?: number
+    height?: number
+    mime?: string
+    fileType?: string
+  }>
+  may_have_more: boolean
+}
+
+/** Nautical product type (dropdown + template download). */
+export interface NauticalProductTypeSummary {
+  id: string
+  slug: string
+  name: string
+}
+
+function normalizeImageStorageKey(key: string): string {
+  return key.trim().replace(/^\/+/u, '').toLowerCase()
+}
+
+function imageKitFolderFileToImageInfo(
+  f: ImageKitListFolderResponse['files'][number]
+): ImageInfo {
+  return {
+    s3_key: f.filePath,
+    s3_url: f.url || f.thumbnail || '',
+    size_bytes: typeof f.size === 'number' ? f.size : 0,
+    last_modified: '',
+    file_type: mimeToListFileType(f.mime),
+    mime_type: f.mime,
+    original_filename: f.name,
+    imagekit_file_id: f.fileId,
+    imagekit_only: true,
+  }
+}
+
+function mergeDbImagesWithImageKitFolder(
+  db: ImageInfo[],
+  ik: ImageKitListFolderResponse['files']
+): ImageInfo[] {
+  const seen = new Set(db.map((i) => normalizeImageStorageKey(i.s3_key)))
+  const out: ImageInfo[] = db.map((i) => ({ ...i, imagekit_only: false }))
+  for (const f of ik) {
+    const k = normalizeImageStorageKey(f.filePath)
+    if (!seen.has(k)) {
+      seen.add(k)
+      out.push(imageKitFolderFileToImageInfo(f))
+    }
+  }
+  return out
 }
 
 export interface InvitationVerifyResponse {
@@ -172,7 +241,7 @@ export const authAPI = {
    * Check if user is admin
    */
   isAdmin(user: User | null): boolean {
-    return user?.role?.name === 'admin'
+    return user?.role?.name?.trim().toLowerCase() === 'admin'
   },
 
   /**
@@ -511,6 +580,50 @@ export const catalogAPI = {
   },
 
   /**
+   * Download images from URLs in the spreadsheet column, upload to ImageKit (DAM),
+   * link to products by SKU, and replace column cells with ImageKit URLs in the stored catalog file.
+   */
+  async ingestImagesFromSpreadsheetUrls(
+    catalogId: number,
+    skuColumn: string,
+    imageColumn: string,
+    manufacturerId: number
+  ): Promise<{
+    message: string
+    catalog_id: number
+    catalog_file: string
+    unique_sources_fetched: number
+    images_created: number
+    upload_failures: number
+    rows_missing_product: number
+  }> {
+    const token = authAPI.getToken()
+    if (!token) {
+      throw new Error('Authentication required')
+    }
+
+    const response = await fetch(`${API_URL}/catalogs/${catalogId}/ingest-url-images`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sku_column: skuColumn,
+        image_column: imageColumn,
+        manufacturer_id: manufacturerId,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to import images from catalog URLs')
+    }
+
+    return response.json()
+  },
+
+  /**
    * Check backend health
    */
   async healthCheck(): Promise<{ status: string; service: string; version: string }> {
@@ -559,6 +672,44 @@ export const imageAPI = {
   },
 
   /**
+   * List files in ImageKit for the manufacturer’s `images` or `catalogs` folder (Admin API list assets).
+   * Admins must pass manufacturerId; manufacturers are scoped to their own account.
+   */
+  async listImageKitManufacturerFolder(options: {
+    scope?: 'images' | 'catalogs'
+    manufacturerId?: number
+    limit?: number
+    skip?: number
+  }): Promise<ImageKitListFolderResponse> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const params = new URLSearchParams()
+    params.set('scope', options.scope ?? 'images')
+    if (options.limit != null) params.set('limit', String(options.limit))
+    if (options.skip != null) params.set('skip', String(options.skip))
+    if (options.manufacturerId != null) {
+      params.set('manufacturer_id', String(options.manufacturerId))
+    }
+
+    const response = await fetch(`${API_URL}/imagekit/list-folder?${params}`, {
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as { detail?: string }).detail || 'Failed to list ImageKit folder')
+    }
+
+    return response.json()
+  },
+
+  /**
    * Bulk assign images to a product
    */
   async bulkAssignToProduct(imageIds: number[], productId: number): Promise<{
@@ -594,25 +745,41 @@ export const imageAPI = {
   },
 
   /**
-   * Get list of all uploaded images
+   * Get list of all uploaded images (same scope rules as GET /api/images for manufacturers).
+   * For manufacturer users, also merges files from their ImageKit `images` folder so assets that
+   * exist in Media Library but have no `images` row yet still appear (e.g. legacy uploads).
    */
   async listImages(): Promise<ImagesListResponse> {
-    const token = authAPI.getToken()
-    if (!token) {
-      throw new Error('Authentication required')
+    const db = await imageAPI.listImagesWithFilters(undefined, undefined, 500, 0)
+    if (typeof window === 'undefined') {
+      return db
+    }
+    const user = authAPI.getStoredUser()
+    if (!user || authAPI.isAdmin(user)) {
+      return db
     }
 
-    const response = await fetch(`${API_URL}/images/uploads`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch images list')
+    try {
+      const ikFiles: ImageKitListFolderResponse['files'] = []
+      let skip = 0
+      const limit = 1000
+      for (;;) {
+        const page = await imageAPI.listImageKitManufacturerFolder({
+          scope: 'images',
+          limit,
+          skip,
+        })
+        ikFiles.push(...page.files)
+        if (!page.may_have_more || page.files.length === 0) {
+          break
+        }
+        skip += limit
+      }
+      const merged = mergeDbImagesWithImageKitFolder(db.images, ikFiles)
+      return { images: merged, total_images: merged.length }
+    } catch {
+      return db
     }
-
-    return response.json()
   },
 
   /**
@@ -642,8 +809,9 @@ export const imageAPI = {
    */
   async listImagesWithFilters(manufacturerId?: number, productId?: number, limit: number = 50, offset: number = 0): Promise<ImagesListResponse> {
     const token = authAPI.getToken()
-    if (!token) {
-      throw new Error('Authentication required')
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
     const params = new URLSearchParams({
@@ -660,9 +828,9 @@ export const imageAPI = {
     }
 
     const response = await fetch(`${API_URL}/images/?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -670,8 +838,76 @@ export const imageAPI = {
       throw new Error(error.detail || 'Failed to fetch images')
     }
 
-    return response.json()
+    const raw = (await response.json()) as Record<string, unknown>
+    const nested = raw?.data as Record<string, unknown> | undefined
+    const list =
+      Array.isArray(raw) ? raw :
+      Array.isArray(raw.images) ? raw.images :
+      Array.isArray(nested?.images) ? nested.images :
+      []
+    const total =
+      typeof raw.total_images === 'number' ? raw.total_images :
+      typeof nested?.total_images === 'number' ? (nested.total_images as number) :
+      list.length
+    return { images: list as ImageInfo[], total_images: total }
   }
+}
+
+export const nauticalAPI = {
+  async listProductTypes(): Promise<NauticalProductTypeSummary[]> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const response = await fetch(`${API_URL}/nautical/product-types`, {
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(error.detail || 'Failed to load Nautical product types')
+    }
+    const raw = (await response.json()) as Record<string, unknown>
+    const list = raw.product_types
+    return Array.isArray(list) ? (list as NauticalProductTypeSummary[]) : []
+  },
+
+  async downloadCatalogTemplate(productTypeId: string): Promise<void> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const response = await fetch(`${API_URL}/nautical/catalog-template`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify({ product_type_id: productTypeId }),
+    })
+    if (!response.ok) {
+      const errJson = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(errJson.detail || 'Failed to download catalog template')
+    }
+    const blob = await response.blob()
+    const cd = response.headers.get('Content-Disposition')
+    let filename = 'catalog-template.xlsx'
+    const quoted = cd?.match(/filename="([^"]+)"/)
+    if (quoted?.[1]) {
+      filename = quoted[1]
+    } else {
+      const plain = cd?.match(/filename=([^;\s]+)/)
+      if (plain?.[1]) filename = plain[1].replace(/^"+|"+$/g, '')
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
 
 /**

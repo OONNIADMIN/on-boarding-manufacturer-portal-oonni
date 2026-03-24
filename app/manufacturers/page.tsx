@@ -98,7 +98,7 @@ export default function ManufacturersPage() {
     setUsersError('')
     try {
       await authAPI.resendInvitation(token, userId)
-      setResendMessage('Correo de invitación reenviado correctamente.')
+      setResendMessage('Invitation email resent successfully.')
       const users = await manufacturerAPI.getManufacturerUsers(token, selectedManufacturer.id)
       setManufacturerUsers(users)
     } catch (err) {
@@ -273,7 +273,7 @@ export default function ManufacturersPage() {
                             <p className={styles.userEmail}>{user.email}</p>
                             <span className={styles.userRole}>{user.role?.name || 'No role'}</span>
                             {user.pending_invitation && (
-                              <span className={styles.pendingBadge}>Invitación pendiente</span>
+                              <span className={styles.pendingBadge}>Invitation pending</span>
                             )}
                           </div>
                           <div className={styles.userActions}>
@@ -282,7 +282,7 @@ export default function ManufacturersPage() {
                               className={styles.resendButton}
                               onClick={(e) => { e.stopPropagation(); handleResendInvitation(user.id); }}
                               disabled={resendingUserId !== null}
-                              title="Reenviar correo de invitación"
+                              title="Resend invitation email"
                             >
                               {resendingUserId === user.id ? (
                                 <span className={styles.resendButtonSpinner} />
@@ -291,7 +291,7 @@ export default function ManufacturersPage() {
                                   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className={styles.resendIcon}>
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                   </svg>
-                                  Reenviar correo
+                                  Resend email
                                 </>
                               )}
                             </button>
