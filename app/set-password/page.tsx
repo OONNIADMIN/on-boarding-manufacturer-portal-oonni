@@ -78,7 +78,7 @@ function SetPasswordContent() {
       if (authAPI.isAdmin(response.user)) {
         router.push('/dashboard')
       } else {
-        router.push('/onboard')
+        router.push('/onboard/template')
       }
     } catch (err: any) {
       setError(err.message || 'Failed to set password. Please try again.')

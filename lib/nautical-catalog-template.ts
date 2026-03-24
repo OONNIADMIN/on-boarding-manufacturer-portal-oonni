@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import columnNautical from "@/data_json/column_nautical.json";
 
 export type NauticalTargetColumn = {
@@ -50,14 +49,6 @@ export function buildMergedTemplateHeaders(
   pushUnique(variantAttributes.map((a) => a.name));
 
   return [...priorityNames, ...tail];
-}
-
-export function buildCatalogTemplateXlsxBuffer(headers: string[]): Buffer {
-  const ws = XLSX.utils.aoa_to_sheet([headers]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Catalog");
-  const out = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  return Buffer.isBuffer(out) ? out : Buffer.from(out as ArrayBuffer);
 }
 
 export function safeTemplateFilename(slug: string): string {

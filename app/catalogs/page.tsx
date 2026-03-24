@@ -45,7 +45,7 @@ export default function CatalogsPage() {
             return
         }
         if(!authAPI.isAdmin(storedUser)) {
-            router.push('/onboard')
+            router.push('/onboard/template')
             return
         }
         setUser(storedUser)

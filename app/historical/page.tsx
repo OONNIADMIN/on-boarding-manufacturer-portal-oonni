@@ -47,7 +47,7 @@ export default function HistoricalPage() {
         if (user && authAPI.isAdmin(user)) {
           router.push('/dashboard')
         } else {
-          router.push('/catalogs')
+          router.push('/onboard/template')
         }
       }
 

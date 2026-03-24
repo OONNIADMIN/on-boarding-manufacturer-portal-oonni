@@ -2,16 +2,17 @@ import { NextRequest } from "next/server";
 import { isAdminUser, requireAuth } from "@/lib/auth";
 import { err, forbidden, unauthorized } from "@/lib/api-response";
 import {
+  fetchCategoriesForTemplateSearch,
   fetchNauticalProductTypeById,
   getNauticalConfig,
   nauticalNotConfiguredMessage,
 } from "@/lib/nautical-client";
 import {
-  buildCatalogTemplateXlsxBuffer,
   buildMergedTemplateHeaders,
   getPriorityColumnDefinitions,
   safeTemplateFilename,
 } from "@/lib/nautical-catalog-template";
+import { buildNauticalCatalogExcelBuffer } from "@/lib/nautical-excel-template";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,14 @@ export async function POST(req: NextRequest) {
       pt.variantAttributes ?? []
     );
 
-    const buf = buildCatalogTemplateXlsxBuffer(headers);
+    const templateSearchKey = (pt.name ?? "").trim() || (pt.slug ?? "").trim();
+    const categoryRows = await fetchCategoriesForTemplateSearch(templateSearchKey);
+
+    const buf = await buildNauticalCatalogExcelBuffer({
+      headers,
+      categoryRows,
+      templateName: templateSearchKey || pt.slug || "product-type",
+    });
     const filename = safeTemplateFilename(pt.slug || "product-type");
 
     return new Response(new Uint8Array(buf), {

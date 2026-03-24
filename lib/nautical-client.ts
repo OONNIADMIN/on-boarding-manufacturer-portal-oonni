@@ -161,3 +161,78 @@ export async function fetchNauticalProductTypeById(
   const all = await fetchAllNauticalProductTypes();
   return all.find((n) => n.id === id) ?? null;
 }
+
+/** Category node from Nautical (nested children). */
+export type NauticalCategoryNode = {
+  name: string;
+  slug: string;
+  children?: { edges: { node: NauticalCategoryNode }[] } | null;
+};
+
+const CATEGORIES_FOR_TEMPLATE = `
+query ($search: String!) {
+  categories(first: 100, filter: { search: $search }) {
+    edges {
+      node {
+        name
+        slug
+        children(first: 100) {
+          edges {
+            node {
+              name
+              slug
+              children(first: 100) {
+                edges {
+                  node {
+                    name
+                    slug
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+export function flattenNauticalCategoryTree(roots: NauticalCategoryNode[]): Array<{
+  path: string;
+  slug: string;
+  level: number;
+}> {
+  const out: Array<{ path: string; slug: string; level: number }> = [];
+  const visit = (n: NauticalCategoryNode, prefix: string[]) => {
+    const names = [...prefix, n.name];
+    const path = names.join(" > ");
+    out.push({ path, slug: n.slug, level: names.length });
+    const kids = n.children?.edges?.map((e) => e.node) ?? [];
+    for (const k of kids) visit(k, names);
+  };
+  for (const r of roots) visit(r, []);
+  out.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: "base" }));
+  return out;
+}
+
+/**
+ * Categories whose root search matches the product template name (same as Excel filter).
+ * Used to build the category tree sheet + dropdown on the Catalog sheet.
+ */
+export async function fetchCategoriesForTemplateSearch(
+  searchName: string
+): Promise<Array<{ path: string; slug: string; level: number }>> {
+  const q = searchName.trim();
+  if (!q) return [];
+  try {
+    const data = await nauticalGraphql<{
+      categories: { edges: { node: NauticalCategoryNode }[] };
+    }>(CATEGORIES_FOR_TEMPLATE, { search: q });
+    const roots = data.categories.edges.map((e) => e.node);
+    return flattenNauticalCategoryTree(roots);
+  } catch (e) {
+    console.warn("nautical categories (template search):", e);
+    return [];
+  }
+}

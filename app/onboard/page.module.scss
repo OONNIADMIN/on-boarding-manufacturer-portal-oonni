@@ -152,63 +152,6 @@
 }
 
 // Welcome Section
-.nauticalSection {
-  width: 100%;
-  margin-bottom: $spacing-lg;
-}
-
-.nauticalCard {
-  @include card;
-  @include flex-column;
-  gap: $spacing-md;
-  padding: $spacing-xl;
-  background: $white;
-  border: 2px solid $gray-200;
-}
-
-.nauticalTitle {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
-  margin: 0;
-}
-
-.nauticalDescription {
-  font-size: $font-size-sm;
-  color: $gray-600;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.nauticalRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-md;
-  align-items: flex-end;
-}
-
-.nauticalSelect {
-  flex: 1;
-  min-width: min(100%, 220px);
-  padding: 10px 12px;
-  border-radius: $radius-md;
-  border: 1px solid $gray-300;
-  background: $white;
-  font-size: $font-size-sm;
-}
-
-.nauticalHint {
-  font-size: $font-size-xs;
-  color: $gray-500;
-  margin: 0;
-}
-
-.nauticalWarning {
-  font-size: $font-size-sm;
-  color: darken($oonni-teal, 8%);
-  margin: 0;
-}
-
 .welcomeSection {
   width: 100%;
   margin-bottom: $spacing-lg;

@@ -7,7 +7,7 @@ import CatalogFilePicker from '@/components/file-management/CatalogFilePicker'
 import ImageFilesPicker from '@/components/file-management/ImageFilesPicker'
 import ImageUploadProgress from '@/components/file-management/ImageUploadProgress'
 import ImageList from '@/components/file-management/ImageList'
-import { authAPI, catalogAPI, imageAPI, nauticalAPI, productAPI, type NauticalProductTypeSummary } from '@/lib/api'
+import { authAPI, catalogAPI, imageAPI, productAPI } from '@/lib/api'
 import { User } from '@/types'
 import styles from './page.module.scss'
 
@@ -32,12 +32,6 @@ export default function CatalogsPage() {
   const [productCreationResult, setProductCreationResult] = useState<any>(null)
   const [selectedImageUrlColumn, setSelectedImageUrlColumn] = useState<string>('')
   const [isIngestingUrls, setIsIngestingUrls] = useState(false)
-
-  const [nauticalProductTypes, setNauticalProductTypes] = useState<NauticalProductTypeSummary[]>([])
-  const [nauticalTypesLoading, setNauticalTypesLoading] = useState(false)
-  const [nauticalTypesError, setNauticalTypesError] = useState<string | null>(null)
-  const [selectedNauticalProductTypeId, setSelectedNauticalProductTypeId] = useState('')
-  const [nauticalDownloading, setNauticalDownloading] = useState(false)
 
   // Progress tracking state
   const [uploadProgress, setUploadProgress] = useState({
@@ -74,45 +68,6 @@ export default function CatalogsPage() {
     setUser(storedUser)
     setIsLoading(false)
   }, [router])
-
-  useEffect(() => {
-    if (!user || authAPI.isAdmin(user)) return
-    let cancelled = false
-    ;(async () => {
-      setNauticalTypesLoading(true)
-      setNauticalTypesError(null)
-      try {
-        const list = await nauticalAPI.listProductTypes()
-        if (!cancelled) setNauticalProductTypes(list)
-      } catch (e) {
-        if (!cancelled) {
-          setNauticalProductTypes([])
-          setNauticalTypesError(e instanceof Error ? e.message : 'Could not load Nautical product types')
-        }
-      } finally {
-        if (!cancelled) setNauticalTypesLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [user])
-
-  const handleDownloadNauticalTemplate = async () => {
-    if (!selectedNauticalProductTypeId) {
-      setUploadError('Select a Nautical product type before downloading the template.')
-      return
-    }
-    setNauticalDownloading(true)
-    setUploadError(null)
-    try {
-      await nauticalAPI.downloadCatalogTemplate(selectedNauticalProductTypeId)
-    } catch (e) {
-      setUploadError(e instanceof Error ? e.message : 'Failed to download template')
-    } finally {
-      setNauticalDownloading(false)
-    }
-  }
 
   // Handle catalog file selection
   const handleCatalogFileSelect = (file: File) => {
@@ -420,68 +375,12 @@ export default function CatalogsPage() {
               <div className={styles.welcomeContent}>
                 <h2 className={styles.welcomeTitle}>Catalog Upload Process</h2>
                 <p className={styles.welcomeDescription}>
-                  Upload your Excel or CSV template (include a column with image URLs). Images are imported into the DAM from those links.
-                  You may optionally add extra image files from your computer.
+                  Upload your Excel or CSV file (include a column with image URLs when applicable). Images are imported
+                  into the DAM from those links. You may optionally add extra image files from your computer. If you
+                  need the Excel layout for your product line(s), open <strong>Catalog template</strong> in the
+                  navigation first—you can download one file per product type.
                 </p>
               </div>
-            </div>
-          </section>
-
-          <section className={styles.nauticalSection} aria-labelledby="nautical-template-heading">
-            <div className={styles.nauticalCard}>
-              <h2 id="nautical-template-heading" className={styles.nauticalTitle}>
-                Excel catalog template (Nautical)
-              </h2>
-              <p className={styles.nauticalDescription}>
-                Choose the product type you sell or use for this catalog. The download is an Excel file
-                with Oonni priority columns first, then that type&apos;s product and variant attribute
-                names from Nautical.
-              </p>
-              {nauticalTypesLoading && (
-                <p className={styles.nauticalHint}>Loading product types from Nautical…</p>
-              )}
-              {nauticalTypesError && (
-                <p className={styles.nauticalWarning} role="status">
-                  {nauticalTypesError}
-                </p>
-              )}
-              {!nauticalTypesLoading && !nauticalTypesError && nauticalProductTypes.length === 0 && (
-                <p className={styles.nauticalHint}>No product types returned from Nautical.</p>
-              )}
-              <div className={styles.nauticalRow}>
-                <select
-                  className={styles.nauticalSelect}
-                  aria-label="Nautical product type"
-                  value={selectedNauticalProductTypeId}
-                  onChange={(e) => setSelectedNauticalProductTypeId(e.target.value)}
-                  disabled={nauticalTypesLoading || nauticalProductTypes.length === 0}
-                >
-                  <option value="">Select product type…</option>
-                  {nauticalProductTypes.map((pt) => (
-                    <option key={pt.id} value={pt.id}>
-                      {pt.name}
-                      {pt.slug ? ` (${pt.slug})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => void handleDownloadNauticalTemplate()}
-                  disabled={
-                    nauticalDownloading ||
-                    !selectedNauticalProductTypeId ||
-                    nauticalProductTypes.length === 0
-                  }
-                  className={styles.uploadAllButton}
-                >
-                  {nauticalDownloading ? 'Preparing…' : 'Download Excel template'}
-                </button>
-              </div>
-              <p className={styles.nauticalHint}>
-                Requires server env <code>NAUTICAL_API_URL</code> and <code>NAUTICAL_BEARER_TOKEN</code>.
-                Username/password in env are not used by this flow; refresh the token in env when it
-                expires.
-              </p>
             </div>
           </section>
 
