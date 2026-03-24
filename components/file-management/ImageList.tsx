@@ -23,7 +23,8 @@ export default function ImageList() {
     
     try {
       const response = await imageAPI.listImages()
-      setImages(response.images)
+      const list = response?.images
+      setImages(Array.isArray(list) ? list : [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load images')
     } finally {
@@ -36,12 +37,13 @@ export default function ImageList() {
   }, [])
 
   useEffect(() => {
-    let filtered = [...images]
+    const source = images ?? []
+    let filtered = [...source]
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(image => 
-        image.s3_key.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter((image) =>
+        (image.s3_key ?? "").toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
@@ -49,12 +51,12 @@ export default function ImageList() {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.s3_key.localeCompare(b.s3_key)
+          return (a.s3_key ?? "").localeCompare(b.s3_key ?? "")
         case 'size':
-          return b.size_bytes - a.size_bytes
+          return (b.size_bytes ?? 0) - (a.size_bytes ?? 0)
         case 'date':
         default:
-          return new Date(b.last_modified).getTime() - new Date(a.last_modified).getTime()
+          return new Date(b.last_modified ?? 0).getTime() - new Date(a.last_modified ?? 0).getTime()
       }
     })
 
@@ -87,8 +89,19 @@ export default function ImageList() {
   }
 
   const formatDate = (dateString: string): string => {
+    if (!dateString) return "—"
     const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return "—"
     return date.toLocaleString()
+  }
+
+  const displayImageName = (image: ImageInfo): string => {
+    const orig = image.original_filename?.trim()
+    if (orig) return orig
+    const base = (image.s3_key ?? '').split('/').pop() ?? ''
+    if (!base) return 'Unknown'
+    const withoutStamp = base.replace(/^\d{4}-\d{2}-\d{2}T[\d-]+Z_/, '')
+    return withoutStamp || base
   }
 
   const getFileIcon = (fileType: string | undefined): string => {
@@ -116,10 +129,11 @@ export default function ImageList() {
   }
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredImages.length / itemsPerPage)
+  const safeFiltered = filteredImages ?? []
+  const totalPages = Math.ceil(safeFiltered.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedImages = filteredImages.slice(startIndex, endIndex)
+  const paginatedImages = safeFiltered.slice(startIndex, endIndex)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -162,7 +176,7 @@ export default function ImageList() {
     )
   }
 
-  if (images.length === 0) {
+  if (!images?.length) {
     return (
       <div className={styles.container}>
         <div className={styles.emptyContainer}>
@@ -177,13 +191,16 @@ export default function ImageList() {
             </svg>
           </div>
           <h3>No images uploaded yet</h3>
-          <p>Upload your first product image to get started</p>
+          <p>Upload your first product image to get started.</p>
+          <p className={styles.emptyHint}>
+            This list combines your database records and files in your ImageKit images folder. If you still see nothing, confirm the manufacturer slug (or ImageKit media root) in admin matches the folder where your files live, then use Refresh.
+          </p>
         </div>
       </div>
     )
   }
 
-  if (filteredImages.length === 0 && searchTerm) {
+  if (!safeFiltered.length && searchTerm) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
@@ -332,10 +349,10 @@ export default function ImageList() {
                 </div>
                 <div className={styles.imageMeta}>
                   <p className={styles.imageName}>
-                    {image.s3_key.split('/').pop()?.split('_').slice(2).join('_') || 'Unknown'}
+                    {displayImageName(image)}
                   </p>
-                  <p className={styles.imageSize}>{formatFileSize(image.size_bytes)}</p>
-                  <p className={styles.imageDate}>{formatDate(image.last_modified)}</p>
+                  <p className={styles.imageSize}>{formatFileSize(image.size_bytes ?? 0)}</p>
+                  <p className={styles.imageDate}>{formatDate(image.last_modified ?? image.created_at ?? "")}</p>
                 </div>
               </div>
               
@@ -382,20 +399,22 @@ export default function ImageList() {
                     />
                   </svg>
                 </a>
-                <button
-                  onClick={() => handleDelete(image.s3_key)}
-                  className={styles.deleteButton}
-                  title="Delete image"
-                >
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
-                    />
-                  </svg>
-                </button>
+                {!image.imagekit_only && (
+                  <button
+                    onClick={() => handleDelete(image.s3_key)}
+                    className={styles.deleteButton}
+                    title="Delete image"
+                  >
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                      />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -407,7 +426,7 @@ export default function ImageList() {
         totalPages={totalPages}
         onPageChange={handlePageChange}
         itemsPerPage={itemsPerPage}
-        totalItems={filteredImages.length}
+        totalItems={safeFiltered.length}
         showItemsPerPage={true}
         onItemsPerPageChange={handleItemsPerPageChange}
       />

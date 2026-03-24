@@ -22,7 +22,7 @@ export default function FilesList() {
     
     try {
       const response = await catalogAPI.listCatalogs()
-      setCatalogs(response)
+      setCatalogs(Array.isArray(response) ? response : [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load catalogs')
     } finally {

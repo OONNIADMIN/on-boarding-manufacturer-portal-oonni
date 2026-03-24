@@ -1,0 +1,168 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  @include flex-column;
+  gap: $spacing-xl;
+}
+
+.introCard {
+  @include card;
+  padding: $spacing-xl;
+  background: linear-gradient(135deg, $oonni-teal 0%, $oonni-green 100%);
+  color: $white;
+  border: none;
+  box-shadow: $shadow-lg;
+}
+
+.introTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  margin: 0 0 $spacing-sm 0;
+}
+
+.introText {
+  font-size: $font-size-sm;
+  margin: 0;
+  line-height: 1.55;
+  opacity: 0.95;
+
+  & + & {
+    margin-top: $spacing-md;
+  }
+}
+
+.nauticalSection {
+  width: 100%;
+}
+
+.nauticalCard {
+  @include card;
+  @include flex-column;
+  gap: $spacing-md;
+  padding: $spacing-xl;
+  background: $white;
+  border: 2px solid $gray-200;
+}
+
+.nauticalTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  margin: 0;
+}
+
+.nauticalDescription {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.nauticalRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+  align-items: flex-end;
+}
+
+.nauticalSelect {
+  flex: 1;
+  min-width: min(100%, 220px);
+  padding: 10px 12px;
+  border-radius: $radius-md;
+  border: 1px solid $gray-300;
+  background: $white;
+  font-size: $font-size-sm;
+}
+
+.nauticalHint {
+  font-size: $font-size-xs;
+  color: $gray-500;
+  margin: 0;
+}
+
+.nauticalWarning {
+  font-size: $font-size-sm;
+  color: darken($oonni-teal, 8%);
+  margin: 0;
+}
+
+.uploadAllButton {
+  @include button-primary;
+  font-size: $font-size-lg;
+  padding: $spacing-md $spacing-2xl;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+
+  &:disabled {
+    background: $gray-300;
+    color: $gray-600;
+    cursor: not-allowed;
+    opacity: 0.6;
+
+    &:hover {
+      background: $gray-300;
+      transform: none;
+    }
+  }
+}
+
+.nextSection {
+  @include flex-column;
+  align-items: flex-start;
+  gap: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1px solid $gray-200;
+}
+
+.nextLabel {
+  font-size: $font-size-sm;
+  color: $gray-600;
+  margin: 0;
+}
+
+.nextButton {
+  @include button-primary;
+  font-size: $font-size-base;
+  padding: $spacing-md $spacing-xl;
+}
+
+.errorMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: $spacing-md 1.25rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-xl;
+  color: #991b1b;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+}
+
+.errorIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #ef4444;
+}

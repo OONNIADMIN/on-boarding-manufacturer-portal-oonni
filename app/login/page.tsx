@@ -22,11 +22,10 @@ export default function LoginPage() {
       const credentials: LoginRequest = { email, password }
       const response = await authAPI.login(credentials)
       
-      // Check if user is admin
       if (authAPI.isAdmin(response.user)) {
         router.push('/dashboard')
       } else {
-        router.push('/catalogs')
+        router.push('/onboard/template')
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.')

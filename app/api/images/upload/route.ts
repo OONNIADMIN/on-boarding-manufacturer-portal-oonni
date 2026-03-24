@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
-import { uploadToImageKit } from "@/lib/imagekit";
+import { effectiveManufacturerId, requireAuth } from "@/lib/auth";
+import { imageKitUploadFailureMessage, uploadToImageKit } from "@/lib/imagekit";
 import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
-import { slugify } from "@/lib/api-response";
+import { manufacturerImageKitImagesFolder } from "@/lib/manufacturer-media-path";
+import { serializeImageForListJson } from "@/lib/image-list-json";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -32,11 +33,10 @@ export async function POST(req: NextRequest) {
     if (!manufacturer || manufacturer.deleted_at) return notFound("Manufacturer not found");
 
     const isAdmin = user.role.name === "admin";
-    const isOwn = user.manufacturer_id === manufacturerId;
+    const isOwn = effectiveManufacturerId(user) === manufacturerId;
     if (!isAdmin && !isOwn) return forbidden("No permission to upload images for this manufacturer");
 
-    const mfrSlug = slugify(manufacturer.name);
-    const folder = `/${mfrSlug}/images`;
+    const folder = manufacturerImageKitImagesFolder(manufacturer);
     const fileName = file.name;
 
     const uploaded = await uploadToImageKit(buffer, fileName, folder, file.type);
@@ -59,12 +59,14 @@ export async function POST(req: NextRequest) {
     });
 
     return ok({
-      ...image,
+      ...serializeImageForListJson(image),
       imagekit_file_id: uploaded.fileId,
       imagekit_url: uploaded.url,
     });
   } catch (e) {
     console.error("Image upload error:", e);
+    const hint = imageKitUploadFailureMessage(e);
+    if (hint) return err(hint, 503);
     return err("Failed to upload image", 500);
   }
 }
