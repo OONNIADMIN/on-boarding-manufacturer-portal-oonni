@@ -1,7 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { effectiveManufacturerId, requireAuth } from "@/lib/auth";
-import { imageKitUploadFailureMessage, uploadToImageKit } from "@/lib/imagekit";
+import {
+  canonicalImageKitUrl,
+  deleteFromImageKit,
+  imageKitUploadFailureMessage,
+  listImageKitFilesInFolder,
+  uploadToImageKit,
+} from "@/lib/imagekit";
 import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
 import { manufacturerImageKitCatalogsFolder, manufacturerImageKitImagesFolder } from "@/lib/manufacturer-media-path";
 import {
@@ -26,9 +32,47 @@ type CachedUpload = {
   originalFilename: string;
 };
 
+// For spreadsheet URL imports, normalize large originals to a practical web max size.
+const IMPORT_IMAGE_PRE_TRANSFORM = "w-1600,h-1600,c-at_max,q-80";
+
 function isCsvCatalog(catalogFileUrl: string): boolean {
   const u = catalogFileUrl.toLowerCase();
   return u.endsWith(".csv") || u.includes(".csv");
+}
+
+async function deletePreviousCatalogFileFromImageKit(params: {
+  previousCatalogUrl: string | null;
+  newCatalogUrl: string;
+  catalogsFolder: string;
+}): Promise<void> {
+  const prev = params.previousCatalogUrl?.trim();
+  if (!prev) return;
+  const prevCanonical = canonicalImageKitUrl(prev);
+  const newCanonical = canonicalImageKitUrl(params.newCatalogUrl);
+  if (prevCanonical === newCanonical) return;
+
+  try {
+    let skip = 0;
+    const limit = 1000;
+    for (;;) {
+      const files = await listImageKitFilesInFolder({
+        folderPath: params.catalogsFolder,
+        fileTypeFilter: "all",
+        limit,
+        skip,
+      });
+      const match = files.find((f) => canonicalImageKitUrl(f.url) === prevCanonical);
+      if (match?.fileId) {
+        await deleteFromImageKit(match.fileId);
+        return;
+      }
+      if (files.length < limit) return;
+      skip += limit;
+    }
+  } catch (e) {
+    // Best effort cleanup only: keep successful ingest even if old-file delete fails.
+    console.warn("Failed to delete previous catalog file from ImageKit:", e);
+  }
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -102,7 +146,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const baseName = filenameFromUrl(parsed, "imported.jpg");
         const stamp = new Date().toISOString().replace(/[:.]/g, "-");
         const fileName = `${stamp}_${baseName}`;
-        const uploaded = await uploadToImageKit(buf, fileName, imagesFolder, mime);
+        const uploaded = await uploadToImageKit(buf, fileName, imagesFolder, mime, {
+          preTransform: IMPORT_IMAGE_PRE_TRANSFORM,
+        });
         const cached: CachedUpload = {
           url: uploaded.url,
           filePath: uploaded.filePath,
@@ -191,6 +237,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await prisma.catalog.update({
         where: { id: catalogId },
         data: { catalog_file: uploadedCatalog.url },
+      });
+      await deletePreviousCatalogFileFromImageKit({
+        previousCatalogUrl: catalog.catalog_file,
+        newCatalogUrl: uploadedCatalog.url,
+        catalogsFolder,
       });
 
       return ok({
@@ -291,6 +342,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await prisma.catalog.update({
       where: { id: catalogId },
       data: { catalog_file: uploadedCatalog.url },
+    });
+    await deletePreviousCatalogFileFromImageKit({
+      previousCatalogUrl: catalog.catalog_file,
+      newCatalogUrl: uploadedCatalog.url,
+      catalogsFolder,
     });
 
     return ok({

@@ -69,6 +69,30 @@ function shouldStripUpdatedAtForHost(hostname: string): boolean {
   }
 }
 
+function shouldAutoOptimizeDelivery(): boolean {
+  const raw = (process.env.IMAGEKIT_AUTO_OPTIMIZE_DELIVERY ?? "true").trim().toLowerCase();
+  return !["0", "false", "no", "off"].includes(raw);
+}
+
+function hasTransformationInPath(pathname: string): boolean {
+  return pathname.includes("/tr:");
+}
+
+/** Ensure web delivery optimization using ImageKit URL transforms (`q-auto,f-auto`). */
+function withAutoWebOptimization(url: string): string {
+  if (!url || !shouldAutoOptimizeDelivery()) return url;
+  try {
+    const u = new URL(url);
+    if (!shouldStripUpdatedAtForHost(u.hostname)) return url;
+    if (hasTransformationInPath(u.pathname)) return url;
+    const p = u.pathname.startsWith("/") ? u.pathname : `/${u.pathname}`;
+    u.pathname = `/tr:q-auto,f-auto${p}`;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 /**
  * ImageKit upload responses append ?updatedAt=… for cache busting. The same file is served
  * without it; keeping that query in spreadsheets/Excel can break cells or link handling.
@@ -120,17 +144,17 @@ export function resolveImageKitDeliveryUrl(
 ): string {
   const trimmed = (s3_url ?? "").trim();
   if (trimmed.startsWith("//")) {
-    return canonicalImageKitUrl(`https:${trimmed}`);
+    return withAutoWebOptimization(canonicalImageKitUrl(`https:${trimmed}`));
   }
   if (isAbsoluteHttpUrl(trimmed)) {
-    return canonicalImageKitUrl(trimmed);
+    return withAutoWebOptimization(canonicalImageKitUrl(trimmed));
   }
   const base = imageKitDeliveryBase();
   const key = (s3_key ?? "").trim();
   if (base && key) {
-    return canonicalImageKitUrl(joinDeliveryBaseAndFilePath(base, key));
+    return withAutoWebOptimization(canonicalImageKitUrl(joinDeliveryBaseAndFilePath(base, key)));
   }
-  return canonicalImageKitUrl(trimmed);
+  return withAutoWebOptimization(canonicalImageKitUrl(trimmed));
 }
 
 /** Normalize s3_url on image rows returned to clients (fixes legacy ?updatedAt= in DB). */
@@ -142,15 +166,28 @@ export async function uploadToImageKit(
   fileBuffer: Buffer,
   fileName: string,
   folder: string,
-  mimeType?: string
+  mimeType?: string,
+  options?: { preTransform?: string }
 ): Promise<ImageKitUploadResult> {
   const imagekit = getImageKit();
   const file = await toFile(fileBuffer, fileName, { type: mimeType ?? "application/octet-stream" });
+  const mime = (mimeType ?? "").toLowerCase();
+  const supportsTransform = mime.startsWith("image/") || mime.startsWith("video/");
+  const preTransform = options?.preTransform?.trim() || "q-80";
+
   const result = await imagekit.files.upload({
     file,
     fileName,
     folder,
     useUniqueFileName: true,
+    ...(supportsTransform
+      ? {
+          transformation: {
+            // Base compression at ingest for media files.
+            pre: preTransform,
+          },
+        }
+      : {}),
   });
 
   const rawUrl = result.url ?? "";
