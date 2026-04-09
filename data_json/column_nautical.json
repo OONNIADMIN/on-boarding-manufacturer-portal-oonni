@@ -123,7 +123,32 @@
         "sort_order": 0,
         "is_active": true
       },
-      
+      {
+        "name": "Brand",
+        "code": "brand",
+        "description": "Brand of product",
+        "data_type": "string",
+        "is_required": false,
+        "is_product_column": true,
+        "is_variant_column": false,
+        "default_value": "",
+        "validation_rules": null,
+        "sort_order": 0,
+        "is_active": true
+      },
+      {
+        "name": "Color",
+        "code": "color",
+        "description": "Color of product",
+        "data_type": "string",
+        "is_required": false,
+        "is_product_column": true,
+        "is_variant_column": false,
+        "default_value": "",
+        "validation_rules": null,
+        "sort_order": 0,
+        "is_active": true
+      },
       {
         "name": "varaint name",
         "code": "varaint_name",
