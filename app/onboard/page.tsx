@@ -20,6 +20,7 @@ export default function CatalogsPage() {
   
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
   const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
+  const [isUploadCompleted, setIsUploadCompleted] = useState(false)
 
   const router = useRouter()
 
@@ -52,6 +53,12 @@ export default function CatalogsPage() {
   // Handle catalog file selection
   const handleCatalogFileSelect = (file: File) => {
     setSelectedCatalogFile(file)
+    setUploadError(null)
+  }
+
+  const handleBackToUploadStep = () => {
+    setIsUploadCompleted(false)
+    setUploadSuccess('')
     setUploadError(null)
   }
 
@@ -151,8 +158,8 @@ export default function CatalogsPage() {
 
       setUploadSuccess(successMessage)
       setSelectedCatalogFile(null)
+      setIsUploadCompleted(true)
       setRefreshKey((prev) => prev + 1)
-      setTimeout(() => setUploadSuccess(''), 12000)
     } catch (err) {
       console.error('Upload error:', err)
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
@@ -255,65 +262,77 @@ export default function CatalogsPage() {
             </div>
           </section>
 
-          {/* Upload Steps */}
-          <section className={styles.uploadSteps}>
-            <div className={styles.stepsGrid}>
-              <div className={`${styles.stepCard} ${styles.catalogUploadStepCard}`}>
-                <div className={styles.stepCardHeader}>
-                  <div className={`${styles.stepBadge} ${selectedCatalogFile ? styles.stepBadgeComplete : ''}`}>
-                    {selectedCatalogFile ? (
-                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      '1'
-                    )}
-                  </div>
-                  <div className={styles.stepCardTitleArea}>
-                    <h3 className={styles.stepCardTitle}>Select Catalog File</h3>
-                    <p className={styles.stepCardDescription}>
-                      Choose your product catalog in CSV or Excel format
-                    </p>
+          {!isUploadCompleted && (
+            <>
+              {/* Upload Steps */}
+              <section className={styles.uploadSteps}>
+                <div className={styles.stepsGrid}>
+                  <div className={`${styles.stepCard} ${styles.catalogUploadStepCard}`}>
+                    <div className={styles.stepCardHeader}>
+                      <div className={`${styles.stepBadge} ${selectedCatalogFile ? styles.stepBadgeComplete : ''}`}>
+                        {selectedCatalogFile ? (
+                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          '1'
+                        )}
+                      </div>
+                      <div className={styles.stepCardTitleArea}>
+                        <h3 className={styles.stepCardTitle}>Select Catalog File</h3>
+                        <p className={styles.stepCardDescription}>
+                          Choose your product catalog in CSV or Excel format
+                        </p>
+                      </div>
+                    </div>
+                    <div className={styles.stepCardContent}>
+                      <CatalogFilePicker
+                        size="large"
+                        onFileSelect={handleCatalogFileSelect}
+                        selectedFile={selectedCatalogFile}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className={styles.stepCardContent}>
-                  <CatalogFilePicker
-                    size="large"
-                    onFileSelect={handleCatalogFileSelect}
-                    selectedFile={selectedCatalogFile}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
+              </section>
 
-          {/* Upload Button */}
-          <section className={styles.uploadButtonSection}>
-            <button
-              onClick={() => void handleUploadCatalog()}
-              disabled={!selectedCatalogFile || isUploading}
-              className={styles.uploadAllButton}
-            >
-              {isUploading ? (
-                <>
-                  <span className={styles.spinner}></span>
-                  {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
-                </>
-              ) : (
-                <>
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  Upload catalog
-                </>
-              )}
-            </button>
-            <p className={styles.uploadButtonHint}>
-              {!selectedCatalogFile && 'Select a catalog file to upload.'}
-              {selectedCatalogFile &&
-                'Ready to upload — products and image URLs from the spreadsheet are processed automatically.'}
-            </p>
-          </section>
+              {/* Upload Button */}
+              <section className={styles.uploadButtonSection}>
+                <button
+                  onClick={() => void handleUploadCatalog()}
+                  disabled={!selectedCatalogFile || isUploading}
+                  className={styles.uploadAllButton}
+                >
+                  {isUploading ? (
+                    <>
+                      <span className={styles.spinner}></span>
+                      {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
+                    </>
+                  ) : (
+                    <>
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      Upload catalog
+                    </>
+                  )}
+                </button>
+                <p className={styles.uploadButtonHint}>
+                  {!selectedCatalogFile && 'Select a catalog file to upload.'}
+                  {selectedCatalogFile &&
+                    'Ready to upload - products and image URLs from the spreadsheet are processed automatically.'}
+                </p>
+              </section>
+            </>
+          )}
+
+          {isUploadCompleted && (
+            <section className={styles.uploadButtonSection}>
+              <button type="button" onClick={handleBackToUploadStep} className={styles.backButton}>
+                Back
+              </button>
+            </section>
+          )}
 
           <section className={styles.mediaLibrarySection} aria-labelledby="onboard-media-heading">
             <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>

@@ -501,6 +501,13 @@
   }
 }
 
+.backButton {
+  @include button-secondary;
+  font-size: $font-size-base;
+  padding: $spacing-sm $spacing-xl;
+  min-width: 140px;
+}
+
 .uploadButtonHint {
   font-size: $font-size-sm;
   color: $gray-600;
