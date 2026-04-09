@@ -6,9 +6,11 @@ import styles from './FilePicker.module.scss'
 interface CatalogFilePickerProps {
   onFileSelect: (file: File) => void
   selectedFile: File | null
+  /** Larger dropzone for layouts that span full width (e.g. onboard catalog-only step). */
+  size?: 'default' | 'large'
 }
 
-export default function CatalogFilePicker({ onFileSelect, selectedFile }: CatalogFilePickerProps) {
+export default function CatalogFilePicker({ onFileSelect, selectedFile, size = 'default' }: CatalogFilePickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -53,8 +55,11 @@ export default function CatalogFilePicker({ onFileSelect, selectedFile }: Catalo
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
   }
 
+  const dropzoneClass =
+    size === 'large' ? `${styles.dropzone} ${styles.dropzoneLarge}` : styles.dropzone
+
   return (
-    <div className={styles.filePicker}>
+    <div className={`${styles.filePicker} ${size === 'large' ? styles.filePickerStretch : ''}`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -63,8 +68,8 @@ export default function CatalogFilePicker({ onFileSelect, selectedFile }: Catalo
         className={styles.fileInput}
       />
       
-      <div 
-        className={`${styles.dropzone} ${selectedFile ? styles.hasFile : ''}`}
+      <div
+        className={`${dropzoneClass} ${selectedFile ? styles.hasFile : ''}`}
         onClick={handleClickUpload}
       >
         <button 

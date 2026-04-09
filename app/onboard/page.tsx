@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
 import CatalogFilePicker from '@/components/file-management/CatalogFilePicker'
-import ImageFilesPicker from '@/components/file-management/ImageFilesPicker'
-import ImageUploadProgress from '@/components/file-management/ImageUploadProgress'
 import ImageList from '@/components/file-management/ImageList'
-import { authAPI, catalogAPI, imageAPI, productAPI } from '@/lib/api'
+import { authAPI, catalogAPI, productAPI } from '@/lib/api'
+import { detectImageUrlColumn, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
 
@@ -19,28 +18,9 @@ export default function CatalogsPage() {
   const [uploadSuccess, setUploadSuccess] = useState('')
   const [uploadError, setUploadError] = useState<string | null>(null)
   
-  // File selection state
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  
-  // Product creation state
-  const [uploadedCatalog, setUploadedCatalog] = useState<any>(null)
-  const [availableColumns, setAvailableColumns] = useState<string[]>([])
-  const [selectedSkuColumn, setSelectedSkuColumn] = useState<string>('')
-  const [skuPreview, setSkuPreview] = useState<string[]>([])
-  const [isCreatingProducts, setIsCreatingProducts] = useState(false)
-  const [productCreationResult, setProductCreationResult] = useState<any>(null)
-  const [selectedImageUrlColumn, setSelectedImageUrlColumn] = useState<string>('')
-  const [isIngestingUrls, setIsIngestingUrls] = useState(false)
+  const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
 
-  // Progress tracking state
-  const [uploadProgress, setUploadProgress] = useState({
-    totalImages: 0,
-    uploadedImages: 0,
-    failedImages: 0,
-    isUploading: false
-  })
-  
   const router = useRouter()
 
   useEffect(() => {
@@ -73,45 +53,18 @@ export default function CatalogsPage() {
   const handleCatalogFileSelect = (file: File) => {
     setSelectedCatalogFile(file)
     setUploadError(null)
-    setUploadedCatalog(null)
-    setAvailableColumns([])
-    setSelectedSkuColumn('')
-    setSelectedImageUrlColumn('')
-    setSkuPreview([])
-    setProductCreationResult(null)
   }
 
-  // Handle image files selection
-  const handleImageFilesSelect = (files: File[]) => {
-    setSelectedImages(files)
-    setUploadError(null)
-    // Reset progress when new files are selected
-    setUploadProgress({
-      totalImages: 0,
-      uploadedImages: 0,
-      failedImages: 0,
-      isUploading: false
-    })
-  }
-
-  // Upload catalog (required). Optional: extra image files from disk.
-  const handleUploadAll = async () => {
+  const handleUploadCatalog = async () => {
     if (!selectedCatalogFile) {
       setUploadError('Please select a catalog file')
       return
     }
 
     setIsUploading(true)
+    setIsProcessingCatalog(false)
     setUploadError(null)
     setUploadSuccess('')
-
-    const n = selectedImages.length
-    setUploadProgress({
-      totalImages: n,
-      uploadedImages: 0,
-      failedImages: 0,
-      isUploading: true,
-    })
 
     try {
       if (!user?.manufacturer_id) {
@@ -133,60 +86,71 @@ export default function CatalogsPage() {
         }
       }
 
-      setUploadedCatalog(catalogResult)
-      setAvailableColumns(columns)
-      setSelectedSkuColumn('')
-      setSelectedImageUrlColumn('')
-      setSkuPreview([])
-      setProductCreationResult(null)
-
-      let uploadedCount = 0
-      let failedCount = 0
-
-      for (let i = 0; i < selectedImages.length; i++) {
-        const image = selectedImages[i]
-        try {
-          await imageAPI.uploadImage(image, manufacturerIdNum)
-          uploadedCount++
-          setUploadProgress((prev) => ({
-            ...prev,
-            uploadedImages: uploadedCount,
-            failedImages: failedCount,
-          }))
-        } catch (err) {
-          console.error(`Failed to upload image ${i + 1}:`, err)
-          failedCount++
-          setUploadProgress((prev) => ({
-            ...prev,
-            uploadedImages: uploadedCount,
-            failedImages: failedCount,
-          }))
-        }
-      }
-
       if (catalogResult.id) {
         try {
-          await catalogAPI.sendUploadNotification(catalogResult.id, uploadedCount, failedCount)
+          await catalogAPI.sendUploadNotification(catalogResult.id, 0, 0)
         } catch (err) {
           console.error('Failed to send admin notification:', err)
         }
       }
 
       const catalogName = catalogResult.name || 'catalog'
-      const catalogId = catalogResult.id ? ` (ID: ${catalogResult.id})` : ''
-      let successMessage = `Catalog "${catalogName}"${catalogId} uploaded. Map SKU and image columns below to finish.`
-      if (n > 0) {
-        successMessage =
-          failedCount === 0
-            ? `Uploaded "${catalogName}"${catalogId} and ${uploadedCount} image file(s) from disk. Admin users have been notified.`
-            : `Uploaded "${catalogName}"${catalogId} and ${uploadedCount} of ${n} disk image(s). ${failedCount} failed. Admin users have been notified.`
-      } else {
-        successMessage += ' Admin users have been notified.'
+      const catalogIdStr = catalogResult.id ? ` (ID: ${catalogResult.id})` : ''
+
+      let processingNote = ''
+      if (catalogResult.id && columns.length) {
+        setIsProcessingCatalog(true)
+        setUploadError(null)
+        try {
+          const skuCol = detectSkuColumn(columns)
+          if (!skuCol) {
+            setUploadError(
+              'Catalog uploaded, but no SKU column was detected. Use the downloaded template and include a column named "sku" (or rename your SKU column to match).'
+            )
+          } else {
+            const productResult = await productAPI.createProductsFromCatalog(
+              catalogResult.id,
+              skuCol,
+              manufacturerIdNum
+            )
+            const created = productResult.created_count ?? 0
+            const imgCol = detectImageUrlColumn(columns, skuCol)
+            if (imgCol && imgCol !== skuCol) {
+              const ingestResult = await catalogAPI.ingestImagesFromSpreadsheetUrls(
+                catalogResult.id,
+                skuCol,
+                imgCol,
+                manufacturerIdNum
+              )
+              processingNote =
+                ` Created ${created} product(s) from "${skuCol}". Imported images from "${imgCol}" (${ingestResult.images_created ?? 0} linked, ` +
+                `${ingestResult.upload_failures ?? 0} fetch/upload issue(s)).`
+            } else {
+              processingNote = ` Created ${created} product(s) from "${skuCol}". No image URL column found (expected e.g. "images") — skipped link import.`
+            }
+          }
+        } catch (procErr) {
+          console.error('Catalog processing error:', procErr)
+          setUploadError(
+            procErr instanceof Error
+              ? procErr.message
+              : 'Catalog uploaded, but automatic product/image processing failed.'
+          )
+        } finally {
+          setIsProcessingCatalog(false)
+        }
+      } else if (catalogResult.id && !columns.length) {
+        setUploadError(
+          'Catalog uploaded, but column headers could not be read. Check the file format; automatic processing was skipped.'
+        )
       }
+
+      const successMessage = `Catalog "${catalogName}"${catalogIdStr} uploaded.${processingNote}${
+        catalogResult.id ? ' Admin users have been notified.' : ''
+      }`
 
       setUploadSuccess(successMessage)
       setSelectedCatalogFile(null)
-      setSelectedImages([])
       setRefreshKey((prev) => prev + 1)
       setTimeout(() => setUploadSuccess(''), 12000)
     } catch (err) {
@@ -194,7 +158,6 @@ export default function CatalogsPage() {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setIsUploading(false)
-      setUploadProgress((prev) => ({ ...prev, isUploading: false }))
     }
   }
 
@@ -209,98 +172,6 @@ export default function CatalogsPage() {
 
   const handleProfile = () => {
     router.push('/profile')
-  }
-
-  // Handle SKU column selection
-  const handleSkuColumnSelect = async (columnName: string) => {
-    setSelectedSkuColumn(columnName)
-    setSkuPreview([])
-
-    if (!columnName.trim() || !uploadedCatalog || !user?.manufacturer_id) return
-    
-    try {
-      const previewResult = await productAPI.previewSKUsFromCatalog(
-        uploadedCatalog.id,
-        columnName,
-        parseInt(user.manufacturer_id.toString())
-      )
-      setSkuPreview(previewResult.preview_skus)
-    } catch (err) {
-      console.error('Error previewing SKUs:', err)
-      setUploadError(err instanceof Error ? err.message : 'Failed to preview SKUs')
-    }
-  }
-
-  // Handle product creation
-  const handleCreateProducts = async () => {
-    if (!uploadedCatalog || !selectedSkuColumn || !user?.manufacturer_id) {
-      setUploadError('Please select a SKU column first')
-      return
-    }
-    
-    setIsCreatingProducts(true)
-    setUploadError(null)
-    
-    try {
-      const result = await productAPI.createProductsFromCatalog(
-        uploadedCatalog.id,
-        selectedSkuColumn,
-        parseInt(user.manufacturer_id.toString())
-      )
-      
-      setProductCreationResult(result)
-      const created = result.created_count ?? 0
-      setUploadSuccess(`Successfully created ${created} products from column "${selectedSkuColumn}"`)
-      
-      // Clear success message after 8 seconds
-      setTimeout(() => setUploadSuccess(''), 8000)
-      
-    } catch (err) {
-      console.error('Error creating products:', err)
-      setUploadError(err instanceof Error ? err.message : 'Failed to create products')
-    } finally {
-      setIsCreatingProducts(false)
-    }
-  }
-
-  const handleIngestImagesFromSpreadsheet = async () => {
-    if (!uploadedCatalog?.id || !selectedSkuColumn || !selectedImageUrlColumn || !user?.manufacturer_id) {
-      setUploadError('Select SKU column, image URL column, and ensure the catalog is uploaded.')
-      return
-    }
-    if (selectedSkuColumn === selectedImageUrlColumn) {
-      setUploadError('SKU column and image URL column must be different.')
-      return
-    }
-
-    setIsIngestingUrls(true)
-    setUploadError(null)
-
-    try {
-      const manufacturerIdNum = parseInt(user.manufacturer_id.toString())
-      const result = await catalogAPI.ingestImagesFromSpreadsheetUrls(
-        uploadedCatalog.id,
-        selectedSkuColumn,
-        selectedImageUrlColumn,
-        manufacturerIdNum
-      )
-
-      setUploadedCatalog((prev: any) =>
-        prev ? { ...prev, catalog_file: result.catalog_file } : prev
-      )
-
-      setUploadSuccess(
-        `DAM import done: ${result.images_created} image(s) linked, ${result.unique_sources_fetched} unique URL(s) fetched. ` +
-          `${result.upload_failures} fetch/upload failure(s). ` +
-          `Column "${selectedImageUrlColumn}" in the catalog file now uses ImageKit URLs.`
-      )
-      setRefreshKey((prev) => prev + 1)
-      setTimeout(() => setUploadSuccess(''), 14000)
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to import images from spreadsheet URLs')
-    } finally {
-      setIsIngestingUrls(false)
-    }
   }
 
   if (isLoading) {
@@ -375,46 +246,11 @@ export default function CatalogsPage() {
               <div className={styles.welcomeContent}>
                 <h2 className={styles.welcomeTitle}>Catalog Upload Process</h2>
                 <p className={styles.welcomeDescription}>
-                  Upload your Excel or CSV file (include a column with image URLs when applicable). Images are imported
-                  into the DAM from those links. You may optionally add extra image files from your computer. If you
-                  need the Excel layout for your product line(s), open <strong>Catalog template</strong> in the
-                  navigation first—you can download one file per product type.
+                  Upload your Excel or CSV file using the <strong>Catalog template</strong> column names: a{' '}
+                  <strong>sku</strong> column for products and an <strong>images</strong> column for public image URLs.
+                  After upload we create products and import those URLs into the DAM automatically. Download templates
+                  from <strong>Catalog template</strong> in the navigation (one file per product line if needed).
                 </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Progress Indicator */}
-          <section className={styles.progressSection}>
-            <div className={styles.progressBar}>
-              <div className={`${styles.progressStep} ${selectedCatalogFile ? styles.stepComplete : styles.stepActive}`}>
-                <div className={`${styles.stepNumber} ${selectedCatalogFile ? styles.stepComplete : ''}`}>
-                  {selectedCatalogFile ? (
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    '1'
-                  )}
-                </div>
-                <span className={styles.stepLabel}>Select Catalog</span>
-              </div>
-              <div className={`${styles.progressLine} ${selectedCatalogFile ? styles.lineComplete : ''}`}></div>
-              <div
-                className={`${styles.progressStep} ${
-                  selectedImages.length > 0 ? styles.stepComplete : selectedCatalogFile ? styles.stepActive : styles.stepInactive
-                }`}
-              >
-                <div className={`${styles.stepNumber} ${selectedImages.length > 0 ? styles.stepComplete : ''}`}>
-                  {selectedImages.length > 0 ? (
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    '2'
-                  )}
-                </div>
-                <span className={styles.stepLabel}>Optional: disk images</span>
               </div>
             </div>
           </section>
@@ -422,8 +258,7 @@ export default function CatalogsPage() {
           {/* Upload Steps */}
           <section className={styles.uploadSteps}>
             <div className={styles.stepsGrid}>
-              {/* Step 1: Select Catalog */}
-              <div className={styles.stepCard}>
+              <div className={`${styles.stepCard} ${styles.catalogUploadStepCard}`}>
                 <div className={styles.stepCardHeader}>
                   <div className={`${styles.stepBadge} ${selectedCatalogFile ? styles.stepBadgeComplete : ''}`}>
                     {selectedCatalogFile ? (
@@ -443,35 +278,9 @@ export default function CatalogsPage() {
                 </div>
                 <div className={styles.stepCardContent}>
                   <CatalogFilePicker
+                    size="large"
                     onFileSelect={handleCatalogFileSelect}
                     selectedFile={selectedCatalogFile}
-                  />
-                </div>
-              </div>
-
-              {/* Step 2: Optional disk images */}
-              <div className={styles.stepCard}>
-                <div className={styles.stepCardHeader}>
-                  <div className={`${styles.stepBadge} ${selectedImages.length > 0 ? styles.stepBadgeComplete : ''}`}>
-                    {selectedImages.length > 0 ? (
-                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      '2'
-                    )}
-                  </div>
-                  <div className={styles.stepCardTitleArea}>
-                    <h3 className={styles.stepCardTitle}>Optional: images from disk</h3>
-                    <p className={styles.stepCardDescription}>
-                      Skip this if your template already lists image URLs. Otherwise add extra files here.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.stepCardContent}>
-                  <ImageFilesPicker
-                    onFilesSelect={handleImageFilesSelect}
-                    selectedFiles={selectedImages}
                   />
                 </div>
               </div>
@@ -481,14 +290,14 @@ export default function CatalogsPage() {
           {/* Upload Button */}
           <section className={styles.uploadButtonSection}>
             <button
-              onClick={handleUploadAll}
+              onClick={() => void handleUploadCatalog()}
               disabled={!selectedCatalogFile || isUploading}
               className={styles.uploadAllButton}
             >
               {isUploading ? (
                 <>
                   <span className={styles.spinner}></span>
-                  Uploading...
+                  {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
                 </>
               ) : (
                 <>
@@ -502,151 +311,16 @@ export default function CatalogsPage() {
             <p className={styles.uploadButtonHint}>
               {!selectedCatalogFile && 'Select a catalog file to upload.'}
               {selectedCatalogFile &&
-                (selectedImages.length > 0
-                  ? `Ready: catalog + ${selectedImages.length} optional file(s) from disk.`
-                  : 'Ready: catalog only (use URL column below after upload).')}
+                'Ready to upload — products and image URLs from the spreadsheet are processed automatically.'}
             </p>
           </section>
-
-          {/* Upload Progress - only when uploading files from disk */}
-          {selectedImages.length > 0 && (isUploading || uploadProgress.totalImages > 0) && (
-            <ImageUploadProgress
-              totalImages={uploadProgress.totalImages || selectedImages.length}
-              uploadedImages={uploadProgress.uploadedImages}
-              failedImages={uploadProgress.failedImages}
-              isUploading={uploadProgress.isUploading || isUploading}
-            />
-          )}
-
-          {/* After upload: map columns & DAM from URLs */}
-          {uploadedCatalog?.id && (
-            <section className={styles.uploadSteps} style={{ marginTop: '2rem' }}>
-              <div className={styles.welcomeCard} style={{ marginBottom: '1.5rem' }}>
-                <div className={styles.welcomeContent}>
-                  <h2 className={styles.welcomeTitle} style={{ fontSize: '1.25rem' }}>
-                    Catalog: {uploadedCatalog.name ?? 'Uploaded file'}
-                  </h2>
-                  <p className={styles.welcomeDescription} style={{ marginBottom: 0 }}>
-                    1) Choose the SKU column and create products. 2) Choose the column that contains image URLs (e.g.{' '}
-                    <strong>images</strong>) and import them into the DAM. The stored catalog file will be updated with ImageKit URLs.
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.stepsGrid}>
-                <div className={styles.stepCard}>
-                  <div className={styles.stepCardHeader}>
-                    <div className={styles.stepBadge}>A</div>
-                    <div className={styles.stepCardTitleArea}>
-                      <h3 className={styles.stepCardTitle}>SKU column → products</h3>
-                      <p className={styles.stepCardDescription}>
-                        Each distinct SKU becomes a product linked to this catalog.
-                      </p>
-                    </div>
-                  </div>
-                  <div className={styles.stepCardContent}>
-                    <label className={styles.stepCardDescription} htmlFor="sku-column">
-                      Column
-                    </label>
-                    <select
-                      id="sku-column"
-                      value={selectedSkuColumn}
-                      onChange={(e) => void handleSkuColumnSelect(e.target.value)}
-                      style={{
-                        width: '100%',
-                        marginTop: 8,
-                        padding: '10px 12px',
-                        borderRadius: 8,
-                        border: '1px solid var(--gray-300, #d1d5db)',
-                        background: 'var(--oonni-bg, #fff)',
-                      }}
-                    >
-                      <option value="">Select column…</option>
-                      {availableColumns.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    {skuPreview.length > 0 && (
-                      <p className={styles.stepCardDescription} style={{ marginTop: 12 }}>
-                        Preview: {skuPreview.slice(0, 8).join(', ')}
-                        {skuPreview.length > 8 ? '…' : ''}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => void handleCreateProducts()}
-                      disabled={!selectedSkuColumn || isCreatingProducts}
-                      className={styles.uploadAllButton}
-                      style={{ marginTop: 16 }}
-                    >
-                      {isCreatingProducts ? 'Creating…' : 'Create products from SKU column'}
-                    </button>
-                    {productCreationResult != null && (
-                      <p className={styles.stepCardDescription} style={{ marginTop: 12 }}>
-                        Last run: created {productCreationResult.created_count ?? 0}, skipped {productCreationResult.skipped ?? 0}.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className={styles.stepCard}>
-                  <div className={styles.stepCardHeader}>
-                    <div className={styles.stepBadge}>B</div>
-                    <div className={styles.stepCardTitleArea}>
-                      <h3 className={styles.stepCardTitle}>Image URLs → DAM</h3>
-                      <p className={styles.stepCardDescription}>
-                        We download each public URL, upload it to ImageKit, attach it to the product in that row (by SKU), and replace
-                        the cell with the ImageKit URL in your catalog file.
-                      </p>
-                    </div>
-                  </div>
-                  <div className={styles.stepCardContent}>
-                    <label className={styles.stepCardDescription} htmlFor="img-column">
-                      Column with image links
-                    </label>
-                    <select
-                      id="img-column"
-                      value={selectedImageUrlColumn}
-                      onChange={(e) => setSelectedImageUrlColumn(e.target.value)}
-                      style={{
-                        width: '100%',
-                        marginTop: 8,
-                        padding: '10px 12px',
-                        borderRadius: 8,
-                        border: '1px solid var(--gray-300, #d1d5db)',
-                        background: 'var(--oonni-bg, #fff)',
-                      }}
-                    >
-                      <option value="">Select column…</option>
-                      {availableColumns.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => void handleIngestImagesFromSpreadsheet()}
-                      disabled={!selectedSkuColumn || !selectedImageUrlColumn || isIngestingUrls}
-                      className={styles.uploadAllButton}
-                      style={{ marginTop: 16 }}
-                    >
-                      {isIngestingUrls ? 'Importing images…' : 'Import images from spreadsheet URLs'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
 
           <section className={styles.mediaLibrarySection} aria-labelledby="onboard-media-heading">
             <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
               Your uploaded images
             </h2>
             <p className={styles.mediaLibraryIntro}>
-              Same library as in the admin Images view: files linked to your manufacturer (disk uploads and imports from your catalog).
+              Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
             </p>
             <ImageList key={refreshKey} />
           </section>

@@ -294,8 +294,22 @@
 
 .stepsGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: $spacing-xl;
+  width: 100%;
+}
+
+/** Single full-width catalog step (replaces former two-column layout). */
+.catalogUploadStepCard {
+  width: 100%;
+  min-height: 0;
+
+  .stepCardContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 150px;
+  }
 }
 
 // Step Section
