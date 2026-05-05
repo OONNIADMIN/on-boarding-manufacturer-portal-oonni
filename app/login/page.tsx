@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import { authAPI } from '@/lib/api'
 import { LoginRequest } from '@/types'
 import styles from './page.module.scss'
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: FormEvent) => {
@@ -90,17 +92,33 @@ export default function LoginPage() {
               <label htmlFor="password" className={styles.label}>
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={styles.input}
-                placeholder="Please enter your password"
-                disabled={isLoading}
-                autoComplete="current-password"
-              />
+              <div className={styles.passwordWrap}>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className={`${styles.input} ${styles.inputWithToggle}`}
+                  placeholder="Please enter your password"
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className={styles.toggleVisibility}
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff strokeWidth={1.6} size={22} aria-hidden />
+                  ) : (
+                    <Eye strokeWidth={1.6} size={22} aria-hidden />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button type="submit" disabled={isLoading} className={styles.submitButton}>

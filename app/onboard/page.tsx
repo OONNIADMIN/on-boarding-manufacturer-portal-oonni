@@ -251,7 +251,13 @@ export default function CatalogsPage() {
               <div className={styles.welcomeDivider} aria-hidden="true"></div>
               <div className={styles.welcomeDescriptionPanel}>
                 <p className={styles.welcomeDescription}>
-                  Upload your excel or CSV file using the catalog template column names: a sku column for products and an images column for public image URLs. After upload we create products and import those URLs into de DAM automatically. Download templates from catalog template in the navigation (one file per product line if needed).
+                  Upload your excel or CSV file using the{' '}
+                  <span className={styles.welcomeHighlight}>catalog template</span> column names: a{' '}
+                  <span className={styles.welcomeHighlight}>sku</span> column for products and an{' '}
+                  <span className={styles.welcomeHighlight}>images</span> column for public image URLs.
+                  After upload we create products and import those URLs into the DAM automatically. Download
+                  templates from <span className={styles.welcomeHighlight}>catalog template</span> in the
+                  navigation (one file per product line if needed).
                 </p>
               </div>
             </div>
