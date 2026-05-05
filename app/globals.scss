@@ -61,9 +61,15 @@ a {
   text-decoration: none;
 }
 
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
 button {
   cursor: pointer;
-  font-family: inherit;
 }
 
 // Scrollbar styling
