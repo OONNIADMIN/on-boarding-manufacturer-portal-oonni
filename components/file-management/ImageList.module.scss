@@ -10,8 +10,8 @@
   margin: 0 auto;
   max-width: 740px;
   background: $white;
-  border: 1px solid #d4d7db;
-  border-radius: 0.65rem;
+  border: none;
+  border-radius: 0;
   padding: $spacing-md;
 }
 
@@ -19,9 +19,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: $spacing-sm;
-  padding-bottom: $spacing-sm;
-  border-bottom: 1px solid #d8dce0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.sectionDivider {
+  border: none;
+  border-top: 1px solid #d8dce0;
+  margin: $spacing-md 0 $spacing-md;
+  width: 100%;
 }
 
 .title {
@@ -32,26 +39,33 @@
 }
 
 .refreshButton {
-  @include button-ghost;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: $spacing-xs;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.58rem;
-  color: #4c926f;
-  border: 1px solid #92c9ab;
+  gap: 0.35rem;
+  padding: 0.35rem 0.9rem;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $white;
+  border: none;
   border-radius: 999px;
-  background: #e8f6ec;
+  background: #8ebf9f;
+  cursor: pointer;
+  transition: background $transition-fast, opacity $transition-fast;
 
   svg {
-    width: 0.7rem;
-    height: 0.7rem;
+    width: 0.85rem;
+    height: 0.85rem;
+    color: $white;
+    stroke: $white;
   }
 
   &:hover {
-    transform: none;
-    box-shadow: none;
-    background: #ddf0e4;
+    background: #7aad82;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba($oonni-teal, 0.45);
+    outline-offset: 2px;
   }
 }
 
@@ -60,6 +74,7 @@
   align-items: center;
   gap: $spacing-sm;
   margin-bottom: $spacing-md;
+  margin-top: 0;
   padding: 0;
   background-color: transparent;
   border-radius: 0;
@@ -95,6 +110,10 @@
     font-size: 0.6rem;
     border-radius: 999px;
     border-color: #d1d6dc;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
   }
 }
 
@@ -128,30 +147,39 @@
 }
 
 .imageCard {
-  overflow: hidden;
-  transition: none;
-  border: 1px solid #c8ced5;
   display: flex;
-  align-items: center;
-  padding: 0.45rem 0.6rem;
-  gap: $spacing-md;
+  align-items: stretch;
+  gap: 0;
+  overflow: hidden;
+  background: $white;
+  border: 1px solid #c5cdd6;
   border-radius: 0.65rem;
+  padding: 0.5rem 0.65rem 0.5rem 0.5rem;
   box-shadow: none;
+  transition: none;
+  min-height: 5.25rem;
 
   &:hover {
-    transform: none;
-    box-shadow: none;
-    border-color: #c8ced5;
+    border-color: #a8b3bf;
   }
+}
+
+.imageThumbColumn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-right: $spacing-md;
+  margin-right: $spacing-md;
+  border-right: 1px solid #d8dce0;
 }
 
 .imagePreview {
   position: relative;
-  width: 72px;
-  height: 72px;
-  background-color: $gray-100;
+  width: 5.25rem;
+  height: 5.25rem;
+  background-color: #eef1f4;
   overflow: hidden;
-  border-radius: 0.45rem;
+  border-radius: 0.4rem;
   flex-shrink: 0;
 }
 
@@ -206,8 +234,16 @@
 }
 
 .imageIcon {
-  font-size: 1.5rem;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5c6770;
+}
+
+.imageTypeIcon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .imageMeta {
@@ -219,9 +255,9 @@
 }
 
 .imageName {
-  font-size: 0.6rem;
+  font-size: $font-size-sm;
   font-weight: $font-weight-medium;
-  color: #1f2b34;
+  color: #1f2937;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -229,8 +265,8 @@
 }
 
 .imageSize {
-  font-size: 0.52rem;
-  color: $gray-500;
+  font-size: $font-size-xs;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -241,8 +277,33 @@
 .imageActions {
   display: flex;
   align-items: center;
-  gap: $spacing-xs;
+  gap: 0.2rem;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+.actionIconButton {
+  @include flex-center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: $radius-md;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background $transition-fast, color $transition-fast;
+
+  &:hover {
+    color: #111827;
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.actionIcon {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .viewButton {
@@ -294,6 +355,11 @@
     width: 0.72rem;
     height: 0.72rem;
   }
+}
+
+.actionIconButton.actionDeleteButton:hover {
+  color: $error;
+  background-color: rgba($error, 0.08);
 }
 
 .footer {
@@ -391,7 +457,7 @@
   font-size: 0.58rem;
   color: #8f959b;
   padding-top: $spacing-xs;
-  border-top: 1px solid #d8dce0;
+  border-top: none;
 }
 
 .paginationCount {

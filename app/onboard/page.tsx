@@ -277,37 +277,36 @@ export default function CatalogsPage() {
                         onFileSelect={handleCatalogFileSelect}
                         selectedFile={selectedCatalogFile}
                       />
+                      <div className={styles.catalogUploadActions}>
+                        <button
+                          type="button"
+                          onClick={() => void handleUploadCatalog()}
+                          disabled={!selectedCatalogFile || isUploading}
+                          className={styles.uploadAllButton}
+                        >
+                          {isUploading ? (
+                            <>
+                              <span className={styles.spinner}></span>
+                              {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
+                            </>
+                          ) : (
+                            <>
+                              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              Upload catalog
+                            </>
+                          )}
+                        </button>
+                        <p className={styles.uploadButtonHint}>
+                          {!selectedCatalogFile && 'Select a catalog file to upload.'}
+                          {selectedCatalogFile &&
+                            'Ready to upload - products and image URLs from the spreadsheet are processed automatically.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </section>
-
-              {/* Upload Button */}
-              <section className={styles.uploadButtonSection}>
-                <button
-                  onClick={() => void handleUploadCatalog()}
-                  disabled={!selectedCatalogFile || isUploading}
-                  className={styles.uploadAllButton}
-                >
-                  {isUploading ? (
-                    <>
-                      <span className={styles.spinner}></span>
-                      {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
-                    </>
-                  ) : (
-                    <>
-                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      Upload catalog
-                    </>
-                  )}
-                </button>
-                <p className={styles.uploadButtonHint}>
-                  {!selectedCatalogFile && 'Select a catalog file to upload.'}
-                  {selectedCatalogFile &&
-                    'Ready to upload - products and image URLs from the spreadsheet are processed automatically.'}
-                </p>
               </section>
             </>
           )}
@@ -321,12 +320,15 @@ export default function CatalogsPage() {
           )}
 
           <section className={styles.mediaLibrarySection} aria-labelledby="onboard-media-heading">
-            <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
-              Your uploaded images
-            </h2>
-            <p className={styles.mediaLibraryIntro}>
-              Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
-            </p>
+            <div className={styles.mediaLibraryHeadingBlock}>
+              <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
+                Your Upload Images
+              </h2>
+              <p className={styles.mediaLibraryIntro}>
+                Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
+              </p>
+              <hr className={styles.mediaLibraryDivider} />
+            </div>
             <ImageList key={refreshKey} />
           </section>
         </div>

@@ -103,7 +103,8 @@
   margin: 0 auto;
   padding: $spacing-xl;
   @include flex-column;
-  gap: $spacing-xl;
+  /** 15px between major blocks (e.g. welcome banner ↔ upload step) */
+  gap: 15px;
 }
 
 // Success Messages
@@ -153,15 +154,21 @@
 
 // Welcome Section
 .welcomeSection {
-  width: 100%;
-  margin-bottom: $spacing-lg;
+  // Full-bleed within the padded `.content`: touches left/right margins of the page column
+  width: calc(100% + 2 * #{$spacing-xl});
+  max-width: none;
+  margin-left: -#{$spacing-xl};
+  margin-right: -#{$spacing-xl};
+  /** Vertical rhythm: use `.content` `gap` only (15px to next section) */
+  margin-bottom: 0;
 }
 
 .welcomeCard {
   display: grid;
-  grid-template-columns: minmax(300px, 42%) 1px minmax(0, 58%);
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
   align-items: stretch;
   min-height: 181px;
+  width: 100%;
   background: $oonni-teal;
   color: $white;
   border-radius: 0;
@@ -171,6 +178,8 @@
 .welcomeTitlePanel {
   @include flex-center;
   padding: $spacing-xl;
+  min-width: 0;
+  width: 100%;
 }
 
 .welcomeDivider {
@@ -182,6 +191,8 @@
   align-items: center;
   justify-content: flex-start;
   padding: $spacing-xl $spacing-2xl;
+  min-width: 0;
+  width: 100%;
 }
 
 .welcomeTitle {
@@ -198,7 +209,8 @@
   color: rgba(255, 255, 255, 0.95);
   margin: 0;
   line-height: 1.45;
-  max-width: 560px;
+  max-width: none;
+  width: 100%;
 }
 
 // Progress Indicator Section
@@ -286,8 +298,13 @@
 
 // Upload Steps Section
 .uploadSteps {
-  width: 100%;
-  margin-bottom: $spacing-lg;
+  /** Full-bleed: align with welcome banner — no horizontal inset from `.content` padding */
+  width: calc(100% + 2 * #{$spacing-xl});
+  max-width: none;
+  margin-left: -#{$spacing-xl};
+  margin-right: -#{$spacing-xl};
+  /** Spacing to next section uses `.content` `gap` (15px) only */
+  margin-bottom: 0;
   background: $white;
 }
 
@@ -302,7 +319,11 @@
 
 /** Single full-width catalog step (replaces former two-column layout). */
 .catalogUploadStepCard {
-  width: 100%;
+  box-sizing: border-box;
+  width: calc(100% - 100px);
+  max-width: calc(100% - 100px);
+  margin-left: auto;
+  margin-right: auto;
   min-height: 0;
 
   .stepCardContent {
@@ -311,6 +332,15 @@
     flex-direction: column;
     min-height: 150px;
   }
+}
+
+.catalogUploadActions {
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-sm;
+  width: 100%;
+  margin-top: $spacing-md;
+  padding-bottom: $spacing-md;
 }
 
 // Step Section
@@ -693,6 +723,23 @@
     padding: $spacing-md;
   }
 
+  .welcomeSection {
+    width: calc(100% + 2 * #{$spacing-md});
+    margin-left: -#{$spacing-md};
+    margin-right: -#{$spacing-md};
+  }
+
+  .uploadSteps {
+    width: calc(100% + 2 * #{$spacing-md});
+    margin-left: -#{$spacing-md};
+    margin-right: -#{$spacing-md};
+  }
+
+  .mediaLibrarySection {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .welcomeCard {
     border-radius: 0;
   }
@@ -971,12 +1018,26 @@
 }
 
 .mediaLibrarySection {
-  margin-top: $spacing-2xl;
+  /** Spacing from upload block: `.content` `gap` (15px) only */
+  margin-top: 0;
+  /** Same 50px side inset as `.catalogUploadStepCard` so margins are visible against the page background */
+  box-sizing: border-box;
+  width: calc(100% - 100px);
+  max-width: calc(100% - 100px);
+  margin-left: auto;
+  margin-right: auto;
   padding: $spacing-lg $spacing-xl $spacing-xl;
-  background: #efefef;
+  background: $white;
   border: none;
   border-radius: 0.65rem;
   box-shadow: none;
+}
+
+/** Same width as `ImageList` container so title, intro, and `<hr>` align with the list column. */
+.mediaLibraryHeadingBlock {
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto;
 }
 
 .mediaLibraryTitle {
@@ -993,5 +1054,51 @@
   margin: 0 0 $spacing-md;
   line-height: 1.4;
   text-align: center;
+  width: 100%;
+}
+
+.mediaLibraryDivider {
+  border: none;
+  border-top: 1px solid #d8dce0;
+  margin: 0 0 $spacing-lg;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+// Wider than the default content cap: avoid side gutters so welcome + upload span the full row
+@media (min-width: 1400px) {
+  .content {
+    max-width: none;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .welcomeSection {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .uploadSteps {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .successMessage {
+    margin-left: $spacing-xl;
+    margin-right: $spacing-xl;
+  }
+
+  .errorMessage {
+    margin-left: $spacing-xl;
+    margin-right: $spacing-xl;
+  }
+
+  .uploadButtonSection {
+    margin-left: $spacing-xl;
+    margin-right: $spacing-xl;
+  }
 }
 

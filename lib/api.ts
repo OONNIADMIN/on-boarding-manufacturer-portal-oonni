@@ -834,11 +834,18 @@ export const imageAPI = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Failed to fetch images')
+      const error = (await response.json().catch(() => ({}))) as { detail?: string }
+      const hint =
+        error.detail ||
+        `${response.status} ${response.statusText || ''}`.trim() ||
+        'Failed to fetch images'
+      throw new Error(hint)
     }
 
-    const raw = (await response.json()) as Record<string, unknown>
+    const raw = (await response.json().catch(() => null)) as Record<string, unknown> | null
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('Invalid response from images API (empty or not JSON)')
+    }
     const nested = raw?.data as Record<string, unknown> | undefined
     const list =
       Array.isArray(raw) ? raw :
