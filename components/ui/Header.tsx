@@ -20,7 +20,6 @@ interface HeaderProps {
 
 export default function Header({
   title,
-  subtitle,
   user,
   showBackButton = false,
   backButtonText = 'Back',
@@ -83,8 +82,21 @@ export default function Header({
       <div className={styles.headerContent}>
         <img src="/oonni_logo.png" alt="Oonni Logo" className={styles.logo} />
         <div>
-          <h1 className={styles.title}>{title}</h1>
-          <p className={styles.subtitle}>{subtitle}</p>
+          <h1 className={styles.title}>
+            <span className={styles.titleWithIcon}>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M8 3h5.5L18 7.5V19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M13 3v4.5H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {title}
+            </span>
+          </h1>
         </div>
         <div className={styles.headerActions}>
           {showBackButton && (

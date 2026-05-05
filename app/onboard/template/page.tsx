@@ -138,21 +138,21 @@ export default function CatalogTemplatePage() {
             </p>
           </section>
 
-          {pageError && (
-            <div className={styles.errorMessage} role="alert">
-              <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {pageError}
-            </div>
-          )}
-
           <section className={styles.nauticalSection} aria-labelledby="nautical-template-heading">
+            {pageError && (
+              <div className={styles.errorMessage} role="alert">
+                <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {pageError}
+              </div>
+            )}
+
             <div className={styles.nauticalCard}>
               <h2 id="nautical-template-heading" className={styles.nauticalTitle}>
                 Download your Excel template

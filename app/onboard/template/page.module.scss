@@ -14,79 +14,103 @@
 
 .content {
   flex: 1;
-  max-width: 1400px;
+  max-width: 1320px;
   width: 100%;
   margin: 0 auto;
-  padding: $spacing-xl;
-  @include flex-column;
-  gap: $spacing-xl;
+  padding: $spacing-xl $spacing-xl $spacing-2xl;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1fr);
+  gap: 0;
+  align-items: stretch;
+  background: $white;
+  border: 1px solid $gray-200;
+  box-shadow: $shadow-sm;
 }
 
 .introCard {
-  @include card;
-  padding: $spacing-xl;
-  background: linear-gradient(135deg, $oonni-teal 0%, $oonni-green 100%);
+  border-radius: 0;
+  padding: 4.25rem 3.25rem;
+  background: $oonni-teal;
   color: $white;
   border: none;
-  box-shadow: $shadow-lg;
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .introTitle {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  margin: 0 0 $spacing-sm 0;
+  font-size: 2.15rem;
+  line-height: 1.15;
+  font-weight: $font-weight-medium;
+  letter-spacing: 0.01em;
+  margin: 0 0 $spacing-lg 0;
+  max-width: 17ch;
 }
 
 .introText {
-  font-size: $font-size-sm;
+  font-size: $font-size-base;
   margin: 0;
-  line-height: 1.55;
-  opacity: 0.95;
+  line-height: 1.65;
+  opacity: 0.9;
+  max-width: 50ch;
 
   & + & {
-    margin-top: $spacing-md;
+    margin-top: $spacing-lg;
   }
 }
 
 .nauticalSection {
   width: 100%;
+  min-height: 620px;
+  background: #f7f7f5;
+  padding: 4rem 4.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: $spacing-md;
 }
 
 .nauticalCard {
-  @include card;
   @include flex-column;
-  gap: $spacing-md;
-  padding: $spacing-xl;
-  background: $white;
-  border: 2px solid $gray-200;
+  gap: $spacing-lg;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .nauticalTitle {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
+  font-size: 2rem;
+  line-height: 1.1;
+  font-weight: $font-weight-medium;
+  color: #1f3f3f;
   margin: 0;
+  max-width: 16ch;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid $gray-300;
 }
 
 .nauticalDescription {
-  font-size: $font-size-sm;
+  font-size: $font-size-base;
   color: $gray-600;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.6;
+  max-width: 56ch;
 }
 
 .nauticalRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-md;
-  align-items: flex-end;
+  gap: $spacing-sm;
+  align-items: center;
+  margin-top: $spacing-xs;
 }
 
 .nauticalSelect {
   flex: 1;
-  min-width: min(100%, 220px);
-  padding: 10px 12px;
-  border-radius: $radius-md;
+  min-width: 220px;
+  padding: 0.65rem 0.9rem;
+  border-radius: $radius-full;
   border: 1px solid $gray-300;
   background: $white;
   font-size: $font-size-sm;
@@ -106,9 +130,10 @@
 
 .uploadAllButton {
   @include button-primary;
-  font-size: $font-size-lg;
-  padding: $spacing-md $spacing-2xl;
-  min-width: 220px;
+  font-size: $font-size-sm;
+  padding: 0.65rem 1.25rem;
+  min-width: fit-content;
+  border-radius: $radius-full;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,8 +155,8 @@
 .nextSection {
   @include flex-column;
   align-items: flex-start;
-  gap: $spacing-md;
-  padding-top: $spacing-md;
+  gap: $spacing-sm;
+  padding-top: $spacing-lg;
   border-top: 1px solid $gray-200;
 }
 
@@ -144,7 +169,8 @@
 .nextButton {
   @include button-primary;
   font-size: $font-size-base;
-  padding: $spacing-md $spacing-xl;
+  padding: 0.7rem 2rem;
+  border-radius: $radius-full;
 }
 
 .errorMessage {
@@ -154,7 +180,7 @@
   padding: $spacing-md 1.25rem;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: $radius-xl;
+  border-radius: $radius-lg;
   color: #991b1b;
   font-size: $font-size-base;
   font-weight: $font-weight-medium;
@@ -165,4 +191,33 @@
   height: 24px;
   flex-shrink: 0;
   color: #ef4444;
+}
+
+@include respond-to('lg') {
+  .content {
+    grid-template-columns: 1fr;
+    max-width: 900px;
+  }
+
+  .introCard,
+  .nauticalSection {
+    min-height: auto;
+    padding: 2.5rem;
+  }
+}
+
+@include respond-to('md') {
+  .content {
+    padding: $spacing-md;
+  }
+
+  .introCard,
+  .nauticalSection {
+    padding: 1.5rem;
+  }
+
+  .nauticalRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
