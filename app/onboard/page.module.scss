@@ -626,15 +626,6 @@
   flex: 1;
 }
 
-.footer {
-  background-color: $oonni-teal;
-  color: $white;
-  text-align: center;
-  padding: $spacing-md;
-  font-size: $font-size-sm;
-  margin-top: auto;
-}
-
 @include respond-to('md') {
   .main {
     padding: $spacing-md;

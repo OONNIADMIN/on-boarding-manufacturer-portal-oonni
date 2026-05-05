@@ -332,10 +332,6 @@ export default function CatalogsPage() {
             <ImageList key={refreshKey} />
           </section>
         </div>
-
-        <footer className={styles.footer}>
-          <p>Powered by Oonni Platform</p>
-        </footer>
       </div>
     </main>
   )

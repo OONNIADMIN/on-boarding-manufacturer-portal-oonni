@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { authAPI } from '@/lib/api'
 import { User } from '@/types'
-import { RotateCw, UserRound } from 'lucide-react'
+import { CircleUserRound } from 'lucide-react'
 import styles from './Header.module.scss'
 
 interface HeaderProps {
@@ -148,14 +148,47 @@ export default function Header({
           )}
           {user && (
             <div className={styles.welcomeBlock}>
-              <UserRound className={styles.welcomeIcon} aria-hidden="true" strokeWidth={1.6} />
+              <CircleUserRound className={styles.welcomeIcon} aria-hidden="true" strokeWidth={1.6} />
               <span className={styles.welcomeText}>
                 Welcome, {authAPI.isAdmin(user) ? 'Admin' : user.name}
               </span>
             </div>
           )}
           <button type="button" onClick={handleLogout} className={styles.logoutButton}>
-            <RotateCw className={styles.logoutIcon} aria-hidden="true" strokeWidth={1.6} />
+            {/* Ring with NE gap + arrow through gap (reference mark, not refresh/log-in-door) */}
+            <svg
+              className={styles.logoutIcon}
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <circle
+                cx={12}
+                cy={12}
+                r={9}
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeDasharray="42.412 14.137"
+              />
+              <line
+                x1={11.25}
+                y1={12.75}
+                x2={18.25}
+                y2={5.75}
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+              <path
+                d="M 17.05 7.35 L 18.25 5.75 L 17.05 4.15"
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span>Logout</span>
           </button>
         </div>
