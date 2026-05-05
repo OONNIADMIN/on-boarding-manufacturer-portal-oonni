@@ -158,49 +158,47 @@
 }
 
 .welcomeCard {
-  @include card;
-  @include flex-center;
-  gap: $spacing-lg;
-  padding: $spacing-xl;
-  background: linear-gradient(135deg, $oonni-teal 0%, $oonni-green 100%);
+  display: grid;
+  grid-template-columns: minmax(300px, 42%) 1px minmax(0, 58%);
+  align-items: stretch;
+  min-height: 181px;
+  background: $oonni-teal;
   color: $white;
-  border: none;
-  box-shadow: $shadow-lg;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.welcomeIcon {
+.welcomeTitlePanel {
   @include flex-center;
-  width: 4rem;
-  height: 4rem;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: $radius-full;
-  flex-shrink: 0;
-
-  svg {
-    width: 2rem;
-    height: 2rem;
-    color: $white;
-  }
+  padding: $spacing-xl;
 }
 
-.welcomeContent {
-  @include flex-column;
-  gap: $spacing-sm;
-  flex: 1;
+.welcomeDivider {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.welcomeDescriptionPanel {
+  @include flex-center;
+  align-items: center;
+  justify-content: flex-start;
+  padding: $spacing-xl $spacing-2xl;
 }
 
 .welcomeTitle {
-  font-size: $font-size-2xl;
-  font-weight: $font-weight-semibold;
-  color: $white;
+  font-size: 2.25rem;
+  font-weight: $font-weight-medium;
+  color: #c4c39d;
   margin: 0;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .welcomeDescription {
   font-size: $font-size-base;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.45;
+  max-width: 560px;
 }
 
 // Progress Indicator Section
@@ -289,7 +287,8 @@
 // Upload Steps Section
 .uploadSteps {
   width: 100%;
-  margin-bottom: $spacing-xl;
+  margin-bottom: $spacing-lg;
+  background: $white;
 }
 
 .stepsGrid {
@@ -297,6 +296,8 @@
   grid-template-columns: 1fr;
   gap: $spacing-xl;
   width: 100%;
+  background: $white;
+  padding: 0;
 }
 
 /** Single full-width catalog step (replaces former two-column layout). */
@@ -319,14 +320,14 @@
 }
 
 .stepCard {
-  @include card;
+  border-radius: 0;
   @include flex-column;
-  gap: $spacing-lg;
-  padding: $spacing-xl;
-  background: $white;
-  border: 2px solid $gray-200;
+  gap: $spacing-md;
+  padding: $spacing-lg 0 0;
+  background: transparent;
+  border: none;
   position: relative;
-  transition: all $transition-base;
+  transition: none;
 }
 
 .stepCardActive {
@@ -340,9 +341,8 @@
 }
 
 .stepCardHeader {
-  display: flex;
-  gap: $spacing-lg;
-  align-items: flex-start;
+  display: block;
+  text-align: center;
 }
 
 .stepBadge {
@@ -374,26 +374,28 @@
 
 .stepCardTitleArea {
   @include flex-column;
-  gap: $spacing-xs;
-  flex: 1;
+  gap: 0.2rem;
+  align-items: center;
 }
 
 .stepCardTitle {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
+  font-size: 1.6rem;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
   margin: 0;
 }
 
 .stepCardDescription {
-  font-size: $font-size-base;
-  color: $gray-600;
+  font-size: $font-size-sm;
+  color: $gray-400;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .stepCardContent {
   width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .stepCardSuccess {
@@ -632,23 +634,24 @@
   }
 
   .welcomeCard {
-    flex-direction: column;
-    text-align: center;
-    padding: $spacing-lg;
-  }
-
-  .welcomeIcon {
-    width: 3rem;
-    height: 3rem;
-
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
+    grid-template-columns: 1fr;
+    min-height: unset;
   }
 
   .welcomeTitle {
-    font-size: $font-size-xl;
+    font-size: 1.8rem;
+  }
+
+  .welcomeDivider {
+    height: 1px;
+    width: 100%;
+  }
+
+  .welcomeTitlePanel,
+  .welcomeDescriptionPanel {
+    justify-content: center;
+    padding: $spacing-lg;
+    text-align: center;
   }
 
   .progressBar {
@@ -691,11 +694,11 @@
   }
 
   .welcomeCard {
-    padding: $spacing-md;
+    border-radius: 0;
   }
 
   .welcomeTitle {
-    font-size: $font-size-lg;
+    font-size: 1.45rem;
   }
 
   .welcomeDescription {
@@ -969,24 +972,26 @@
 
 .mediaLibrarySection {
   margin-top: $spacing-2xl;
-  padding: $spacing-xl;
-  background: $white;
-  border: 1px solid $gray-200;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
+  padding: $spacing-lg $spacing-xl $spacing-xl;
+  background: #efefef;
+  border: none;
+  border-radius: 0.65rem;
+  box-shadow: none;
 }
 
 .mediaLibraryTitle {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
-  margin: 0 0 $spacing-sm;
+  font-size: 0.95rem;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
+  margin: 0 0 0.2rem;
+  text-align: center;
 }
 
 .mediaLibraryIntro {
-  font-size: $font-size-sm;
-  color: $gray-600;
-  margin: 0 0 $spacing-lg;
-  line-height: 1.5;
+  font-size: 0.65rem;
+  color: #8c8f93;
+  margin: 0 0 $spacing-md;
+  line-height: 1.4;
+  text-align: center;
 }
 

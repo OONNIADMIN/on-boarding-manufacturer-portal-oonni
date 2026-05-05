@@ -14,6 +14,10 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: $spacing-md;
 }
 
 .fileInput {
@@ -21,37 +25,38 @@
 }
 
 .dropzone {
-  border: 2px dashed $gray-300;
-  border-radius: $radius-lg;
+  border: none;
+  border-radius: 1rem;
   padding: $spacing-lg;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   transition: all $transition-base;
-  background: $gray-50;
+  background: #d0d5d8;
   display: flex;
   flex-direction: column;
-  gap: $spacing-md;
+  gap: $spacing-sm;
   width: 100%;
+  max-width: 100%;
   min-height: 120px;
 
   &:hover {
-    border-color: $oonni-green;
-    background: $white;
-    box-shadow: 0 2px 8px rgba($oonni-green, 0.1);
+    background: #c6cdd1;
+    box-shadow: none;
   }
 
   &.hasFile {
-    border-color: $success;
-    border-style: solid;
-    background: rgba($success, 0.05);
+    background: #d0d5d8;
   }
 }
 
 .dropzoneLarge {
   flex: 1;
-  min-height: 150px;
-  padding: $spacing-xl;
+  min-height: 134px;
+  padding: $spacing-lg $spacing-xl;
   justify-content: center;
+  width: 50%;
+  max-width: 360px;
+  min-width: 300px;
 
   .dropzoneContent {
     justify-content: center;
@@ -59,26 +64,40 @@
 }
 
 .selectButton {
-  @include button-secondary;
+  @include button-primary;
   border-radius: $radius-full;
-  padding: $spacing-sm $spacing-lg;
+  padding: $spacing-sm $spacing-xl;
   font-size: $font-size-sm;
   white-space: nowrap;
-  align-self: flex-start;
+  align-self: center;
+  min-width: 190px;
 }
 
 .dropzoneContent {
   display: flex;
   align-items: center;
-  gap: $spacing-md;
+  gap: $spacing-xs;
   flex: 1;
+  justify-content: center;
 }
 
 .dropzoneText {
-  font-size: $font-size-sm;
-  color: $gray-500;
+  font-size: $font-size-xs;
+  color: $gray-700;
   text-align: center;
   width: 100%;
+  font-weight: $font-weight-medium;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+
+  &::before {
+    content: '📄';
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0.8;
+  }
 }
 
 .fileIcon {
@@ -95,7 +114,7 @@
 }
 
 .fileName {
-  font-size: $font-size-sm;
+  font-size: $font-size-xs;
   color: $gray-900;
   font-weight: $font-weight-medium;
   word-break: break-word;

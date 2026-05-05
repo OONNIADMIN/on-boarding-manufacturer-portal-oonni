@@ -3,77 +3,117 @@
 
 .main {
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: $oonni-bg;
+  display: flex;
+  flex-direction: column;
 }
 
 .container {
-  min-height: 100vh;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .content {
   flex: 1;
-  max-width: 1320px;
+  min-height: 0;
   width: 100%;
-  margin: 0 auto;
-  padding: $spacing-xl $spacing-xl $spacing-2xl;
+  max-width: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 0;
   align-items: stretch;
-  background: $white;
-  border: 1px solid $gray-200;
-  box-shadow: $shadow-sm;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .introCard {
   border-radius: 0;
-  padding: 4.25rem 3.25rem;
+  padding: 4.25rem clamp(1.5rem, 4vw, 3.5rem);
   background: $oonni-teal;
   color: $white;
   border: none;
-  min-height: 620px;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  box-sizing: border-box;
 }
 
-.introTitle {
-  font-size: 2.15rem;
+// Intro heading (two-line headline + thin gold underline — matches design reference)
+$intro-heading-gold: rgb(228, 204, 150);
+
+.introHeading {
+  margin: 0 0 $spacing-xl 0;
+  max-width: 22ch;
+  @include flex-column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.introTitleLine1 {
+  font-size: 1.05rem;
+  font-weight: $font-weight-normal;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: $intro-heading-gold;
+}
+
+.introTitleLine2 {
+  display: block;
+  font-size: 2.05rem;
+  font-weight: $font-weight-semibold;
   line-height: 1.15;
-  font-weight: $font-weight-medium;
-  letter-spacing: 0.01em;
-  margin: 0 0 $spacing-lg 0;
-  max-width: 17ch;
+  letter-spacing: 0.02em;
+  color: $intro-heading-gold;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid $intro-heading-gold;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .introText {
   font-size: $font-size-base;
   margin: 0;
   line-height: 1.65;
-  opacity: 0.9;
-  max-width: 50ch;
+  color: $white;
+  opacity: 0.95;
+  max-width: 52ch;
 
   & + & {
     margin-top: $spacing-lg;
   }
 }
 
+// Right panel — download section (design reference)
+$nautical-forest: #00332e;
+$nautical-sage: #94b49f;
+
 .nauticalSection {
   width: 100%;
-  min-height: 620px;
-  background: #f7f7f5;
-  padding: 4rem 4.25rem;
+  min-height: 0;
+  height: 100%;
+  background: $white;
+  padding: 4rem clamp(1.5rem, 4vw, 4.25rem);
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: $spacing-md;
+  box-sizing: border-box;
 }
 
 .nauticalCard {
   @include flex-column;
-  gap: $spacing-lg;
+  gap: 1.35rem;
   padding: 0;
   background: transparent;
   border: none;
@@ -81,45 +121,125 @@
 }
 
 .nauticalTitle {
-  font-size: 2rem;
-  line-height: 1.1;
-  font-weight: $font-weight-medium;
-  color: #1f3f3f;
   margin: 0;
-  max-width: 16ch;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid $gray-300;
+  padding: 0 0 1rem 0;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid $gray-200;
+  @include flex-column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  max-width: 100%;
+}
+
+.nauticalTitleLine1 {
+  font-size: 1rem;
+  font-weight: $font-weight-normal;
+  line-height: 1.3;
+  color: $nautical-forest;
+}
+
+.nauticalTitleLine2 {
+  font-size: 1.85rem;
+  font-weight: $font-weight-bold;
+  line-height: 1.15;
+  color: $nautical-forest;
+  letter-spacing: -0.01em;
 }
 
 .nauticalDescription {
   font-size: $font-size-base;
-  color: $gray-600;
+  color: $gray-700;
   margin: 0;
-  line-height: 1.6;
-  max-width: 56ch;
+  line-height: 1.65;
+  max-width: 58ch;
+}
+
+.nauticalProgress {
+  @include flex-column;
+  gap: 0.45rem;
+}
+
+.nauticalProgressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.nauticalProgressLabel,
+.nauticalProgressPct {
+  font-size: $font-size-xs;
+  color: $gray-500;
+}
+
+.nauticalProgressPct {
+  font-variant-numeric: tabular-nums;
+}
+
+.nauticalProgressTrack {
+  height: 4px;
+  border-radius: $radius-full;
+  background: $gray-200;
+  overflow: hidden;
+}
+
+.nauticalProgressFill {
+  height: 100%;
+  width: 65%;
+  border-radius: $radius-full;
+  background: $nautical-forest;
+  animation: nauticalProgressPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes nauticalProgressPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
 }
 
 .nauticalRow {
   display: flex;
-  gap: $spacing-sm;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.65rem;
   align-items: center;
-  margin-top: $spacing-xs;
+  margin-top: 0.15rem;
 }
 
 .nauticalSelect {
-  flex: 1;
-  min-width: 220px;
-  padding: 0.65rem 0.9rem;
-  border-radius: $radius-full;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  padding: 0.7rem 2.25rem 0.7rem 1rem;
+  border-radius: 50px;
   border: 1px solid $gray-300;
-  background: $white;
+  background-color: $white;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23737373' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 12px;
   font-size: $font-size-sm;
+  color: $gray-700;
+  appearance: none;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+    background-color: $gray-50;
+  }
 }
 
 .nauticalHint {
-  font-size: $font-size-xs;
+  font-size: 0.7rem;
   color: $gray-500;
   margin: 0;
+  line-height: 1.45;
+  max-width: 58ch;
 }
 
 .nauticalWarning {
@@ -128,49 +248,69 @@
   margin: 0;
 }
 
-.uploadAllButton {
-  @include button-primary;
-  font-size: $font-size-sm;
-  padding: 0.65rem 1.25rem;
-  min-width: fit-content;
-  border-radius: $radius-full;
-  display: flex;
+.downloadTemplateButton {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: $spacing-sm;
+  flex-shrink: 0;
+  padding: 0.7rem 1.35rem;
+  min-width: fit-content;
+  border: none;
+  border-radius: 50px;
+  background: #003333;
+  color: $white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: background $transition-base, opacity $transition-base;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: #002929;
+  }
 
   &:disabled {
     background: $gray-300;
     color: $gray-600;
     cursor: not-allowed;
-    opacity: 0.6;
-
-    &:hover {
-      background: $gray-300;
-      transform: none;
-    }
+    opacity: 0.75;
   }
 }
 
 .nextSection {
   @include flex-column;
   align-items: flex-start;
-  gap: $spacing-sm;
-  padding-top: $spacing-lg;
+  gap: 0.65rem;
+  padding-top: 1.35rem;
+  margin-top: 0.35rem;
   border-top: 1px solid $gray-200;
 }
 
 .nextLabel {
   font-size: $font-size-sm;
-  color: $gray-600;
+  color: $gray-700;
   margin: 0;
 }
 
 .nextButton {
-  @include button-primary;
+  padding: 0.85rem 2rem;
+  border: none;
+  border-radius: 50px;
+  background: $nautical-sage;
+  color: $white;
   font-size: $font-size-base;
-  padding: 0.7rem 2rem;
-  border-radius: $radius-full;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: background $transition-base, opacity $transition-base;
+
+  &:hover:not(:disabled) {
+    background: darken($nautical-sage, 6%);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .errorMessage {
@@ -196,28 +336,40 @@
 @include respond-to('lg') {
   .content {
     grid-template-columns: 1fr;
-    max-width: 900px;
+    grid-template-rows: auto auto;
+    flex: 1;
+    min-height: 0;
+    max-width: none;
   }
 
   .introCard,
   .nauticalSection {
-    min-height: auto;
-    padding: 2.5rem;
+    height: auto;
+    min-height: min(60vh, 620px);
+    padding: 2.5rem clamp(1.25rem, 5vw, 2.5rem);
   }
 }
 
 @include respond-to('md') {
-  .content {
-    padding: $spacing-md;
-  }
-
   .introCard,
   .nauticalSection {
-    padding: 1.5rem;
+    padding: 1.5rem clamp(1rem, 4vw, 1.5rem);
   }
+}
 
+@include respond-to('sm') {
   .nauticalRow {
+    flex-wrap: wrap;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .nauticalSelect {
+    min-width: 100%;
+  }
+
+  .downloadTemplateButton {
+    width: 100%;
+    justify-content: center;
   }
 }

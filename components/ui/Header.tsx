@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { authAPI } from '@/lib/api'
 import { User } from '@/types'
+import { RotateCw, UserRound } from 'lucide-react'
 import styles from './Header.module.scss'
 
 interface HeaderProps {
@@ -115,8 +116,17 @@ export default function Header({
               </svg>
             </button>
           )}
-          <button onClick={handleLogout} className={styles.logoutButton}>
-            Log out
+          {user && (
+            <div className={styles.welcomeBlock}>
+              <UserRound className={styles.welcomeIcon} aria-hidden="true" strokeWidth={1.6} />
+              <span className={styles.welcomeText}>
+                Welcome, {authAPI.isAdmin(user) ? 'Admin' : user.name}
+              </span>
+            </div>
+          )}
+          <button type="button" onClick={handleLogout} className={styles.logoutButton}>
+            <RotateCw className={styles.logoutIcon} aria-hidden="true" strokeWidth={1.6} />
+            <span>Logout</span>
           </button>
         </div>
       </div>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { imageAPI, ImageInfo } from '@/lib/api'
-import Pagination from '@/components/ui/Pagination'
 import styles from './ImageList.module.scss'
 
 export default function ImageList() {
@@ -143,6 +142,9 @@ export default function ImageList() {
     setItemsPerPage(newItemsPerPage)
     setCurrentPage(1) // Reset to first page when changing items per page
   }
+
+  const startItem = safeFiltered.length ? (currentPage - 1) * itemsPerPage + 1 : 0
+  const endItem = Math.min(currentPage * itemsPerPage, safeFiltered.length)
 
   if (isLoading) {
     return (
@@ -421,15 +423,68 @@ export default function ImageList() {
         ))}
       </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        itemsPerPage={itemsPerPage}
-        totalItems={safeFiltered.length}
-        showItemsPerPage={true}
-        onItemsPerPageChange={handleItemsPerPageChange}
-      />
+      {totalPages > 1 && (
+        <>
+          <div className={styles.paginationSummary}>
+            <span className={styles.paginationCount}>
+              Showing {startItem}-{endItem} of {safeFiltered.length} items
+            </span>
+            <div className={styles.paginationItemsPerPage}>
+              <label htmlFor="images-items-per-page">Items per page</label>
+              <select
+                id="images-items-per-page"
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className={styles.paginationSelect}
+              >
+                {[5, 10, 20, 50].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.paginationControls}>
+            <button
+              type="button"
+              className={styles.paginationEdgeButton}
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+            >
+              First
+            </button>
+            <button
+              type="button"
+              className={styles.paginationCircleButton}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+            >
+              &lt;
+            </button>
+            <span className={styles.paginationPageNumber}>{currentPage}</span>
+            <button
+              type="button"
+              className={styles.paginationCircleButton}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+            >
+              &gt;
+            </button>
+            <button
+              type="button"
+              className={styles.paginationEdgeButton}
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

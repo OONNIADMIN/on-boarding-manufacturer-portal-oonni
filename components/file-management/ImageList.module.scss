@@ -8,52 +8,62 @@
 .container {
   width: 100%;
   margin: 0 auto;
+  max-width: 740px;
+  background: $white;
+  border: 1px solid #d4d7db;
+  border-radius: 0.65rem;
+  padding: $spacing-md;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: $spacing-xl;
-  padding-bottom: $spacing-md;
-  border-bottom: 1px solid $gray-200;
+  margin-bottom: $spacing-sm;
+  padding-bottom: $spacing-sm;
+  border-bottom: 1px solid #d8dce0;
 }
 
 .title {
-  font-size: $font-size-2xl;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
+  font-size: 1rem;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
   margin: 0;
 }
 
 .refreshButton {
-  @include button-secondary;
+  @include button-ghost;
   display: flex;
   align-items: center;
   gap: $spacing-xs;
-  padding: $spacing-sm $spacing-md;
-  font-size: $font-size-sm;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.58rem;
+  color: #4c926f;
+  border: 1px solid #92c9ab;
+  border-radius: 999px;
+  background: #e8f6ec;
 
   svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.7rem;
+    height: 0.7rem;
   }
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-md;
+    transform: none;
+    box-shadow: none;
+    background: #ddf0e4;
   }
 }
 
 .searchControls {
   display: flex;
   align-items: center;
-  gap: $spacing-lg;
-  margin-bottom: $spacing-xl;
-  padding: $spacing-lg;
-  background-color: $gray-50;
-  border-radius: $radius-lg;
-  border: 1px solid $gray-200;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  border: none;
 
   @include respond-to('sm') {
     flex-direction: column;
@@ -65,7 +75,7 @@
 .searchInput {
   position: relative;
   flex: 1;
-  max-width: 400px;
+  max-width: none;
 
   svg {
     position: absolute;
@@ -80,17 +90,23 @@
   input {
     @include input-base;
     width: 100%;
-    padding-left: 2.5rem;
-    font-size: $font-size-sm;
+    min-height: 1.65rem;
+    padding-left: 2rem;
+    font-size: 0.6rem;
+    border-radius: 999px;
+    border-color: #d1d6dc;
   }
 }
 
 .sortSelect {
   @include input-base;
-  padding: $spacing-sm $spacing-md;
-  font-size: $font-size-sm;
+  min-height: 1.65rem;
+  padding: 0.2rem 1.5rem 0.2rem 0.55rem;
+  font-size: 0.6rem;
   min-width: 150px;
   cursor: pointer;
+  border-radius: 999px;
+  border-color: #d1d6dc;
 
   &:focus {
     outline: none;
@@ -108,33 +124,34 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-sm;
-  margin-bottom: $spacing-xl;
+  margin-bottom: $spacing-md;
 }
 
 .imageCard {
-  @include card;
   overflow: hidden;
-  transition: all $transition-base;
-  border: 1px solid $gray-200;
+  transition: none;
+  border: 1px solid #c8ced5;
   display: flex;
   align-items: center;
-  padding: $spacing-md;
+  padding: 0.45rem 0.6rem;
   gap: $spacing-md;
+  border-radius: 0.65rem;
+  box-shadow: none;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-lg;
-    border-color: $oonni-green;
+    transform: none;
+    box-shadow: none;
+    border-color: #c8ced5;
   }
 }
 
 .imagePreview {
   position: relative;
-  width: 120px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   background-color: $gray-100;
   overflow: hidden;
-  border-radius: $radius-md;
+  border-radius: 0.45rem;
   flex-shrink: 0;
 }
 
@@ -202,9 +219,9 @@
 }
 
 .imageName {
-  font-size: $font-size-base;
+  font-size: 0.6rem;
   font-weight: $font-weight-medium;
-  color: $gray-900;
+  color: #1f2b34;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -212,15 +229,13 @@
 }
 
 .imageSize {
-  font-size: $font-size-sm;
+  font-size: 0.52rem;
   color: $gray-500;
   margin: 0;
 }
 
 .imageDate {
-  font-size: $font-size-sm;
-  color: $gray-400;
-  margin: 0;
+  display: none;
 }
 
 .imageActions {
@@ -232,7 +247,7 @@
 
 .viewButton {
   @include button-ghost;
-  padding: $spacing-xs;
+  padding: 0.2rem;
   color: $gray-600;
   border-radius: $radius-md;
 
@@ -242,8 +257,8 @@
   }
 
   svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.72rem;
+    height: 0.72rem;
   }
 }
 
@@ -266,7 +281,7 @@
 
 .deleteButton {
   @include button-ghost;
-  padding: $spacing-xs;
+  padding: 0.2rem;
   color: $gray-600;
   border-radius: $radius-md;
 
@@ -276,8 +291,8 @@
   }
 
   svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.72rem;
+    height: 0.72rem;
   }
 }
 
@@ -366,4 +381,82 @@
   font-size: $font-size-sm !important;
   line-height: 1.5;
   color: $gray-500 !important;
+}
+
+.paginationSummary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-md;
+  font-size: 0.58rem;
+  color: #8f959b;
+  padding-top: $spacing-xs;
+  border-top: 1px solid #d8dce0;
+}
+
+.paginationCount {
+  white-space: nowrap;
+}
+
+.paginationItemsPerPage {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  label {
+    font-size: 0.58rem;
+    color: #8f959b;
+  }
+}
+
+.paginationSelect {
+  min-height: 1.2rem;
+  border: 1px solid #d1d6dc;
+  border-radius: 0.3rem;
+  padding: 0 0.25rem;
+  font-size: 0.55rem;
+  color: #5a646f;
+  background: $white;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: $spacing-sm;
+}
+
+.paginationEdgeButton {
+  border: 1px solid #bfc6ce;
+  background: $white;
+  color: #616b75;
+  border-radius: 999px;
+  padding: 0.16rem 0.6rem;
+  font-size: 0.58rem;
+  cursor: pointer;
+}
+
+.paginationCircleButton {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid #bfc6ce;
+  border-radius: 999px;
+  background: $white;
+  color: #616b75;
+  font-size: 0.58rem;
+  cursor: pointer;
+}
+
+.paginationPageNumber {
+  min-width: 1rem;
+  text-align: center;
+  font-size: 0.62rem;
+  color: #616b75;
+}
+
+.paginationEdgeButton:disabled,
+.paginationCircleButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

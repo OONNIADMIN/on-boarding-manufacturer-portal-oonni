@@ -58,8 +58,30 @@
 }
 
 .headerActions {
-  @include flex-center;
-  gap: $spacing-md;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.welcomeBlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: $white;
+}
+
+.welcomeIcon {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex-shrink: 0;
+}
+
+.welcomeText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $white;
+  white-space: nowrap;
 }
 
 .userButton {
@@ -108,7 +130,36 @@
 }
 
 .logoutButton {
-  @include button-ghost;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.45rem;
+  margin: 0;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background $transition-base;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.65);
+    outline-offset: 2px;
+  }
+}
+
+.logoutIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
 }
 
 // Navigation Bar
