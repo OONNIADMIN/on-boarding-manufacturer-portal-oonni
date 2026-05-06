@@ -245,18 +245,19 @@ export default function CatalogsPage() {
           {/* Welcome Section */}
           <section className={styles.welcomeSection}>
             <div className={styles.welcomeCard}>
-              <div className={styles.welcomeIcon}>
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                </svg>
-              </div>
-              <div className={styles.welcomeContent}>
+              <div className={styles.welcomeTitlePanel}>
                 <h2 className={styles.welcomeTitle}>Catalog Upload Process</h2>
+              </div>
+              <div className={styles.welcomeDivider} aria-hidden="true"></div>
+              <div className={styles.welcomeDescriptionPanel}>
                 <p className={styles.welcomeDescription}>
-                  Upload your Excel or CSV file using the <strong>Catalog template</strong> column names: a{' '}
-                  <strong>sku</strong> column for products and an <strong>images</strong> column for public image URLs.
-                  After upload we create products and import those URLs into the DAM automatically. Download templates
-                  from <strong>Catalog template</strong> in the navigation (one file per product line if needed).
+                  Upload your excel or CSV file using the{' '}
+                  <span className={styles.welcomeHighlight}>catalog template</span> column names: a{' '}
+                  <span className={styles.welcomeHighlight}>sku</span> column for products and an{' '}
+                  <span className={styles.welcomeHighlight}>images</span> column for public image URLs.
+                  After upload we create products and import those URLs into the DAM automatically. Download
+                  templates from <span className={styles.welcomeHighlight}>catalog template</span> in the
+                  navigation (one file per product line if needed).
                 </p>
               </div>
             </div>
@@ -269,17 +270,8 @@ export default function CatalogsPage() {
                 <div className={styles.stepsGrid}>
                   <div className={`${styles.stepCard} ${styles.catalogUploadStepCard}`}>
                     <div className={styles.stepCardHeader}>
-                      <div className={`${styles.stepBadge} ${selectedCatalogFile ? styles.stepBadgeComplete : ''}`}>
-                        {selectedCatalogFile ? (
-                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          '1'
-                        )}
-                      </div>
                       <div className={styles.stepCardTitleArea}>
-                        <h3 className={styles.stepCardTitle}>Select Catalog File</h3>
+                        <h3 className={styles.stepCardTitle}>1. Select Catalog File</h3>
                         <p className={styles.stepCardDescription}>
                           Choose your product catalog in CSV or Excel format
                         </p>
@@ -291,37 +283,36 @@ export default function CatalogsPage() {
                         onFileSelect={handleCatalogFileSelect}
                         selectedFile={selectedCatalogFile}
                       />
+                      <div className={styles.catalogUploadActions}>
+                        <button
+                          type="button"
+                          onClick={() => void handleUploadCatalog()}
+                          disabled={!selectedCatalogFile || isUploading}
+                          className={styles.uploadAllButton}
+                        >
+                          {isUploading ? (
+                            <>
+                              <span className={styles.spinner}></span>
+                              {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
+                            </>
+                          ) : (
+                            <>
+                              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              Upload catalog
+                            </>
+                          )}
+                        </button>
+                        <p className={styles.uploadButtonHint}>
+                          {!selectedCatalogFile && 'Select a catalog file to upload.'}
+                          {selectedCatalogFile &&
+                            'Ready to upload - products and image URLs from the spreadsheet are processed automatically.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </section>
-
-              {/* Upload Button */}
-              <section className={styles.uploadButtonSection}>
-                <button
-                  onClick={() => void handleUploadCatalog()}
-                  disabled={!selectedCatalogFile || isUploading}
-                  className={styles.uploadAllButton}
-                >
-                  {isUploading ? (
-                    <>
-                      <span className={styles.spinner}></span>
-                      {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
-                    </>
-                  ) : (
-                    <>
-                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      Upload catalog
-                    </>
-                  )}
-                </button>
-                <p className={styles.uploadButtonHint}>
-                  {!selectedCatalogFile && 'Select a catalog file to upload.'}
-                  {selectedCatalogFile &&
-                    'Ready to upload - products and image URLs from the spreadsheet are processed automatically.'}
-                </p>
               </section>
             </>
           )}
@@ -335,19 +326,18 @@ export default function CatalogsPage() {
           )}
 
           <section className={styles.mediaLibrarySection} aria-labelledby="onboard-media-heading">
-            <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
-              Your uploaded images
-            </h2>
-            <p className={styles.mediaLibraryIntro}>
-              Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
-            </p>
+            <div className={styles.mediaLibraryHeadingBlock}>
+              <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
+                Your Upload Images
+              </h2>
+              <p className={styles.mediaLibraryIntro}>
+                Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
+              </p>
+              <hr className={styles.mediaLibraryDivider} />
+            </div>
             <ImageList key={refreshKey} />
           </section>
         </div>
-
-        <footer className={styles.footer}>
-          <p>Powered by Oonni Platform</p>
-        </footer>
       </div>
     </main>
   )

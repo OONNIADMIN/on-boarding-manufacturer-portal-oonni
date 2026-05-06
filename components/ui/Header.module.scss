@@ -7,15 +7,20 @@
 
 .header {
   background-color: $oonni-teal;
-  padding: $spacing-md $spacing-xl;
+  padding: 0;
   box-shadow: $shadow-md;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .headerContent {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   @include flex-between;
   gap: $spacing-md;
+  padding: $spacing-md $spacing-xl;
 }
 
 .logo {
@@ -27,8 +32,22 @@
 .title {
   font-size: $font-size-2xl;
   font-weight: $font-weight-semibold;
-  color: $white;
+  color: rgb(216, 199, 155) !important;
   margin: 0 0 $spacing-xs 0;
+}
+
+.titleWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.2;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    opacity: 0.95;
+  }
 }
 
 .subtitle {
@@ -39,8 +58,30 @@
 }
 
 .headerActions {
-  @include flex-center;
-  gap: $spacing-md;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.welcomeBlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: $white;
+}
+
+.welcomeIcon {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex-shrink: 0;
+}
+
+.welcomeText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $white;
+  white-space: nowrap;
 }
 
 .userButton {
@@ -89,63 +130,108 @@
 }
 
 .logoutButton {
-  @include button-ghost;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.45rem;
+  margin: 0;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background $transition-base;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.65);
+    outline-offset: 2px;
+  }
+}
+
+.logoutIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
 }
 
 // Navigation Bar
 .navigation {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  padding: $spacing-sm $spacing-xl;
+  background: #f3f3f1;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0.5rem $spacing-xl;
+  margin-top: auto;
 }
 
 .navigationFlat {
-  background-color: transparent;
-  border-top: none;
+  background: #f3f3f1;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .navContent {
   max-width: 1400px;
   margin: 0 auto;
+  display: flex;
+  justify-content: center;
 }
 
 .navLinks {
-  @include flex-center;
-  gap: $spacing-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
   flex-wrap: wrap;
 }
 
 .navLink {
   @include flex-center;
-  gap: $spacing-xs;
-  padding: $spacing-sm $spacing-md;
+  gap: 0.4rem;
+  padding: 0.2rem 0.45rem;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: $radius-lg;
-  color: $white;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
+  border: none;
+  border-radius: 0;
+  color: $gray-600;
+  font-size: 0.8rem;
+  font-weight: $font-weight-normal;
   text-decoration: none;
   transition: all $transition-base;
   cursor: pointer;
+  position: relative;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
+    color: $gray-800;
+    background: transparent;
   }
 
   &.active {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.4);
-    color: $white;
-    font-weight: $font-weight-semibold;
+    color: $oonni-teal;
+    font-weight: $font-weight-medium;
+  }
+
+  &:not(:last-child)::after {
+    content: '';
+    width: 1px;
+    height: 0.8rem;
+    background: $gray-300;
+    position: absolute;
+    right: -0.1rem;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   svg {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 0.82rem;
+    height: 0.82rem;
     flex-shrink: 0;
+    opacity: 0.9;
   }
 }
 
@@ -166,21 +252,25 @@
   }
 
   .navigation {
-    padding: $spacing-sm $spacing-lg;
+    padding: 0.65rem $spacing-lg;
   }
 
   .navLinks {
-    gap: $spacing-md;
+    gap: 0;
   }
 
   .navLink {
-    padding: $spacing-xs $spacing-sm;
+    padding: 0.3rem 0.5rem;
     font-size: $font-size-xs;
   }
 }
 
 @include respond-to('sm') {
   .header {
+    padding: 0;
+  }
+
+  .headerContent {
     padding: $spacing-lg;
   }
 
@@ -200,13 +290,18 @@
 
   .navLinks {
     flex-direction: column;
-    gap: $spacing-sm;
+    gap: $spacing-xs;
     width: 100%;
+    align-items: flex-start;
   }
 
   .navLink {
     width: 100%;
     justify-content: flex-start;
     padding: $spacing-sm;
+
+    &:not(:last-child)::after {
+      display: none;
+    }
   }
 }

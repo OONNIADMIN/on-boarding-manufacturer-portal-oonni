@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import { authAPI } from '@/lib/api'
 import { LoginRequest } from '@/types'
 import styles from './page.module.scss'
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: FormEvent) => {
@@ -21,14 +23,14 @@ export default function LoginPage() {
     try {
       const credentials: LoginRequest = { email, password }
       const response = await authAPI.login(credentials)
-      
+
       if (authAPI.isAdmin(response.user)) {
         router.push('/dashboard')
       } else {
         router.push('/onboard/template')
       }
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.')
     } finally {
       setIsLoading(false)
     }
@@ -37,26 +39,32 @@ export default function LoginPage() {
   return (
     <main className={styles.main}>
       <div className={styles.container}>
+        <div className={styles.brand}>
+          <img
+            src="/logotype_oonni_2026.svg"
+            alt="Oonni"
+            className={styles.logo}
+            width={374}
+            height={150}
+            fetchPriority="high"
+          />
+        </div>
+
         <div className={styles.loginCard}>
-          <div className={styles.header}>
-            <h1 className={styles.title}>Oonni Platform</h1>
-            <p className={styles.subtitle}>Sign in to your account</p>
-          </div>
+          <header className={styles.header}>
+            <h1 className={styles.title}>Welcome back</h1>
+            <p className={styles.subtitle}>Sign In To Continue To Your Account</p>
+          </header>
 
           <form onSubmit={handleSubmit} className={styles.form}>
             {error && (
-              <div className={styles.error}>
-                <svg 
-                  className={styles.errorIcon} 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+              <div className={styles.error} role="alert">
+                <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
                 {error}
@@ -74,8 +82,9 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className={styles.input}
-                placeholder="admin@oonni.com"
+                placeholder="Please enter your Username"
                 disabled={isLoading}
+                autoComplete="email"
               />
             </div>
 
@@ -83,26 +92,39 @@ export default function LoginPage() {
               <label htmlFor="password" className={styles.label}>
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={styles.input}
-                placeholder="••••••••"
-                disabled={isLoading}
-              />
+              <div className={styles.passwordWrap}>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className={`${styles.input} ${styles.inputWithToggle}`}
+                  placeholder="Please enter your password"
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className={styles.toggleVisibility}
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff strokeWidth={1.6} size={22} aria-hidden />
+                  ) : (
+                    <Eye strokeWidth={1.6} size={22} aria-hidden />
+                  )}
+                </button>
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={styles.submitButton}
-            >
+            <button type="submit" disabled={isLoading} className={styles.submitButton}>
               {isLoading ? (
                 <>
-                  <span className={styles.spinner}></span>
+                  <span className={styles.spinner} aria-hidden />
                   Signing in...
                 </>
               ) : (
@@ -111,14 +133,12 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className={styles.footer}>
-            <p className={styles.footerText}>
-              Powered by Oonni Platform
-            </p>
-          </div>
+          <footer className={styles.cardFooter}>
+            <hr className={styles.footerRule} />
+            <p className={styles.footerText}>Secure Login Powered By OONNI Integration</p>
+          </footer>
         </div>
       </div>
     </main>
   )
 }
-

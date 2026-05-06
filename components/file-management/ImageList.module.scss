@@ -8,52 +8,77 @@
 .container {
   width: 100%;
   margin: 0 auto;
+  max-width: 740px;
+  background: $white;
+  border: none;
+  border-radius: 0;
+  padding: $spacing-md;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: $spacing-xl;
-  padding-bottom: $spacing-md;
-  border-bottom: 1px solid $gray-200;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.sectionDivider {
+  border: none;
+  border-top: 1px solid #d8dce0;
+  margin: $spacing-md 0 $spacing-md;
+  width: 100%;
 }
 
 .title {
-  font-size: $font-size-2xl;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
+  font-size: 1rem;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
   margin: 0;
 }
 
 .refreshButton {
-  @include button-secondary;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: $spacing-xs;
-  padding: $spacing-sm $spacing-md;
+  gap: 0.35rem;
+  padding: 0.35rem 0.9rem;
   font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $white;
+  border: none;
+  border-radius: 999px;
+  background: #8ebf9f;
+  cursor: pointer;
+  transition: background $transition-fast, opacity $transition-fast;
 
   svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.85rem;
+    height: 0.85rem;
+    color: $white;
+    stroke: $white;
   }
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-md;
+    background: #7aad82;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba($oonni-teal, 0.45);
+    outline-offset: 2px;
   }
 }
 
 .searchControls {
   display: flex;
   align-items: center;
-  gap: $spacing-lg;
-  margin-bottom: $spacing-xl;
-  padding: $spacing-lg;
-  background-color: $gray-50;
-  border-radius: $radius-lg;
-  border: 1px solid $gray-200;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  margin-top: 0;
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  border: none;
 
   @include respond-to('sm') {
     flex-direction: column;
@@ -65,7 +90,7 @@
 .searchInput {
   position: relative;
   flex: 1;
-  max-width: 400px;
+  max-width: none;
 
   svg {
     position: absolute;
@@ -80,17 +105,27 @@
   input {
     @include input-base;
     width: 100%;
-    padding-left: 2.5rem;
-    font-size: $font-size-sm;
+    min-height: 1.65rem;
+    padding-left: 2rem;
+    font-size: 0.6rem;
+    border-radius: 999px;
+    border-color: #d1d6dc;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
   }
 }
 
 .sortSelect {
   @include input-base;
-  padding: $spacing-sm $spacing-md;
-  font-size: $font-size-sm;
+  min-height: 1.65rem;
+  padding: 0.2rem 1.5rem 0.2rem 0.55rem;
+  font-size: 0.6rem;
   min-width: 150px;
   cursor: pointer;
+  border-radius: 999px;
+  border-color: #d1d6dc;
 
   &:focus {
     outline: none;
@@ -108,33 +143,43 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-sm;
-  margin-bottom: $spacing-xl;
+  margin-bottom: $spacing-md;
 }
 
 .imageCard {
-  @include card;
-  overflow: hidden;
-  transition: all $transition-base;
-  border: 1px solid $gray-200;
   display: flex;
-  align-items: center;
-  padding: $spacing-md;
-  gap: $spacing-md;
+  align-items: stretch;
+  gap: 0;
+  overflow: hidden;
+  background: $white;
+  border: 1px solid #c5cdd6;
+  border-radius: 0.65rem;
+  padding: 0.5rem 0.65rem 0.5rem 0.5rem;
+  box-shadow: none;
+  transition: none;
+  min-height: 5.25rem;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-lg;
-    border-color: $oonni-green;
+    border-color: #a8b3bf;
   }
+}
+
+.imageThumbColumn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-right: $spacing-md;
+  margin-right: $spacing-md;
+  border-right: 1px solid #d8dce0;
 }
 
 .imagePreview {
   position: relative;
-  width: 120px;
-  height: 80px;
-  background-color: $gray-100;
+  width: 5.25rem;
+  height: 5.25rem;
+  background-color: #eef1f4;
   overflow: hidden;
-  border-radius: $radius-md;
+  border-radius: 0.4rem;
   flex-shrink: 0;
 }
 
@@ -189,8 +234,16 @@
 }
 
 .imageIcon {
-  font-size: 1.5rem;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5c6770;
+}
+
+.imageTypeIcon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .imageMeta {
@@ -202,9 +255,9 @@
 }
 
 .imageName {
-  font-size: $font-size-base;
+  font-size: $font-size-sm;
   font-weight: $font-weight-medium;
-  color: $gray-900;
+  color: #1f2937;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -212,27 +265,50 @@
 }
 
 .imageSize {
-  font-size: $font-size-sm;
-  color: $gray-500;
+  font-size: $font-size-xs;
+  color: #6b7280;
   margin: 0;
 }
 
 .imageDate {
-  font-size: $font-size-sm;
-  color: $gray-400;
-  margin: 0;
+  display: none;
 }
 
 .imageActions {
   display: flex;
   align-items: center;
-  gap: $spacing-xs;
+  gap: 0.2rem;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+.actionIconButton {
+  @include flex-center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: $radius-md;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background $transition-fast, color $transition-fast;
+
+  &:hover {
+    color: #111827;
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.actionIcon {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .viewButton {
   @include button-ghost;
-  padding: $spacing-xs;
+  padding: 0.2rem;
   color: $gray-600;
   border-radius: $radius-md;
 
@@ -242,8 +318,8 @@
   }
 
   svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.72rem;
+    height: 0.72rem;
   }
 }
 
@@ -266,7 +342,7 @@
 
 .deleteButton {
   @include button-ghost;
-  padding: $spacing-xs;
+  padding: 0.2rem;
   color: $gray-600;
   border-radius: $radius-md;
 
@@ -276,9 +352,14 @@
   }
 
   svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.72rem;
+    height: 0.72rem;
   }
+}
+
+.actionIconButton.actionDeleteButton:hover {
+  color: $error;
+  background-color: rgba($error, 0.08);
 }
 
 .footer {
@@ -366,4 +447,82 @@
   font-size: $font-size-sm !important;
   line-height: 1.5;
   color: $gray-500 !important;
+}
+
+.paginationSummary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-md;
+  font-size: 0.58rem;
+  color: #8f959b;
+  padding-top: $spacing-xs;
+  border-top: none;
+}
+
+.paginationCount {
+  white-space: nowrap;
+}
+
+.paginationItemsPerPage {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  label {
+    font-size: 0.58rem;
+    color: #8f959b;
+  }
+}
+
+.paginationSelect {
+  min-height: 1.2rem;
+  border: 1px solid #d1d6dc;
+  border-radius: 0.3rem;
+  padding: 0 0.25rem;
+  font-size: 0.55rem;
+  color: #5a646f;
+  background: $white;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: $spacing-sm;
+}
+
+.paginationEdgeButton {
+  border: 1px solid #bfc6ce;
+  background: $white;
+  color: #616b75;
+  border-radius: 999px;
+  padding: 0.16rem 0.6rem;
+  font-size: 0.58rem;
+  cursor: pointer;
+}
+
+.paginationCircleButton {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid #bfc6ce;
+  border-radius: 999px;
+  background: $white;
+  color: #616b75;
+  font-size: 0.58rem;
+  cursor: pointer;
+}
+
+.paginationPageNumber {
+  min-width: 1rem;
+  text-align: center;
+  font-size: 0.62rem;
+  color: #616b75;
+}
+
+.paginationEdgeButton:disabled,
+.paginationCircleButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { imageAPI, ImageInfo } from '@/lib/api'
-import Pagination from '@/components/ui/Pagination'
 import styles from './ImageList.module.scss'
 
 export default function ImageList() {
@@ -104,30 +103,6 @@ export default function ImageList() {
     return withoutStamp || base
   }
 
-  const getFileIcon = (fileType: string | undefined): string => {
-    if (!fileType) {
-      return '📷'
-    }
-    
-    switch (fileType.toLowerCase()) {
-      case '.jpg':
-      case '.jpeg':
-        return '🖼️'
-      case '.png':
-        return '🖼️'
-      case '.webp':
-        return '🖼️'
-      case '.gif':
-        return '🎞️'
-      case '.bmp':
-        return '🖼️'
-      case '.tiff':
-        return '🖼️'
-      default:
-        return '📷'
-    }
-  }
-
   // Pagination calculations
   const safeFiltered = filteredImages ?? []
   const totalPages = Math.ceil(safeFiltered.length / itemsPerPage)
@@ -143,6 +118,9 @@ export default function ImageList() {
     setItemsPerPage(newItemsPerPage)
     setCurrentPage(1) // Reset to first page when changing items per page
   }
+
+  const startItem = safeFiltered.length ? (currentPage - 1) * itemsPerPage + 1 : 0
+  const endItem = Math.min(currentPage * itemsPerPage, safeFiltered.length)
 
   if (isLoading) {
     return (
@@ -205,7 +183,7 @@ export default function ImageList() {
       <div className={styles.container}>
         <div className={styles.header}>
           <h2 className={styles.title}>Uploaded Images</h2>
-          <button onClick={loadImages} className={styles.refreshButton}>
+          <button type="button" onClick={loadImages} className={styles.refreshButton}>
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path 
                 strokeLinecap="round" 
@@ -217,7 +195,8 @@ export default function ImageList() {
             Refresh
           </button>
         </div>
-        
+        <hr className={styles.sectionDivider} />
+
         <div className={styles.searchControls}>
           <div className={styles.searchInput}>
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -230,7 +209,7 @@ export default function ImageList() {
             </svg>
             <input
               type="text"
-              placeholder="Search images..."
+              placeholder="Search Images"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -240,9 +219,9 @@ export default function ImageList() {
             onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'size')}
             className={styles.sortSelect}
           >
-            <option value="date">Sort by Date</option>
-            <option value="name">Sort by Name</option>
-            <option value="size">Sort by Size</option>
+            <option value="date">Sort By Date</option>
+            <option value="name">Sort By Name</option>
+            <option value="size">Sort By Size</option>
           </select>
         </div>
 
@@ -274,7 +253,7 @@ export default function ImageList() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>Uploaded Images</h2>
-        <button onClick={loadImages} className={styles.refreshButton}>
+        <button type="button" onClick={loadImages} className={styles.refreshButton}>
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path 
               strokeLinecap="round" 
@@ -286,6 +265,7 @@ export default function ImageList() {
           Refresh
         </button>
       </div>
+      <hr className={styles.sectionDivider} />
 
       <div className={styles.searchControls}>
         <div className={styles.searchInput}>
@@ -299,7 +279,7 @@ export default function ImageList() {
           </svg>
           <input
             type="text"
-            placeholder="Search images..."
+            placeholder="Search Images"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -309,43 +289,52 @@ export default function ImageList() {
           onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'size')}
           className={styles.sortSelect}
         >
-          <option value="date">Sort by Date</option>
-          <option value="name">Sort by Name</option>
-          <option value="size">Sort by Size</option>
+          <option value="date">Sort By Date</option>
+          <option value="name">Sort By Name</option>
+          <option value="size">Sort By Size</option>
         </select>
       </div>
 
       <div className={styles.imageGrid}>
         {paginatedImages.map((image) => (
           <div key={image.s3_key} className={styles.imageCard}>
-            <div className={styles.imagePreview}>
-              <img 
-                src={image.s3_url} 
-                alt="Uploaded image"
-                className={styles.image}
-                loading="lazy"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.style.display = 'none'
-                  target.nextElementSibling?.classList.add(styles.show)
-                }}
-              />
-              <div className={styles.imagePlaceholder}>
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
-                  />
-                </svg>
+            <div className={styles.imageThumbColumn}>
+              <div className={styles.imagePreview}>
+                <img 
+                  src={image.s3_url} 
+                  alt="Uploaded image"
+                  className={styles.image}
+                  loading="lazy"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    target.nextElementSibling?.classList.add(styles.show)
+                  }}
+                />
+                <div className={styles.imagePlaceholder}>
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
-            
+
             <div className={styles.imageInfo}>
               <div className={styles.imageDetails}>
-                <div className={styles.imageIcon}>
-                  {getFileIcon(image.file_type)}
+                <div className={styles.imageIcon} aria-hidden>
+                  <svg className={styles.imageTypeIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3a1.5 1.5 0 0 0-1.5 1.5v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h2.25"
+                    />
+                  </svg>
                 </div>
                 <div className={styles.imageMeta}>
                   <p className={styles.imageName}>
@@ -355,62 +344,53 @@ export default function ImageList() {
                   <p className={styles.imageDate}>{formatDate(image.last_modified ?? image.created_at ?? "")}</p>
                 </div>
               </div>
-              
+
               <div className={styles.imageActions}>
                 <button
+                  type="button"
                   onClick={() => handleOpenInNewTab(image.s3_url)}
-                  className={styles.viewButton}
-                  title="Open in new tab"
+                  className={styles.actionIconButton}
+                  title="Open public URL"
                 >
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={styles.actionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14 3h7m0 0v7m0-7L10 14"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 10v11h11"
+                      strokeWidth={1.5}
+                      d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .763-.042 1.511-.122 2.244"
                     />
                   </svg>
                 </button>
-                <a 
-                  href={image.s3_url} 
-                  target="_blank" 
+                <a
+                  href={image.s3_url}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className={styles.viewButton}
-                  title="View full size"
+                  className={styles.actionIconButton}
+                  title="View image"
                 >
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" 
+                  <svg className={styles.actionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
                     />
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" 
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </a>
                 {!image.imagekit_only && (
                   <button
+                    type="button"
                     onClick={() => handleDelete(image.s3_key)}
-                    className={styles.deleteButton}
+                    className={`${styles.actionIconButton} ${styles.actionDeleteButton}`}
                     title="Delete image"
                   >
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                    <svg className={styles.actionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.038-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
                       />
                     </svg>
                   </button>
@@ -421,15 +401,68 @@ export default function ImageList() {
         ))}
       </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        itemsPerPage={itemsPerPage}
-        totalItems={safeFiltered.length}
-        showItemsPerPage={true}
-        onItemsPerPageChange={handleItemsPerPageChange}
-      />
+      {totalPages > 1 && (
+        <>
+          <div className={styles.paginationSummary}>
+            <span className={styles.paginationCount}>
+              Showing {startItem}-{endItem} of {safeFiltered.length} items
+            </span>
+            <div className={styles.paginationItemsPerPage}>
+              <label htmlFor="images-items-per-page">Items per page</label>
+              <select
+                id="images-items-per-page"
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className={styles.paginationSelect}
+              >
+                {[5, 10, 20, 50].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.paginationControls}>
+            <button
+              type="button"
+              className={styles.paginationEdgeButton}
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+            >
+              First
+            </button>
+            <button
+              type="button"
+              className={styles.paginationCircleButton}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+            >
+              &lt;
+            </button>
+            <span className={styles.paginationPageNumber}>{currentPage}</span>
+            <button
+              type="button"
+              className={styles.paginationCircleButton}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+            >
+              &gt;
+            </button>
+            <button
+              type="button"
+              className={styles.paginationEdgeButton}
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

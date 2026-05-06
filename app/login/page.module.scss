@@ -1,68 +1,109 @@
 // ============================================
-// Login Page Styles
+// Login Page — Oonni 2026
 // ============================================
 
 @use '../../styles/variables' as *;
 @use '../../styles/mixins' as *;
 
+$login-page-bg: #f2f2f2;
+$login-border: #d8d8d8;
+
 .main {
   min-height: 100vh;
   @include flex-center;
-  background-color: $oonni-bg;
-  padding: $spacing-md;
+  flex-direction: column;
+  background-color: $login-page-bg;
+  padding: $spacing-xl $spacing-md;
 }
 
 .container {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
+  @include flex-column;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.brand {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.logo {
+  width: min(100%, 290px);
+  height: auto;
+  object-fit: contain;
 }
 
 .loginCard {
+  width: 100%;
   background: $white;
   border-radius: $radius-2xl;
-  box-shadow: $shadow-xl;
-  padding: 2.5rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  padding: 2.5rem 2.25rem 2rem;
 }
 
 .header {
   text-align: center;
-  margin-bottom: $spacing-xl;
+  margin-bottom: 2rem;
 }
 
 .title {
-  font-size: $font-size-3xl;
+  font-size: 1.75rem;
   font-weight: $font-weight-bold;
-  color: $gray-900;
+  color: $oonni-teal;
   margin: 0 0 $spacing-sm 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .subtitle {
   font-size: $font-size-base;
+  font-weight: $font-weight-normal;
   color: $gray-600;
   margin: 0;
+  line-height: 1.45;
 }
 
 .form {
   @include flex-column;
-  gap: $spacing-lg;
+  gap: 1.35rem;
 }
 
 .formGroup {
   @include flex-column;
-  gap: $spacing-sm;
+  gap: 0.45rem;
 }
 
 .label {
   font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
-  color: $gray-700;
+  font-weight: $font-weight-bold;
+  color: $gray-900;
+  text-align: left;
 }
 
 .input {
-  @include input-base;
-  padding: 0.75rem $spacing-md;
-  border-width: 2px;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: 1px solid $login-border;
+  border-radius: $radius-full;
   font-size: $font-size-base;
+  font-weight: $font-weight-normal;
+  background: $white;
+  color: $gray-900;
+  transition: border-color $transition-base, box-shadow $transition-base;
+
+  &::placeholder {
+    color: $gray-400;
+    font-weight: $font-weight-normal;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $oonni-teal;
+    box-shadow: 0 0 0 3px rgba($oonni-teal, 0.12);
+  }
 
   &:disabled {
     background-color: $gray-50;
@@ -70,25 +111,76 @@
   }
 }
 
-.submitButton {
-  @include button-primary;
-  padding: 0.875rem $spacing-md;
-  font-size: $font-size-base;
-  font-weight: $font-weight-semibold;
-  justify-content: center;
+.passwordWrap {
+  position: relative;
+  width: 100%;
+}
 
-  &:active:not(:disabled) {
-    transform: translateY(0);
+.inputWithToggle {
+  padding-right: 3rem;
+}
+
+.toggleVisibility {
+  position: absolute;
+  right: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $gray-500;
+  cursor: pointer;
+  transition: color $transition-base;
+
+  &:hover:not(:disabled) {
+    color: $oonni-teal;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $oonni-teal;
+    outline-offset: 2px;
   }
 
   &:disabled {
-    opacity: 0.7;
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.submitButton {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.95rem 1.5rem;
+  border: none;
+  border-radius: $radius-full;
+  background: $oonni-teal;
+  color: $white;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  cursor: pointer;
+  transition: background $transition-base;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    background: $oonni-teal-dark;
+  }
+
+  &:disabled {
+    opacity: 0.75;
     cursor: not-allowed;
   }
 }
 
 .error {
-  padding: 0.875rem $spacing-md;
+  padding: 0.75rem 1rem;
   background-color: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: $radius-lg;
@@ -109,24 +201,31 @@
   @include spinner(1rem, $white);
 }
 
-.footer {
-  margin-top: $spacing-xl;
-  text-align: center;
+.cardFooter {
+  margin-top: 2rem;
+  padding-top: 0;
+}
+
+.footerRule {
+  border: none;
+  border-top: 1px solid $gray-200;
+  margin: 0 0 1.25rem;
 }
 
 .footerText {
   font-size: $font-size-sm;
   color: $gray-400;
+  text-align: center;
   margin: 0;
+  line-height: 1.5;
 }
 
 @include respond-to('sm') {
   .loginCard {
-    padding: 2rem $spacing-lg;
+    padding: 2rem 1.5rem 1.75rem;
   }
 
   .title {
-    font-size: $font-size-2xl;
+    font-size: 1.45rem;
   }
 }
-

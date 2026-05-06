@@ -8,8 +8,18 @@ function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 }
 
+/** Files served from /public — must not redirect to /login or the browser never gets the asset */
+const PUBLIC_FILE_RE =
+  /\.(?:ico|png|apng|jpe?g|gif|svg|webp|avif|woff2?|ttf|woff|eot|txt|xml|json|webmanifest|pdf)$/i;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/_next/")) return NextResponse.next();
+
+  if (!pathname.startsWith("/api/") && (pathname === "/favicon.ico" || PUBLIC_FILE_RE.test(pathname))) {
+    return NextResponse.next();
+  }
 
   if (isPublic(pathname)) return NextResponse.next();
 
@@ -43,6 +53,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|public/).*)",
+    "/((?!_next/static|_next/image|_next/webpack-hmr|_next/webpack|_next/data|favicon.ico).*)",
   ],
 };

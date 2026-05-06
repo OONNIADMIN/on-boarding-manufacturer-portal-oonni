@@ -103,7 +103,8 @@
   margin: 0 auto;
   padding: $spacing-xl;
   @include flex-column;
-  gap: $spacing-xl;
+  /** 15px between major blocks (e.g. welcome banner ↔ upload step) */
+  gap: 15px;
 }
 
 // Success Messages
@@ -153,54 +154,67 @@
 
 // Welcome Section
 .welcomeSection {
-  width: 100%;
-  margin-bottom: $spacing-lg;
+  // Full-bleed within the padded `.content`: touches left/right margins of the page column
+  width: calc(100% + 2 * #{$spacing-xl});
+  max-width: none;
+  margin-left: -#{$spacing-xl};
+  margin-right: -#{$spacing-xl};
+  /** Vertical rhythm: use `.content` `gap` only (15px to next section) */
+  margin-bottom: 0;
 }
 
 .welcomeCard {
-  @include card;
-  @include flex-center;
-  gap: $spacing-lg;
-  padding: $spacing-xl;
-  background: linear-gradient(135deg, $oonni-teal 0%, $oonni-green 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 181px;
+  width: 100%;
+  background: $oonni-teal;
   color: $white;
-  border: none;
-  box-shadow: $shadow-lg;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.welcomeIcon {
+.welcomeTitlePanel {
   @include flex-center;
-  width: 4rem;
-  height: 4rem;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: $radius-full;
-  flex-shrink: 0;
-
-  svg {
-    width: 2rem;
-    height: 2rem;
-    color: $white;
-  }
+  padding: $spacing-xl;
+  min-width: 0;
+  width: 100%;
 }
 
-.welcomeContent {
-  @include flex-column;
-  gap: $spacing-sm;
-  flex: 1;
+.welcomeDivider {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.welcomeDescriptionPanel {
+  @include flex-center;
+  align-items: center;
+  justify-content: flex-start;
+  padding: $spacing-xl $spacing-2xl;
+  min-width: 0;
+  width: 100%;
 }
 
 .welcomeTitle {
-  font-size: $font-size-2xl;
-  font-weight: $font-weight-semibold;
-  color: $white;
+  font-size: 2.25rem;
+  font-weight: $font-weight-medium;
+  color: #c4c39d;
   margin: 0;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .welcomeDescription {
   font-size: $font-size-base;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.45;
+  max-width: none;
+  width: 100%;
+}
+
+.welcomeHighlight {
+  color: #92b496;
 }
 
 // Progress Indicator Section
@@ -288,8 +302,14 @@
 
 // Upload Steps Section
 .uploadSteps {
-  width: 100%;
-  margin-bottom: $spacing-xl;
+  /** Full-bleed: align with welcome banner — no horizontal inset from `.content` padding */
+  width: calc(100% + 2 * #{$spacing-xl});
+  max-width: none;
+  margin-left: -#{$spacing-xl};
+  margin-right: -#{$spacing-xl};
+  /** Spacing to next section uses `.content` `gap` (15px) only */
+  margin-bottom: 0;
+  background: $white;
 }
 
 .stepsGrid {
@@ -297,11 +317,17 @@
   grid-template-columns: 1fr;
   gap: $spacing-xl;
   width: 100%;
+  background: $white;
+  padding: 0;
 }
 
 /** Single full-width catalog step (replaces former two-column layout). */
 .catalogUploadStepCard {
-  width: 100%;
+  box-sizing: border-box;
+  width: calc(100% - 100px);
+  max-width: calc(100% - 100px);
+  margin-left: auto;
+  margin-right: auto;
   min-height: 0;
 
   .stepCardContent {
@@ -312,6 +338,15 @@
   }
 }
 
+.catalogUploadActions {
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-sm;
+  width: 100%;
+  margin-top: $spacing-md;
+  padding-bottom: $spacing-md;
+}
+
 // Step Section
 .stepSection {
   width: 100%;
@@ -319,14 +354,14 @@
 }
 
 .stepCard {
-  @include card;
+  border-radius: 0;
   @include flex-column;
-  gap: $spacing-lg;
-  padding: $spacing-xl;
-  background: $white;
-  border: 2px solid $gray-200;
+  gap: $spacing-md;
+  padding: $spacing-lg 0 0;
+  background: transparent;
+  border: none;
   position: relative;
-  transition: all $transition-base;
+  transition: none;
 }
 
 .stepCardActive {
@@ -340,9 +375,8 @@
 }
 
 .stepCardHeader {
-  display: flex;
-  gap: $spacing-lg;
-  align-items: flex-start;
+  display: block;
+  text-align: center;
 }
 
 .stepBadge {
@@ -374,26 +408,28 @@
 
 .stepCardTitleArea {
   @include flex-column;
-  gap: $spacing-xs;
-  flex: 1;
+  gap: 0.2rem;
+  align-items: center;
 }
 
 .stepCardTitle {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
+  font-size: 1.6rem;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
   margin: 0;
 }
 
 .stepCardDescription {
-  font-size: $font-size-base;
-  color: $gray-600;
+  font-size: $font-size-sm;
+  color: $gray-400;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .stepCardContent {
   width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .stepCardSuccess {
@@ -594,15 +630,6 @@
   flex: 1;
 }
 
-.footer {
-  background-color: $oonni-teal;
-  color: $white;
-  text-align: center;
-  padding: $spacing-md;
-  font-size: $font-size-sm;
-  margin-top: auto;
-}
-
 @include respond-to('md') {
   .main {
     padding: $spacing-md;
@@ -632,23 +659,24 @@
   }
 
   .welcomeCard {
-    flex-direction: column;
-    text-align: center;
-    padding: $spacing-lg;
-  }
-
-  .welcomeIcon {
-    width: 3rem;
-    height: 3rem;
-
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
+    grid-template-columns: 1fr;
+    min-height: unset;
   }
 
   .welcomeTitle {
-    font-size: $font-size-xl;
+    font-size: 1.8rem;
+  }
+
+  .welcomeDivider {
+    height: 1px;
+    width: 100%;
+  }
+
+  .welcomeTitlePanel,
+  .welcomeDescriptionPanel {
+    justify-content: center;
+    padding: $spacing-lg;
+    text-align: center;
   }
 
   .progressBar {
@@ -690,12 +718,29 @@
     padding: $spacing-md;
   }
 
+  .welcomeSection {
+    width: calc(100% + 2 * #{$spacing-md});
+    margin-left: -#{$spacing-md};
+    margin-right: -#{$spacing-md};
+  }
+
+  .uploadSteps {
+    width: calc(100% + 2 * #{$spacing-md});
+    margin-left: -#{$spacing-md};
+    margin-right: -#{$spacing-md};
+  }
+
+  .mediaLibrarySection {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .welcomeCard {
-    padding: $spacing-md;
+    border-radius: 0;
   }
 
   .welcomeTitle {
-    font-size: $font-size-lg;
+    font-size: 1.45rem;
   }
 
   .welcomeDescription {
@@ -968,25 +1013,87 @@
 }
 
 .mediaLibrarySection {
-  margin-top: $spacing-2xl;
-  padding: $spacing-xl;
+  /** Spacing from upload block: `.content` `gap` (15px) only */
+  margin-top: 0;
+  /** Same 50px side inset as `.catalogUploadStepCard` so margins are visible against the page background */
+  box-sizing: border-box;
+  width: calc(100% - 100px);
+  max-width: calc(100% - 100px);
+  margin-left: auto;
+  margin-right: auto;
+  padding: $spacing-lg $spacing-xl $spacing-xl;
   background: $white;
-  border: 1px solid $gray-200;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
+  border: none;
+  border-radius: 0.65rem;
+  box-shadow: none;
+}
+
+/** Same width as `ImageList` container so title, intro, and `<hr>` align with the list column. */
+.mediaLibraryHeadingBlock {
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto;
 }
 
 .mediaLibraryTitle {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
-  margin: 0 0 $spacing-sm;
+  font-size: 0.95rem;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
+  margin: 0 0 0.2rem;
+  text-align: center;
 }
 
 .mediaLibraryIntro {
-  font-size: $font-size-sm;
-  color: $gray-600;
+  font-size: 0.65rem;
+  color: #8c8f93;
+  margin: 0 0 $spacing-md;
+  line-height: 1.4;
+  text-align: center;
+  width: 100%;
+}
+
+.mediaLibraryDivider {
+  border: none;
+  border-top: 1px solid #d8dce0;
   margin: 0 0 $spacing-lg;
-  line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+// Wider than the default content cap: avoid side gutters so welcome + upload span the full row
+@media (min-width: 1400px) {
+  .content {
+    max-width: none;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .welcomeSection {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .uploadSteps {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .successMessage {
+    margin-left: $spacing-xl;
+    margin-right: $spacing-xl;
+  }
+
+  .errorMessage {
+    margin-left: $spacing-xl;
+    margin-right: $spacing-xl;
+  }
+
+  .uploadButtonSection {
+    margin-left: $spacing-xl;
+    margin-right: $spacing-xl;
+  }
 }
 

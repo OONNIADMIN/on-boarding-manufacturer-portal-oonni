@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { authAPI } from '@/lib/api'
 import { User } from '@/types'
+import { CircleUserRound } from 'lucide-react'
 import styles from './Header.module.scss'
 
 interface HeaderProps {
@@ -20,7 +21,6 @@ interface HeaderProps {
 
 export default function Header({
   title,
-  subtitle,
   user,
   showBackButton = false,
   backButtonText = 'Back',
@@ -83,8 +83,51 @@ export default function Header({
       <div className={styles.headerContent}>
         <img src="/oonni_logo.png" alt="Oonni Logo" className={styles.logo} />
         <div>
-          <h1 className={styles.title}>{title}</h1>
-          <p className={styles.subtitle}>{subtitle}</p>
+          <h1 className={styles.title}>
+            <span className={styles.titleWithIcon}>
+              {currentPage === 'Onboard' ? (
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  {/* Open-top tray (bottom stroke) + arrow up — outline style like design */}
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <polyline
+                    points="7 10 12 5 17 10"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                  <line
+                    x1="12"
+                    y1="5"
+                    x2="12"
+                    y2="16"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M8 3h5.5L18 7.5V19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M13 3v4.5H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              {title}
+            </span>
+          </h1>
         </div>
         <div className={styles.headerActions}>
           {showBackButton && (
@@ -103,8 +146,50 @@ export default function Header({
               </svg>
             </button>
           )}
-          <button onClick={handleLogout} className={styles.logoutButton}>
-            Log out
+          {user && (
+            <div className={styles.welcomeBlock}>
+              <CircleUserRound className={styles.welcomeIcon} aria-hidden="true" strokeWidth={1.6} />
+              <span className={styles.welcomeText}>
+                Welcome, {authAPI.isAdmin(user) ? 'Admin' : user.name}
+              </span>
+            </div>
+          )}
+          <button type="button" onClick={handleLogout} className={styles.logoutButton}>
+            {/* Ring with NE gap + arrow through gap (reference mark, not refresh/log-in-door) */}
+            <svg
+              className={styles.logoutIcon}
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <circle
+                cx={12}
+                cy={12}
+                r={9}
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeDasharray="42.412 14.137"
+              />
+              <line
+                x1={11.25}
+                y1={12.75}
+                x2={18.25}
+                y2={5.75}
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+              <path
+                d="M 17.05 7.35 L 18.25 5.75 L 17.05 4.15"
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>Logout</span>
           </button>
         </div>
       </div>

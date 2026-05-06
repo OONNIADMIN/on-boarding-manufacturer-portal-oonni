@@ -121,52 +121,66 @@ export default function CatalogTemplatePage() {
 
         <div className={styles.content}>
           <section className={styles.introCard} aria-labelledby="template-intro-heading">
-            <h2 id="template-intro-heading" className={styles.introTitle}>
-              Match the template to your product lines
+            <h2 id="template-intro-heading" className={styles.introHeading}>
+              <span className={styles.introTitleLine1}>Match The Template To</span>
+              <span className={styles.introTitleLine2}>Your Products Lines</span>
             </h2>
             <p className={styles.introText}>
-              Each template corresponds to a <strong>product type</strong> in our catalogue (for example tools,
-              textiles, or electronics). Choose the type that best matches <strong>what your company actually
-              produces</strong> for the assortment you are about to load—that way columns, attributes, and
-              categories line up with how those products are structured in the platform.
+              Each template corresponds to a product type in our catalogue (for example tools, textiles, or
+              electronics). Choose the type that best matches what your company actually produces for the
+              assortment you are about to load - that way columns, attributes, and categories line up with how
+              those products are structured in the platform.
             </p>
             <p className={styles.introText}>
-              If you manufacture <strong>more than one distinct product line</strong>, download a separate
-              template for each line: pick a type, download the Excel file, then repeat for the next line. You
-              can fill each file and upload them when you continue to <strong>Onboard catalog</strong> (one
-              upload at a time or as your process requires).
+              If you manufacture more than one distinct products line, download a separate template for each
+              line: pick a type, download the excel file, then repeat for the next line. You can fill each
+              file and upload them when you continue to Onboard Catalog (one upload at the time or as your
+              process requires).
             </p>
           </section>
 
-          {pageError && (
-            <div className={styles.errorMessage} role="alert">
-              <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {pageError}
-            </div>
-          )}
-
           <section className={styles.nauticalSection} aria-labelledby="nautical-template-heading">
+            {pageError && (
+              <div className={styles.errorMessage} role="alert">
+                <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {pageError}
+              </div>
+            )}
+
             <div className={styles.nauticalCard}>
               <h2 id="nautical-template-heading" className={styles.nauticalTitle}>
-                Download your Excel template
+                <span className={styles.nauticalTitleLine1}>Download Your</span>
+                <span className={styles.nauticalTitleLine2}>Excel Template</span>
               </h2>
               <p className={styles.nauticalDescription}>
                 Select the product type that matches the line you are preparing. Your file will include the
-                right column layout for that type, example rows to guide you, and a{' '}
-                <strong>Categories</strong> sheet with the category tree relevant to that template, plus a
-                dropdown on the <strong>Catalog</strong> sheet so category values stay consistent.
+                right column layout for that type, example rows to guide you, and a Categories sheet with the
+                category tree relevant to that template, plus a dropdown on the Catalog sheet so category
+                values stay consistent.
               </p>
               <p className={styles.nauticalDescription}>
                 Need another line? Change the selection and download again—each template is independent.
               </p>
-              {typesLoading && <p className={styles.nauticalHint}>Loading product types from Nautical…</p>}
+              {typesLoading && (
+                <div className={styles.nauticalProgress} aria-busy="true" aria-live="polite">
+                  <div className={styles.nauticalProgressHeader}>
+                    <span className={styles.nauticalProgressLabel}>
+                      Loading product types from Nautical...
+                    </span>
+                    <span className={styles.nauticalProgressPct}>65%</span>
+                  </div>
+                  <div className={styles.nauticalProgressTrack}>
+                    <div className={styles.nauticalProgressFill} />
+                  </div>
+                </div>
+              )}
               {typesError && (
                 <p className={styles.nauticalWarning} role="status">
                   {typesError}
@@ -183,7 +197,7 @@ export default function CatalogTemplatePage() {
                   onChange={(e) => setSelectedProductTypeId(e.target.value)}
                   disabled={typesLoading || productTypes.length === 0}
                 >
-                  <option value="">Select product line / type…</option>
+                  <option value="">Select Product Line/Type</option>
                   {productTypes.map((pt) => (
                     <option key={pt.id} value={pt.id}>
                       {pt.name}
@@ -195,20 +209,20 @@ export default function CatalogTemplatePage() {
                   type="button"
                   onClick={() => void handleDownload()}
                   disabled={downloading || !selectedProductTypeId || productTypes.length === 0}
-                  className={styles.uploadAllButton}
+                  className={styles.downloadTemplateButton}
                 >
-                  {downloading ? 'Preparing…' : 'Download Excel template'}
+                  {downloading ? 'Preparing…' : 'Download Excel Template'}
                 </button>
               </div>
               <p className={styles.nauticalHint}>
-                If the list is empty or a download fails, contact your Oonni administrator so the connection to
+                If the list is empty or a download fails, contact your OONNI administrator so the connection to
                 the product catalogue can be checked.
               </p>
 
               <div className={styles.nextSection}>
                 <p className={styles.nextLabel}>When your spreadsheet is ready to upload:</p>
                 <button type="button" className={styles.nextButton} onClick={() => router.push('/onboard')}>
-                  Continue to Onboard catalog →
+                  Continue to Onboard catalog
                 </button>
               </div>
             </div>
