@@ -50,16 +50,79 @@
 }
 
 .dropzoneLarge {
-  flex: 1;
-  min-height: 134px;
-  padding: $spacing-lg $spacing-xl;
+  flex: 0 1 auto;
+  min-height: 168px;
+  padding: 3rem 3.25rem;
   justify-content: center;
-  width: 50%;
-  max-width: 360px;
-  min-width: 300px;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  min-width: 340px;
+  border-radius: 2.75rem;
+  background: #e9eeef;
+  gap: 0;
+
+  &:hover {
+    background: #e3e9ea;
+  }
+
+  &.hasFile {
+    background: #e9eeef;
+    min-height: 200px;
+  }
+
+  .dropzoneInner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
 
   .dropzoneContent {
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    flex: none;
+    gap: 0.65rem;
+  }
+
+  .fileIcon {
+    width: 2rem;
+    height: 2rem;
+    color: #002b2b;
+  }
+
+  .fileName {
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: #002b2b;
+    line-height: 1.35;
+  }
+
+  .fileSize {
+    font-size: $font-size-sm;
+    color: #a0aec0;
+  }
+
+  .selectButton {
+    background: #002b2b;
+    color: $white;
+    border: none;
+    border-radius: 50px;
+    padding: 1.0625rem 2.75rem;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    line-height: 1.25;
+    min-width: 0;
+    align-self: flex-start;
+    box-shadow: none;
+
+    &:hover:not(:disabled) {
+      background: #003d3d;
+    }
   }
 }
 

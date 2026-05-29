@@ -56,10 +56,14 @@ export default function CatalogFilePicker({ onFileSelect, selectedFile, size = '
   }
 
   const dropzoneClass =
-    size === 'large' ? `${styles.dropzone} ${styles.dropzoneLarge}` : styles.dropzone
+    size === 'large'
+      ? `${styles.dropzone} ${styles.dropzoneLarge}`
+      : styles.dropzone
+
+  const isLarge = size === 'large'
 
   return (
-    <div className={`${styles.filePicker} ${size === 'large' ? styles.filePickerStretch : ''}`}>
+    <div className={`${styles.filePicker} ${isLarge ? styles.filePickerStretch : ''}`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -67,37 +71,82 @@ export default function CatalogFilePicker({ onFileSelect, selectedFile, size = '
         onChange={handleFileInputChange}
         className={styles.fileInput}
       />
-      
+
       <div
         className={`${dropzoneClass} ${selectedFile ? styles.hasFile : ''}`}
         onClick={handleClickUpload}
-      >
-        <button 
-          type="button"
-          className={styles.selectButton}
-          onClick={(e) => {
-            e.stopPropagation()
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
             handleClickUpload()
-          }}
-        >
-          Select Catalog File
-        </button>
-        
-        <div className={styles.dropzoneContent}>
-          {selectedFile ? (
-            <>
-              <svg className={styles.fileIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <div className={styles.fileDetails}>
-                <span className={styles.fileName}>{selectedFile.name}</span>
-                <span className={styles.fileSize}>{formatFileSize(selectedFile.size)}</span>
+          }
+        }}
+      >
+        {isLarge ? (
+          <div className={styles.dropzoneInner}>
+            <button
+              type="button"
+              className={styles.selectButton}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClickUpload()
+              }}
+            >
+              Upload Excel or CSV Template
+            </button>
+            {selectedFile && (
+              <div className={styles.dropzoneContent}>
+                <svg className={styles.fileIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.75}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <div className={styles.fileDetails}>
+                  <span className={styles.fileName}>{selectedFile.name}</span>
+                  <span className={styles.fileSize}>{formatFileSize(selectedFile.size)}</span>
+                </div>
               </div>
-            </>
-          ) : (
-            <span className={styles.dropzoneText}>No file selected</span>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={styles.selectButton}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClickUpload()
+              }}
+            >
+              Select File
+            </button>
+            <div className={styles.dropzoneContent}>
+              {selectedFile ? (
+                <>
+                  <svg className={styles.fileIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <div className={styles.fileDetails}>
+                    <span className={styles.fileName}>{selectedFile.name}</span>
+                    <span className={styles.fileSize}>{formatFileSize(selectedFile.size)}</span>
+                  </div>
+                </>
+              ) : (
+                <span className={styles.dropzoneText}>No file selected</span>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

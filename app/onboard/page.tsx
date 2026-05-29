@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
 import CatalogFilePicker from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
-import { authAPI, catalogAPI, productAPI } from '@/lib/api'
+import { authAPI, catalogAPI, imageAPI, productAPI } from '@/lib/api'
 import { detectImageUrlColumn, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
@@ -21,6 +21,7 @@ export default function CatalogsPage() {
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
   const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
   const [isUploadCompleted, setIsUploadCompleted] = useState(false)
+  const [hasUploadImages, setHasUploadImages] = useState(false)
 
   const router = useRouter()
 
@@ -49,6 +50,27 @@ export default function CatalogsPage() {
     setUser(storedUser)
     setIsLoading(false)
   }, [router])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const response = await imageAPI.listImages()
+        const count = response?.images?.length ?? 0
+        if (!cancelled) setHasUploadImages(count > 0)
+      } catch {
+        if (!cancelled) setHasUploadImages(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user, refreshKey])
+
+  const handleImagesLoaded = (count: number) => {
+    setHasUploadImages(count > 0)
+  }
 
   // Handle catalog file selection
   const handleCatalogFileSelect = (file: File) => {
@@ -271,10 +293,8 @@ export default function CatalogsPage() {
                   <div className={`${styles.stepCard} ${styles.catalogUploadStepCard}`}>
                     <div className={styles.stepCardHeader}>
                       <div className={styles.stepCardTitleArea}>
-                        <h3 className={styles.stepCardTitle}>1. Select Catalog File</h3>
-                        <p className={styles.stepCardDescription}>
-                          Choose your product catalog in CSV or Excel format
-                        </p>
+                        <h3 className={styles.stepCardTitle}>1. Select  File</h3>
+                        
                       </div>
                     </div>
                     <div className={styles.stepCardContent}>
@@ -283,33 +303,34 @@ export default function CatalogsPage() {
                         onFileSelect={handleCatalogFileSelect}
                         selectedFile={selectedCatalogFile}
                       />
-                      <div className={styles.catalogUploadActions}>
-                        <button
-                          type="button"
-                          onClick={() => void handleUploadCatalog()}
-                          disabled={!selectedCatalogFile || isUploading}
-                          className={styles.uploadAllButton}
-                        >
-                          {isUploading ? (
-                            <>
-                              <span className={styles.spinner}></span>
-                              {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
-                            </>
-                          ) : (
-                            <>
-                              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                              </svg>
-                              Upload catalog
-                            </>
-                          )}
-                        </button>
-                        <p className={styles.uploadButtonHint}>
-                          {!selectedCatalogFile && 'Select a catalog file to upload.'}
-                          {selectedCatalogFile &&
-                            'Ready to upload - products and image URLs from the spreadsheet are processed automatically.'}
-                        </p>
-                      </div>
+                      {(selectedCatalogFile || isUploading) && (
+                        <div className={styles.catalogUploadActions}>
+                          <button
+                            type="button"
+                            onClick={() => void handleUploadCatalog()}
+                            disabled={!selectedCatalogFile || isUploading}
+                            className={styles.uploadAllButton}
+                          >
+                            {isUploading ? (
+                              <>
+                                <span className={styles.spinner}></span>
+                                {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
+                              </>
+                            ) : (
+                              <>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                                Upload catalog
+                              </>
+                            )}
+                          </button>
+                          <p className={styles.uploadButtonHint}>
+                            Ready to upload - products and image URLs from the spreadsheet are processed
+                            automatically.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -325,18 +346,20 @@ export default function CatalogsPage() {
             </section>
           )}
 
-          <section className={styles.mediaLibrarySection} aria-labelledby="onboard-media-heading">
-            <div className={styles.mediaLibraryHeadingBlock}>
-              <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
-                Your Upload Images
-              </h2>
-              <p className={styles.mediaLibraryIntro}>
-                Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
-              </p>
-              <hr className={styles.mediaLibraryDivider} />
-            </div>
-            <ImageList key={refreshKey} />
-          </section>
+          {hasUploadImages && (
+            <section className={styles.mediaLibrarySection} aria-labelledby="onboard-media-heading">
+              <div className={styles.mediaLibraryHeadingBlock}>
+                <h2 id="onboard-media-heading" className={styles.mediaLibraryTitle}>
+                  Your Upload Images
+                </h2>
+                <p className={styles.mediaLibraryIntro}>
+                  Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
+                </p>
+                <hr className={styles.mediaLibraryDivider} />
+              </div>
+              <ImageList key={refreshKey} onImagesLoaded={handleImagesLoaded} />
+            </section>
+          )}
         </div>
       </div>
     </main>

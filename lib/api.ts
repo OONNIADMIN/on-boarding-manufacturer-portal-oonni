@@ -122,6 +122,34 @@ export interface NauticalProductTypeSummary {
   name: string
 }
 
+/** ImageKit catalog template matched to a Nautical product type. */
+export interface ImageKitTemplateSummary {
+  fileId: string
+  name: string
+  filePath: string
+  url: string
+  thumbnail?: string
+  size?: number
+  mime?: string
+}
+
+export interface NauticalProductTypeWithTemplate {
+  id: string
+  slug: string
+  name: string
+  template_search_name: string
+  template: ImageKitTemplateSummary | null
+}
+
+export interface ImageKitTemplatesResponse {
+  count: number
+  product_types: NauticalProductTypeWithTemplate[]
+}
+
+export interface ImageKitTemplateByProductTypeResponse {
+  product_type: NauticalProductTypeWithTemplate
+}
+
 function normalizeImageStorageKey(key: string): string {
   return key.trim().replace(/^\/+/u, '').toLowerCase()
 }
@@ -883,13 +911,49 @@ export const nauticalAPI = {
 
   async downloadCatalogTemplate(productTypeId: string): Promise<void> {
     const token = authAPI.getToken()
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = `Bearer ${token}`
     }
+
+    const resolveRes = await fetch(
+      `${API_URL}/imagekit/templates?product_type_id=${encodeURIComponent(productTypeId)}`,
+      { headers, credentials: 'include', cache: 'no-store' }
+    )
+    if (!resolveRes.ok) {
+      const error = (await resolveRes.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(error.detail || 'Failed to resolve catalog template')
+    }
+    const resolved = (await resolveRes.json()) as ImageKitTemplateByProductTypeResponse
+    const template = resolved.product_type.template
+    const url = template?.url
+    if (!url) {
+      throw new Error(
+        `No template found in ImageKit for "${resolved.product_type.name}". ` +
+          'The file must exist in ImageKit with tag "template" and the same name as the product type.'
+      )
+    }
+    const filename = template.name?.trim() || `${resolved.product_type.name}.xlsx`
+
+    try {
+      const fileRes = await fetch(url, { cache: 'no-store' })
+      if (fileRes.ok) {
+        const blob = await fileRes.blob()
+        const objectUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(objectUrl)
+        return
+      }
+    } catch {
+      // Fall through to server proxy if direct ImageKit fetch is blocked.
+    }
+
     const response = await fetch(`${API_URL}/nautical/catalog-template`, {
       method: 'POST',
-      headers,
+      headers: { ...headers, 'Content-Type': 'application/json' },
       credentials: 'include',
       cache: 'no-store',
       body: JSON.stringify({ product_type_id: productTypeId }),
@@ -900,20 +964,51 @@ export const nauticalAPI = {
     }
     const blob = await response.blob()
     const cd = response.headers.get('Content-Disposition')
-    let filename = 'catalog-template.xlsx'
+    let downloadName = filename
     const quoted = cd?.match(/filename="([^"]+)"/)
     if (quoted?.[1]) {
-      filename = quoted[1]
+      downloadName = quoted[1]
     } else {
       const plain = cd?.match(/filename=([^;\s]+)/)
-      if (plain?.[1]) filename = plain[1].replace(/^"+|"+$/g, '')
+      if (plain?.[1]) downloadName = plain[1].replace(/^"+|"+$/g, '')
     }
-    const url = URL.createObjectURL(blob)
+    const objectUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = filename
+    a.href = objectUrl
+    a.download = downloadName
     a.click()
-    URL.revokeObjectURL(url)
+    URL.revokeObjectURL(objectUrl)
+  },
+}
+
+export const imagekitAPI = {
+  /**
+   * List Nautical product types with their ImageKit template (if found).
+   * Names always come from Nautical; ImageKit files are matched by that name.
+   */
+  async listTemplates(options?: {
+    name?: string
+    productTypeId?: string
+  }): Promise<ImageKitTemplatesResponse | ImageKitTemplateByProductTypeResponse> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const params = new URLSearchParams()
+    if (options?.productTypeId?.trim()) params.set('product_type_id', options.productTypeId.trim())
+    else if (options?.name?.trim()) params.set('name', options.name.trim())
+    const qs = params.toString()
+    const response = await fetch(`${API_URL}/imagekit/templates${qs ? `?${qs}` : ''}`, {
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(error.detail || 'Failed to load catalog templates')
+    }
+    return (await response.json()) as ImageKitTemplatesResponse | ImageKitTemplateByProductTypeResponse
   },
 }
 

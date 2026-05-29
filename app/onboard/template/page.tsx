@@ -121,22 +121,24 @@ export default function CatalogTemplatePage() {
 
         <div className={styles.content}>
           <section className={styles.introCard} aria-labelledby="template-intro-heading">
-            <h2 id="template-intro-heading" className={styles.introHeading}>
-              <span className={styles.introTitleLine1}>Match The Template To</span>
-              <span className={styles.introTitleLine2}>Your Products Lines</span>
-            </h2>
-            <p className={styles.introText}>
-              Each template corresponds to a product type in our catalogue (for example tools, textiles, or
-              electronics). Choose the type that best matches what your company actually produces for the
-              assortment you are about to load - that way columns, attributes, and categories line up with how
-              those products are structured in the platform.
-            </p>
-            <p className={styles.introText}>
-              If you manufacture more than one distinct products line, download a separate template for each
-              line: pick a type, download the excel file, then repeat for the next line. You can fill each
-              file and upload them when you continue to Onboard Catalog (one upload at the time or as your
-              process requires).
-            </p>
+            <div className={styles.introBody}>
+              <h2 id="template-intro-heading" className={styles.introHeading}>
+                <span className={styles.introTitleLine1}>Match The Template To</span>
+                <span className={styles.introTitleLine2}>Your Products Lines</span>
+              </h2>
+              <p className={styles.introText}>
+                Each template corresponds to a product type in our catalogue (for example tools, textiles, or
+                electronics). Choose the type that best matches what your company actually produces for the
+                assortment you are about to load - that way columns, attributes, and categories line up with how
+                those products are structured in the platform.
+              </p>
+              <p className={styles.introText}>
+                If you manufacture more than one distinct products line, download a separate template for each
+                line: pick a type, download the excel file, then repeat for the next line. You can fill each
+                file and upload them when you continue to Onboard Catalog (one upload at the time or as your
+                process requires).
+              </p>
+            </div>
           </section>
 
           <section className={styles.nauticalSection} aria-labelledby="nautical-template-heading">
@@ -160,10 +162,9 @@ export default function CatalogTemplatePage() {
                 <span className={styles.nauticalTitleLine2}>Excel Template</span>
               </h2>
               <p className={styles.nauticalDescription}>
-                Select the product type that matches the line you are preparing. Your file will include the
-                right column layout for that type, example rows to guide you, and a Categories sheet with the
-                category tree relevant to that template, plus a dropdown on the Catalog sheet so category
-                values stay consistent.
+                Select the product type that matches the line you are preparing. The Excel template
+                is loaded from ImageKit using the same name as the product type and the tag
+                &quot;template&quot;.
               </p>
               <p className={styles.nauticalDescription}>
                 Need another line? Change the selection and download again—each template is independent.
@@ -201,7 +202,6 @@ export default function CatalogTemplatePage() {
                   {productTypes.map((pt) => (
                     <option key={pt.id} value={pt.id}>
                       {pt.name}
-                      {pt.slug ? ` (${pt.slug})` : ''}
                     </option>
                   ))}
                 </select>
@@ -215,8 +215,8 @@ export default function CatalogTemplatePage() {
                 </button>
               </div>
               <p className={styles.nauticalHint}>
-                If the list is empty or a download fails, contact your OONNI administrator so the connection to
-                the product catalogue can be checked.
+                If a download fails, confirm the template exists in ImageKit with tag &quot;template&quot;
+                and the same name as the selected product type, then contact your OONNI administrator.
               </p>
 
               <div className={styles.nextSection}>
