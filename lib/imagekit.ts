@@ -243,6 +243,106 @@ function parseImageKitAssetsListBody(raw: unknown): Record<string, unknown>[] {
   return [];
 }
 
+/** Tag used when templates are tagged in ImageKit (optional — folder listing is primary). */
+export const IMAGEKIT_TEMPLATE_TAG = "template";
+
+/** ImageKit Media Library folder where catalog Excel templates are stored. */
+export function imageKitTemplatesFolder(): string {
+  const raw = (process.env.IMAGEKIT_TEMPLATES_FOLDER || "/Template-excel-oonni").trim();
+  return raw || "/Template-excel-oonni";
+}
+
+function isSpreadsheetTemplateFile(file: ImageKitListedFile): boolean {
+  const name = file.name.toLowerCase();
+  const mime = (file.mime ?? file.fileType ?? "").toLowerCase();
+  return (
+    name.endsWith(".xlsx") ||
+    name.endsWith(".xls") ||
+    mime.includes("spreadsheet") ||
+    mime.includes("excel")
+  );
+}
+
+function slugToTitleCase(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("-");
+}
+
+/** Build lowercase tokens used to match Nautical product types to ImageKit file names. */
+export function buildImageKitTemplateMatchTokens(params: {
+  name?: string | null;
+  slug?: string | null;
+}): string[] {
+  const name = (params.name ?? "").trim();
+  const slug = (params.slug ?? "").trim().toLowerCase();
+  const tokens = new Set<string>();
+
+  if (name) tokens.add(normalizeTemplateName(name));
+  if (slug) {
+    tokens.add(slug);
+    tokens.add(slug.replace(/-/g, ""));
+    tokens.add(`catalog-template-${slug}`);
+    tokens.add(`catalog-template-${slugToTitleCase(slug)}`.toLowerCase());
+    tokens.add(slugToTitleCase(slug).toLowerCase());
+  }
+
+  if (name) {
+    const simplified = name
+      .toLowerCase()
+      .replace(/&/g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    for (const word of simplified.split(/\s+/).filter((w) => w.length > 2)) {
+      tokens.add(word);
+    }
+  }
+
+  return [...tokens].filter(Boolean);
+}
+
+function pickPreferredTemplateFile(candidates: ImageKitListedFile[]): ImageKitListedFile {
+  if (candidates.length === 1) return candidates[0];
+  return [...candidates].sort((a, b) => {
+    const dateA = extractDateFromTemplateName(a.name);
+    const dateB = extractDateFromTemplateName(b.name);
+    if (dateA && dateB && dateA !== dateB) return dateB.localeCompare(dateA);
+    return b.name.localeCompare(a.name);
+  })[0];
+}
+
+/** Prefer filenames like `05-20-2026` when multiple template versions exist. */
+function extractDateFromTemplateName(name: string): string | null {
+  const m = name.match(/(\d{2}-\d{2}-\d{4})/);
+  return m?.[1] ?? null;
+}
+
+function mapImageKitAssetRow(item: Record<string, unknown>): ImageKitListedFile {
+  return {
+    fileId: String(item.fileId ?? ""),
+    name: String(item.name ?? ""),
+    filePath: String(item.filePath ?? ""),
+    url: canonicalImageKitUrl(String(item.url ?? "")),
+    thumbnail:
+      item.thumbnail != null && String(item.thumbnail)
+        ? canonicalImageKitUrl(String(item.thumbnail))
+        : undefined,
+    size: typeof item.size === "number" ? item.size : undefined,
+    width: typeof item.width === "number" ? item.width : undefined,
+    height: typeof item.height === "number" ? item.height : undefined,
+    mime: item.mime != null ? String(item.mime) : undefined,
+    fileType: item.fileType != null ? String(item.fileType) : undefined,
+  };
+}
+
+function filterImageKitFileRows(rows: Record<string, unknown>[]): ImageKitListedFile[] {
+  return rows
+    .filter((item) => String(item.type ?? "file") === "file" || item.fileId != null)
+    .map(mapImageKitAssetRow);
+}
+
 export async function listImageKitFilesInFolder(params: {
   folderPath: string;
   limit?: number;
@@ -266,22 +366,254 @@ export async function listImageKitFilesInFolder(params: {
 
   const raw = await imagekit.assets.list(query);
   const rows = parseImageKitAssetsListBody(raw);
+  return filterImageKitFileRows(rows);
+}
 
-  return rows
-    .filter((item) => String(item.type ?? "file") === "file" || item.fileId != null)
-    .map((item) => ({
-      fileId: String(item.fileId ?? ""),
-      name: String(item.name ?? ""),
-      filePath: String(item.filePath ?? ""),
-      url: canonicalImageKitUrl(String(item.url ?? "")),
-      thumbnail:
-        item.thumbnail != null && String(item.thumbnail)
-          ? canonicalImageKitUrl(String(item.thumbnail))
-          : undefined,
-      size: typeof item.size === "number" ? item.size : undefined,
-      width: typeof item.width === "number" ? item.width : undefined,
-      height: typeof item.height === "number" ? item.height : undefined,
-      mime: item.mime != null ? String(item.mime) : undefined,
-      fileType: item.fileType != null ? String(item.fileType) : undefined,
-    }));
+/** Escape a value for ImageKit Lucene-style searchQuery strings (inside double quotes). */
+export function escapeImageKitSearchValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/** Build ImageKit `name` filter — exact match; values with spaces must use `name="..."`. */
+function imageKitNameEqualsClause(name: string): string {
+  return `name="${escapeImageKitSearchValue(name.trim())}"`;
+}
+
+export interface ImageKitSearchFilesParams {
+  /** Pre-built Lucene query (takes precedence over tags/name/customMetadata). */
+  searchQuery?: string;
+  tags?: string[];
+  /** File name filter — combined with tags when searchQuery is omitted. */
+  name?: string;
+  customMetadata?: Record<string, string>;
+  folderPath?: string;
+  limit?: number;
+  skip?: number;
+  fileTypeFilter?: "image" | "non-image" | "all";
+}
+
+/**
+ * Search ImageKit Media Library assets (GET /v1/files).
+ * @see https://docs.imagekit.io/api-reference/media-api/list-and-search-files
+ */
+export async function searchImageKitFiles(
+  params: ImageKitSearchFilesParams
+): Promise<ImageKitListedFile[]> {
+  const imagekit = getImageKit();
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 1000);
+  const skip = Math.max(params.skip ?? 0, 0);
+  const fileType = params.fileTypeFilter ?? "all";
+
+  let searchQuery = params.searchQuery?.trim();
+
+  if (!searchQuery) {
+    const parts: string[] = [];
+    if (params.tags?.length) {
+      const tagList = params.tags.map((t) => `"${escapeImageKitSearchValue(t)}"`).join(", ");
+      parts.push(`"tags" IN [${tagList}]`);
+    }
+    if (params.name?.trim()) {
+      parts.push(imageKitNameEqualsClause(params.name));
+    }
+    if (params.customMetadata) {
+      for (const [k, v] of Object.entries(params.customMetadata)) {
+        parts.push(`"customMetadata.${k}"="${escapeImageKitSearchValue(v)}"`);
+      }
+    }
+    if (parts.length) {
+      searchQuery = parts.join(" AND ");
+    }
+  }
+
+  const query: Record<string, string> = {
+    type: "file",
+    limit: String(limit),
+    skip: String(skip),
+    fileType,
+  };
+
+  if (searchQuery) {
+    query.searchQuery = searchQuery;
+  }
+  if (params.folderPath?.trim()) {
+    query.path = normalizeFolderPathForListApi(params.folderPath);
+  }
+
+  const raw = await imagekit.assets.list(query);
+  const rows = parseImageKitAssetsListBody(raw);
+  return filterImageKitFileRows(rows);
+}
+
+/**
+ * List catalog Excel templates from ImageKit (GET /v1/files).
+ * Primary: folder IMAGEKIT_TEMPLATES_FOLDER (default /Template-excel-oonni).
+ * Fallback: tag "template" when files are tagged in other environments.
+ * @see https://imagekit.io/docs/api-reference/media-api/list-and-search-files
+ */
+export async function listImageKitTemplates(params?: {
+  limit?: number;
+  skip?: number;
+}): Promise<ImageKitListedFile[]> {
+  const limit = params?.limit ?? 1000;
+  const skip = params?.skip ?? 0;
+  const folder = imageKitTemplatesFolder();
+
+  const byFolder = await searchImageKitFiles({
+    folderPath: folder,
+    limit,
+    skip,
+    fileTypeFilter: "all",
+  });
+  const spreadsheets = byFolder.filter(isSpreadsheetTemplateFile);
+  if (spreadsheets.length) return spreadsheets;
+
+  const byTag = await searchImageKitFiles({
+    tags: [IMAGEKIT_TEMPLATE_TAG],
+    limit,
+    skip,
+    fileTypeFilter: "all",
+  });
+  return byTag.filter(isSpreadsheetTemplateFile);
+}
+
+/** Resolve the ImageKit search key from a Nautical product type (name takes precedence). */
+export function nauticalTemplateSearchName(params: {
+  name?: string | null;
+  slug?: string | null;
+}): string {
+  return (params.name ?? "").trim() || (params.slug ?? "").trim();
+}
+
+/** Normalize template names for comparison (Nautical name ↔ ImageKit file name). */
+function normalizeTemplateName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\.[^.]+$/u, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*&\s*/g, " & ");
+}
+
+/** Match an ImageKit template file to a Nautical product type (name + slug). */
+export function matchImageKitTemplateToProductType(
+  pt: { name?: string | null; slug?: string | null },
+  templates: ImageKitListedFile[]
+): ImageKitListedFile | null {
+  const tokens = buildImageKitTemplateMatchTokens(pt);
+  if (!tokens.length) return null;
+
+  const haystack = (file: ImageKitListedFile) =>
+    `${file.name} ${file.filePath}`.toLowerCase().replace(/_/g, " ");
+
+  const exactName = (pt.name ?? "").trim();
+  if (exactName) {
+    const exact = templates.filter(
+      (t) => normalizeTemplateName(t.name) === normalizeTemplateName(exactName)
+    );
+    if (exact.length) return pickPreferredTemplateFile(exact);
+  }
+
+  const slug = (pt.slug ?? "").trim().toLowerCase();
+  if (slug) {
+    const slugMatches = templates.filter((t) => {
+      const hay = haystack(t);
+      return (
+        hay.includes(`catalog-template-${slug}`) ||
+        hay.includes(`catalog-template-${slugToTitleCase(slug).toLowerCase()}`) ||
+        hay.includes(slugToTitleCase(slug).toLowerCase())
+      );
+    });
+    if (slugMatches.length) return pickPreferredTemplateFile(slugMatches);
+  }
+
+  const tokenMatches = templates.filter((t) => {
+    const hay = haystack(t);
+    return tokens.some((token) => token.length >= 4 && hay.includes(token));
+  });
+  if (tokenMatches.length) return pickPreferredTemplateFile(tokenMatches);
+
+  return null;
+}
+
+/** @deprecated use matchImageKitTemplateToProductType */
+export function matchImageKitTemplateByNauticalName(
+  nauticalName: string,
+  templates: ImageKitListedFile[]
+): ImageKitListedFile | null {
+  return matchImageKitTemplateToProductType({ name: nauticalName }, templates);
+}
+
+/**
+ * Search templates by Nautical product type name (tag: template).
+ * Lists tagged files once and matches in memory by exact name.
+ */
+export async function searchImageKitTemplatesByName(
+  name: string,
+  options?: { limit?: number; skip?: number }
+): Promise<ImageKitListedFile[]> {
+  const q = normalizeTemplateName(name);
+  if (!q) return [];
+
+  const all = await listImageKitTemplates({
+    limit: 1000,
+    skip: options?.skip,
+  });
+
+  const matches = all.filter(
+    (t) =>
+      normalizeTemplateName(t.name) === q ||
+      normalizeTemplateName(t.filePath.split("/").pop() ?? t.name) === q
+  );
+
+  const limit = options?.limit ?? 20;
+  return matches.slice(0, limit);
+}
+
+/** Find ImageKit template for a Nautical product type. */
+export async function findImageKitTemplateForProductType(params: {
+  name?: string | null;
+  slug?: string | null;
+}): Promise<ImageKitListedFile | null> {
+  const ikTemplates = await listImageKitTemplates({ limit: 1000 });
+  return matchImageKitTemplateToProductType(params, ikTemplates);
+}
+
+export type NauticalProductTypeTemplateRef = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+export type NauticalProductTypeWithTemplate = NauticalProductTypeTemplateRef & {
+  template_search_name: string;
+  template: ImageKitListedFile | null;
+};
+
+/**
+ * Resolve ImageKit templates for Nautical product types.
+ * Names always come from Nautical; ImageKit is only the file store.
+ */
+export async function resolveImageKitTemplatesForNauticalProductTypes(
+  productTypes: NauticalProductTypeTemplateRef[]
+): Promise<NauticalProductTypeWithTemplate[]> {
+  const ikTemplates = await listImageKitTemplates({ limit: 1000 });
+
+  return productTypes.map((pt) => {
+    const templateSearchName = nauticalTemplateSearchName(pt);
+    const template = matchImageKitTemplateToProductType(pt, ikTemplates);
+    return {
+      ...pt,
+      template_search_name: templateSearchName,
+      template,
+    };
+  });
+}
+
+/** Download file bytes from an ImageKit delivery URL (server-side). */
+export async function downloadImageKitFileBuffer(url: string): Promise<Buffer> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to download ImageKit file (${res.status})`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }

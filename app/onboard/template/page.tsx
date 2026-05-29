@@ -160,10 +160,9 @@ export default function CatalogTemplatePage() {
                 <span className={styles.nauticalTitleLine2}>Excel Template</span>
               </h2>
               <p className={styles.nauticalDescription}>
-                Select the product type that matches the line you are preparing. Your file will include the
-                right column layout for that type, example rows to guide you, and a Categories sheet with the
-                category tree relevant to that template, plus a dropdown on the Catalog sheet so category
-                values stay consistent.
+                Select the product type that matches the line you are preparing. The Excel template
+                is loaded from ImageKit using the same name as the product type and the tag
+                &quot;template&quot;.
               </p>
               <p className={styles.nauticalDescription}>
                 Need another line? Change the selection and download again—each template is independent.
@@ -201,7 +200,6 @@ export default function CatalogTemplatePage() {
                   {productTypes.map((pt) => (
                     <option key={pt.id} value={pt.id}>
                       {pt.name}
-                      {pt.slug ? ` (${pt.slug})` : ''}
                     </option>
                   ))}
                 </select>
@@ -215,8 +213,8 @@ export default function CatalogTemplatePage() {
                 </button>
               </div>
               <p className={styles.nauticalHint}>
-                If the list is empty or a download fails, contact your OONNI administrator so the connection to
-                the product catalogue can be checked.
+                If a download fails, confirm the template exists in ImageKit with tag &quot;template&quot;
+                and the same name as the selected product type, then contact your OONNI administrator.
               </p>
 
               <div className={styles.nextSection}>

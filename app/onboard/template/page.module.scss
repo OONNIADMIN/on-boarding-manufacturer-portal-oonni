@@ -253,20 +253,21 @@ $nautical-sage: #94b49f;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 0.7rem 1.35rem;
-  min-width: fit-content;
+  width: 214px;
+  height: 40px;
+  padding: 0 1.25rem;
   border: none;
   border-radius: 50px;
-  background: #003333;
+  background: $nautical-sage;
   color: $white;
   font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
+  font-weight: $font-weight-medium;
   cursor: pointer;
   transition: background $transition-base, opacity $transition-base;
   white-space: nowrap;
 
   &:hover:not(:disabled) {
-    background: #002929;
+    background: darken($nautical-sage, 6%);
   }
 
   &:disabled {
