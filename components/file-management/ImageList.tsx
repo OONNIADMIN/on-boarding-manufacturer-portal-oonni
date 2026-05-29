@@ -4,7 +4,12 @@ import { useState, useEffect } from 'react'
 import { imageAPI, ImageInfo } from '@/lib/api'
 import styles from './ImageList.module.scss'
 
-export default function ImageList() {
+interface ImageListProps {
+  /** Called when the image list finishes loading or changes (e.g. after delete). */
+  onImagesLoaded?: (count: number) => void
+}
+
+export default function ImageList({ onImagesLoaded }: ImageListProps) {
   const [images, setImages] = useState<ImageInfo[]>([])
   const [filteredImages, setFilteredImages] = useState<ImageInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -34,6 +39,12 @@ export default function ImageList() {
   useEffect(() => {
     loadImages()
   }, [])
+
+  useEffect(() => {
+    if (!isLoading) {
+      onImagesLoaded?.(images.length)
+    }
+  }, [images, isLoading, onImagesLoaded])
 
   useEffect(() => {
     const source = images ?? []
