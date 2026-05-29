@@ -121,22 +121,24 @@ export default function CatalogTemplatePage() {
 
         <div className={styles.content}>
           <section className={styles.introCard} aria-labelledby="template-intro-heading">
-            <h2 id="template-intro-heading" className={styles.introHeading}>
-              <span className={styles.introTitleLine1}>Match The Template To</span>
-              <span className={styles.introTitleLine2}>Your Products Lines</span>
-            </h2>
-            <p className={styles.introText}>
-              Each template corresponds to a product type in our catalogue (for example tools, textiles, or
-              electronics). Choose the type that best matches what your company actually produces for the
-              assortment you are about to load - that way columns, attributes, and categories line up with how
-              those products are structured in the platform.
-            </p>
-            <p className={styles.introText}>
-              If you manufacture more than one distinct products line, download a separate template for each
-              line: pick a type, download the excel file, then repeat for the next line. You can fill each
-              file and upload them when you continue to Onboard Catalog (one upload at the time or as your
-              process requires).
-            </p>
+            <div className={styles.introBody}>
+              <h2 id="template-intro-heading" className={styles.introHeading}>
+                <span className={styles.introTitleLine1}>Match The Template To</span>
+                <span className={styles.introTitleLine2}>Your Products Lines</span>
+              </h2>
+              <p className={styles.introText}>
+                Each template corresponds to a product type in our catalogue (for example tools, textiles, or
+                electronics). Choose the type that best matches what your company actually produces for the
+                assortment you are about to load - that way columns, attributes, and categories line up with how
+                those products are structured in the platform.
+              </p>
+              <p className={styles.introText}>
+                If you manufacture more than one distinct products line, download a separate template for each
+                line: pick a type, download the excel file, then repeat for the next line. You can fill each
+                file and upload them when you continue to Onboard Catalog (one upload at the time or as your
+                process requires).
+              </p>
+            </div>
           </section>
 
           <section className={styles.nauticalSection} aria-labelledby="nautical-template-heading">

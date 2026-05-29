@@ -44,21 +44,35 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   box-sizing: border-box;
+}
+
+.introBody {
+  width: 100%;
+  max-width: 52ch;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  text-align: left;
+  container-type: inline-size;
 }
 
 // Intro heading (two-line headline + thin gold underline — matches design reference)
 $intro-heading-gold: rgb(228, 204, 150);
 
 .introHeading {
+  display: block;
   margin: 0 0 $spacing-xl 0;
-  max-width: 22ch;
-  @include flex-column;
-  align-items: flex-start;
-  gap: 0.15rem;
+  width: 100%;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 .introTitleLine1 {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.15rem;
   font-size: 1.05rem;
   font-weight: $font-weight-normal;
   line-height: 1.35;
@@ -69,16 +83,17 @@ $intro-heading-gold: rgb(228, 204, 150);
 
 .introTitleLine2 {
   display: block;
-  font-size: 2.05rem;
+  width: 100%;
+  font-size: clamp(1.85rem, 10.2cqi, 3.15rem);
   font-weight: $font-weight-semibold;
   line-height: 1.15;
   letter-spacing: 0.02em;
   color: $intro-heading-gold;
   padding-bottom: 0.45rem;
   border-bottom: 1px solid $intro-heading-gold;
-  width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .introText {
@@ -87,7 +102,10 @@ $intro-heading-gold: rgb(228, 204, 150);
   line-height: 1.65;
   color: $white;
   opacity: 0.95;
-  max-width: 52ch;
+  width: 100%;
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
 
   & + & {
     margin-top: $spacing-lg;
@@ -107,17 +125,23 @@ $nautical-sage: #94b49f;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: $spacing-md;
   box-sizing: border-box;
 }
 
 .nauticalCard {
   @include flex-column;
+  align-items: stretch;
   gap: 1.35rem;
+  width: 100%;
+  max-width: 58ch;
+  margin-inline: auto;
   padding: 0;
   background: transparent;
   border: none;
   box-shadow: none;
+  text-align: left;
 }
 
 .nauticalTitle {
@@ -128,7 +152,7 @@ $nautical-sage: #94b49f;
   @include flex-column;
   align-items: flex-start;
   gap: 0.1rem;
-  max-width: 100%;
+  width: 100%;
 }
 
 .nauticalTitleLine1 {
@@ -151,12 +175,16 @@ $nautical-sage: #94b49f;
   color: $gray-700;
   margin: 0;
   line-height: 1.65;
-  max-width: 58ch;
+  width: 100%;
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
 }
 
 .nauticalProgress {
   @include flex-column;
   gap: 0.45rem;
+  width: 100%;
 }
 
 .nauticalProgressHeader {
@@ -207,6 +235,8 @@ $nautical-sage: #94b49f;
   flex-wrap: nowrap;
   gap: 0.65rem;
   align-items: center;
+  justify-content: flex-start;
+  width: 100%;
   margin-top: 0.15rem;
 }
 
@@ -239,7 +269,10 @@ $nautical-sage: #94b49f;
   color: $gray-500;
   margin: 0;
   line-height: 1.45;
-  max-width: 58ch;
+  width: 100%;
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
 }
 
 .nauticalWarning {
@@ -285,6 +318,7 @@ $nautical-sage: #94b49f;
   padding-top: 1.35rem;
   margin-top: 0.35rem;
   border-top: 1px solid $gray-200;
+  width: 100%;
 }
 
 .nextLabel {
@@ -325,6 +359,10 @@ $nautical-sage: #94b49f;
   color: #991b1b;
   font-size: $font-size-base;
   font-weight: $font-weight-medium;
+  width: 100%;
+  max-width: 58ch;
+  margin-inline: auto;
+  text-align: left;
 }
 
 .errorIcon {
@@ -337,7 +375,7 @@ $nautical-sage: #94b49f;
 @include respond-to('lg') {
   .content {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     flex: 1;
     min-height: 0;
     max-width: none;
@@ -345,9 +383,11 @@ $nautical-sage: #94b49f;
 
   .introCard,
   .nauticalSection {
-    height: auto;
-    min-height: min(60vh, 620px);
+    height: 100%;
+    min-height: 0;
     padding: 2.5rem clamp(1.25rem, 5vw, 2.5rem);
+    justify-content: center;
+    align-items: center;
   }
 }
 
@@ -356,6 +396,11 @@ $nautical-sage: #94b49f;
   .nauticalSection {
     padding: 1.5rem clamp(1rem, 4vw, 1.5rem);
   }
+
+  .introTitleLine2 {
+    white-space: normal;
+    font-size: clamp(1.75rem, 9cqi, 2.5rem);
+  }
 }
 
 @include respond-to('sm') {
@@ -363,6 +408,7 @@ $nautical-sage: #94b49f;
     flex-wrap: wrap;
     flex-direction: column;
     align-items: stretch;
+    justify-content: flex-start;
   }
 
   .nauticalSelect {
