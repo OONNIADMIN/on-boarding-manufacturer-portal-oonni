@@ -59,7 +59,7 @@
 }
 
 // Intro heading (two-line headline + thin gold underline — matches design reference)
-$intro-heading-gold: rgb(228, 204, 150);
+$intro-heading-gold: #C4C39D;
 
 .introHeading {
   display: block;
@@ -73,12 +73,14 @@ $intro-heading-gold: rgb(228, 204, 150);
   display: block;
   width: 100%;
   margin-bottom: 0.15rem;
-  font-size: 1.05rem;
+  font-size: clamp(1.15rem, 5.8cqi, 1.85rem);
   font-weight: $font-weight-normal;
   line-height: 1.35;
   letter-spacing: 0.06em;
   text-transform: none;
   color: $intro-heading-gold;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .introTitleLine2 {
@@ -400,6 +402,11 @@ $nautical-sage: #94b49f;
   .introTitleLine2 {
     white-space: normal;
     font-size: clamp(1.75rem, 9cqi, 2.5rem);
+  }
+
+  .introTitleLine1 {
+    white-space: normal;
+    font-size: clamp(1.05rem, 5cqi, 1.55rem);
   }
 }
 
