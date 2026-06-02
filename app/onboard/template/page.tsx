@@ -119,8 +119,10 @@ export default function CatalogTemplatePage() {
           currentPage="catalogTemplate"
         />
 
-        <div className={styles.content}>
-          <section className={styles.introCard} aria-labelledby="template-intro-heading">
+        <div className={styles.contentFrame}>
+          <div className={styles.contentStripe} aria-hidden="true" />
+          <div className={styles.content}>
+            <section className={styles.introCard} aria-labelledby="template-intro-heading">
             <div className={styles.introBody}>
               <h2 id="template-intro-heading" className={styles.introHeading}>
                 <span className={styles.introTitleLine1}>Match The Template To</span>
@@ -227,6 +229,7 @@ export default function CatalogTemplatePage() {
               </div>
             </div>
           </section>
+          </div>
         </div>
       </div>
     </main>

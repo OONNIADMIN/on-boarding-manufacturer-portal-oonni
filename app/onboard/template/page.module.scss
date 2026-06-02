@@ -16,6 +16,22 @@
   min-height: 0;
 }
 
+.contentFrame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background-color: #f0f0ee;
+  display: flex;
+  flex-direction: column;
+}
+
+.contentStripe {
+  flex-shrink: 0;
+  width: 100%;
+  height: 20px;
+  background-color: #f0f0ee;
+}
+
 .content {
   flex: 1;
   min-height: 0;
