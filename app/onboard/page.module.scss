@@ -102,6 +102,7 @@
   width: 100%;
   margin: 0 auto;
   padding: $spacing-xl;
+  background-color: #f0f0ee;
   @include flex-column;
   /** 15px between major blocks (e.g. welcome banner ↔ upload step) */
   gap: 15px;

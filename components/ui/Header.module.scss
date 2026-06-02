@@ -8,7 +8,6 @@
 .header {
   background-color: $oonni-teal;
   padding: 0;
-  box-shadow: $shadow-md;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -175,6 +174,7 @@
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 0.5rem $spacing-xl;
   margin-top: auto;
+  box-shadow: none;
 }
 
 .navigationFlat {
