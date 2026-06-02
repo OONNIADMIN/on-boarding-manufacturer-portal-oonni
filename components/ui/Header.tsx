@@ -81,7 +81,7 @@ export default function Header({
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
-        <img src="/oonni_logo.png" alt="Oonni Logo" className={styles.logo} />
+        <img src="/logo.svg" alt="Oonni Logo" className={styles.logo} />
         <div>
           <h1 className={styles.title}>
             <span className={styles.titleWithIcon}>
