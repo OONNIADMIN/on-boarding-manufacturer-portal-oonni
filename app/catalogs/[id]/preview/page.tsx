@@ -112,7 +112,6 @@ export default function CatalogPreviewPage() {
         <main className={styles.main}>
             <div className={styles.container}>
                 <Header
-                    title="Catalog Preview"
                     subtitle="Select the SKU column and create products"
                     user={user as User}
                     showNavigation={true}

@@ -109,7 +109,6 @@ export default function DashboardPage() {
       <div className={styles.container}>
         {/* Header */}
         <Header
-          title="Admin Dashboard"
           subtitle={`Welcome back, ${user.name}`}
           user={user}
           showNavigation={true}

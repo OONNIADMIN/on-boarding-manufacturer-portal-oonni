@@ -16,6 +16,22 @@
   min-height: 0;
 }
 
+.contentFrame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background-color: #f0f0ee;
+  display: flex;
+  flex-direction: column;
+}
+
+.contentStripe {
+  flex-shrink: 0;
+  width: 100%;
+  height: 20px;
+  background-color: #f0f0ee;
+}
+
 .content {
   flex: 1;
   min-height: 0;
@@ -73,9 +89,9 @@ $intro-heading-gold: #C4C39D;
   display: block;
   width: 100%;
   margin-bottom: 0.15rem;
-  font-size: clamp(1.15rem, 5.8cqi, 1.85rem);
+  font-size: $portal-title-size;
   font-weight: $font-weight-normal;
-  line-height: 1.35;
+  line-height: $portal-title-line-height;
   letter-spacing: 0.06em;
   text-transform: none;
   color: $intro-heading-gold;
@@ -406,7 +422,7 @@ $nautical-sage: #94b49f;
 
   .introTitleLine1 {
     white-space: normal;
-    font-size: clamp(1.05rem, 5cqi, 1.55rem);
+    font-size: $portal-title-size;
   }
 }
 

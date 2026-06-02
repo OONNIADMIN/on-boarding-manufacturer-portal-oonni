@@ -236,7 +236,6 @@ export default function CatalogsPage() {
     <main className={styles.main}>
       <div className={styles.container}>
         <Header
-          title="Onboard"
           subtitle={`Welcome, ${user.name}`}
           user={user}
           showNavigation={true}
