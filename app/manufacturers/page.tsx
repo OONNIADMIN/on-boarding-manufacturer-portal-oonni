@@ -125,7 +125,6 @@ export default function ManufacturersPage() {
       <div className={styles.container}>
         {/* Header */}
         <Header
-          title="Manufacturers"
           subtitle="Manage manufacturer accounts"
           user={user}
           showNavigation={true}

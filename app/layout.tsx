@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Quicksand } from 'next/font/google'
+import { PORTAL_TITLE } from '@/lib/constants'
 import './globals.scss'
 
 const quicksand = Quicksand({
@@ -10,7 +11,7 @@ const quicksand = Quicksand({
 })
 
 export const metadata: Metadata = {
-  title: 'Oonni - Catalog Upload',
+  title: PORTAL_TITLE,
   description: 'Platform for onboarding manufacturers product catalogs',
 }
 

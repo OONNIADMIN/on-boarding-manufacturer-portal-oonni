@@ -112,7 +112,6 @@ export default function CatalogTemplatePage() {
     <main className={styles.main}>
       <div className={styles.container}>
         <Header
-          title="Catalog template"
           subtitle={`Welcome, ${user.name} — align your file with what you manufacture`}
           user={user}
           showNavigation={true}

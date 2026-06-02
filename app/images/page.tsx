@@ -248,7 +248,6 @@ export default function ImagesPage() {
       <div className={styles.container}>
         {/* Header */}
         <Header
-          title="Images Management"
           subtitle="Manage all uploaded images across manufacturers"
           user={user}
           showNavigation={true}

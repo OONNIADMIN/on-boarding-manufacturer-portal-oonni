@@ -30,8 +30,9 @@
 }
 
 .title {
-  font-size: $font-size-2xl;
+  font-size: $portal-title-size;
   font-weight: $font-weight-semibold;
+  line-height: $portal-title-line-height;
   color: rgb(216, 199, 155) !important;
   margin: 0 0 $spacing-xs 0;
 }
@@ -257,7 +258,7 @@
   }
 
   .title {
-    font-size: $font-size-2xl;
+    font-size: $portal-title-size;
   }
 
   .navigation {

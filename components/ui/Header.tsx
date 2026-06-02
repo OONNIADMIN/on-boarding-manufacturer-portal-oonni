@@ -4,10 +4,13 @@ import { useRouter } from 'next/navigation'
 import { authAPI } from '@/lib/api'
 import { User } from '@/types'
 import { CircleUserRound } from 'lucide-react'
+import { PORTAL_TITLE } from '@/lib/constants'
 import styles from './Header.module.scss'
 
+export { PORTAL_TITLE }
+
 interface HeaderProps {
-  title: string
+  title?: string
   subtitle: string
   user: User | null
   showBackButton?: boolean
@@ -20,7 +23,7 @@ interface HeaderProps {
 }
 
 export default function Header({
-  title,
+  title = PORTAL_TITLE,
   user,
   showBackButton = false,
   backButtonText = 'Back',

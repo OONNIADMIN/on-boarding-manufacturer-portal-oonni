@@ -95,8 +95,7 @@ export default function StatisticsPage() {
 
   return (
     <div className={styles.main}>
-      <Header 
-        title="Platform Statistics"
+      <Header
         subtitle="Comprehensive analytics and insights"
         currentPage="statistics"
         user={user}

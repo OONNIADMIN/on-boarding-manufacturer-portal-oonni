@@ -57,7 +57,6 @@ export default function ProfilePage() {
       <div className={styles.container}>
         {/* Header */}
         <Header
-          title="User Profile"
           subtitle="Manage your account information"
           user={user}
           showBackButton={true}

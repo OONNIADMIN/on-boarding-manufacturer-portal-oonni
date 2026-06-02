@@ -55,7 +55,6 @@ export default function HistoricalPage() {
         <main className={styles.main}>
         <div className={styles.container}>
             <Header
-            title="History"
             subtitle="See your files information"
             user={user}
             showBackButton={true}
