@@ -5,8 +5,13 @@ import { imageKitUploadFailureMessage, uploadToImageKit } from "@/lib/imagekit";
 import { created, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
 import { slugify } from "@/lib/api-response";
 import { manufacturerImageKitCatalogsFolder } from "@/lib/manufacturer-media-path";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
+import {
+  countDataRows,
+  extractColumnNamesFromRows,
+  parseSpreadsheetRows,
+} from "@/lib/catalog-file-headers";
+import { validateCatalogColumns } from "@/lib/catalog-column-validation";
+import { getActiveCatalogColumnRules } from "@/lib/catalog-column-rules-service";
 
 const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -19,11 +24,20 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const manufacturerIdRaw = formData.get("manufacturer_id");
+    const headerRowIndexRaw = formData.get("header_row_index");
 
     if (!file) return err("No file provided");
     if (!manufacturerIdRaw) return err("manufacturer_id is required");
 
     const manufacturerId = parseInt(String(manufacturerIdRaw), 10);
+    const headerRowIndex =
+      headerRowIndexRaw == null || headerRowIndexRaw === ""
+        ? 0
+        : parseInt(String(headerRowIndexRaw), 10);
+
+    if (!Number.isFinite(headerRowIndex) || headerRowIndex < 0) {
+      return err("header_row_index must be a zero-based row number");
+    }
 
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) return err(`Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`);
@@ -39,6 +53,17 @@ export async function POST(req: NextRequest) {
     const isOwn = user.manufacturer_id === manufacturerId;
     if (!isAdmin && !isOwn) return forbidden("You don't have permission to upload catalogs for this manufacturer");
 
+    const spreadsheetRows = parseSpreadsheetRows(buffer, file.name);
+    if (!spreadsheetRows.length) return err("The uploaded file is empty");
+    if (headerRowIndex >= spreadsheetRows.length) {
+      return err(`Header row ${headerRowIndex + 1} is outside the file (${spreadsheetRows.length} row(s) found)`);
+    }
+
+    const columnNames = extractColumnNamesFromRows(spreadsheetRows, headerRowIndex);
+    const columnRules = await getActiveCatalogColumnRules();
+    const columnValidation = validateCatalogColumns(columnNames, columnRules);
+    if (!columnValidation.valid) return err(columnValidation.message);
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const fileName = `${timestamp}_${cleanName}`;
@@ -46,31 +71,12 @@ export async function POST(req: NextRequest) {
 
     const uploaded = await uploadToImageKit(buffer, fileName, folder);
 
-    let dataInfo = { rows: 0, columns: 0, column_names: [] as string[] };
-    try {
-      if (ext === ".csv") {
-        const text = buffer.toString("utf8");
-        const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true });
-        dataInfo = {
-          rows: parsed.data.length,
-          columns: (parsed.meta.fields ?? []).length,
-          column_names: parsed.meta.fields ?? [],
-        };
-      } else {
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rowObjects = XLSX.utils.sheet_to_json(sheet, { defval: null });
-        const headerRow = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
-        const names = ((headerRow[0] as string[]) ?? []).map((c) => String(c ?? "").trim()).filter(Boolean);
-        dataInfo = {
-          rows: rowObjects.length,
-          columns: names.length,
-          column_names: names.length ? names : Object.keys((rowObjects[0] as object) ?? {}),
-        };
-      }
-    } catch (parseErr) {
-      console.warn("Catalog column preview parse failed:", parseErr);
-    }
+    const dataInfo = {
+      rows: countDataRows(spreadsheetRows, headerRowIndex),
+      columns: columnNames.length,
+      column_names: columnNames,
+      header_row_index: headerRowIndex,
+    };
 
     const catalogName = file.name.replace(/\.[^.]+$/, "");
     let slug = slugify(catalogName);
@@ -85,6 +91,7 @@ export async function POST(req: NextRequest) {
         slug,
         description: `Catalog uploaded from ${file.name}`,
         catalog_file: uploaded.url,
+        header_row_index: headerRowIndex,
       },
       include: { manufacturer: true },
     });

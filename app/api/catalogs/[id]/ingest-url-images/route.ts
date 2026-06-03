@@ -18,6 +18,7 @@ import {
   normalizeMimeType,
   MAX_REMOTE_IMAGE_BYTES,
 } from "@/lib/remote-image-import";
+import { extractColumnNamesFromRows, parseSpreadsheetRows } from "@/lib/catalog-file-headers";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -169,19 +170,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const catalogUrl = catalog.catalog_file;
+    const headerRowIndex = catalog.header_row_index ?? 0;
 
     if (isCsvCatalog(catalogUrl)) {
       const text = await fileRes.text();
-      const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true });
-      const rows = parsed.data;
-      const fields = parsed.meta.fields ?? [];
-      if (!fields.includes(sku_column) || !fields.includes(image_column)) {
-        return err(`Columns not found in CSV. Available: ${fields.join(", ")}`);
+      const aoa = parseSpreadsheetRows(Buffer.from(text, "utf8"), "catalog.csv");
+      if (!aoa.length) return err("Spreadsheet is empty");
+
+      const header = extractColumnNamesFromRows(aoa, headerRowIndex);
+      const skuIdx = header.indexOf(sku_column);
+      const imgIdx = header.indexOf(image_column);
+      if (skuIdx < 0 || imgIdx < 0) {
+        return err(`Columns not found in CSV. Available: ${header.filter(Boolean).join(", ")}`);
       }
 
-      for (const row of rows) {
-        const sku = String(row[sku_column] ?? "").trim();
-        const imageCellOriginal = row[image_column];
+      for (let r = headerRowIndex + 1; r < aoa.length; r++) {
+        const row = aoa[r];
+        if (!row) continue;
+        while (row.length <= Math.max(skuIdx, imgIdx)) row.push("");
+        const sku = String(row[skuIdx] ?? "").trim();
+        const imageCellOriginal = row[imgIdx];
         const urls = splitUrlsInCell(imageCellOriginal);
         if (urls.length === 0) continue;
 
@@ -227,10 +235,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             rowsSkippedNoProduct++;
           }
         }
-        row[image_column] = joinUrlsInCell(replacements, imageCellOriginal);
+        row[imgIdx] = joinUrlsInCell(replacements, imageCellOriginal);
       }
 
-      const newCsv = Papa.unparse(rows, { columns: fields });
+      const newCsv = Papa.unparse(aoa);
       const outBuffer = Buffer.from(newCsv, "utf8");
       const outName = `${new Date().toISOString().replace(/[:.]/g, "-")}_catalog.csv`;
       const uploadedCatalog = await uploadToImageKit(outBuffer, outName, catalogsFolder, "text/csv");
@@ -255,25 +263,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    // Excel path (first sheet only)
     const arrayBuffer = await fileRes.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const aoa = XLSX.utils.sheet_to_json<(string | number | null | undefined)[]>(sheet, {
-      header: 1,
-      defval: "",
-    });
+    const aoa = parseSpreadsheetRows(Buffer.from(arrayBuffer), "catalog.xlsx");
     if (!aoa.length) return err("Spreadsheet is empty");
 
-    const header = (aoa[0] ?? []).map((c) => String(c ?? "").trim());
+    const header = extractColumnNamesFromRows(aoa, headerRowIndex);
     const skuIdx = header.indexOf(sku_column);
     const imgIdx = header.indexOf(image_column);
     if (skuIdx < 0 || imgIdx < 0) {
       return err(`Columns not found in Excel. Available: ${header.filter(Boolean).join(", ")}`);
     }
 
-    for (let r = 1; r < aoa.length; r++) {
+    for (let r = headerRowIndex + 1; r < aoa.length; r++) {
       const row = aoa[r];
       if (!row) continue;
       while (row.length <= Math.max(skuIdx, imgIdx)) row.push("");
@@ -328,6 +329,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       row[imgIdx] = joinUrlsInCell(replacements, imageCellOriginal);
     }
 
+    const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
     const newSheet = XLSX.utils.aoa_to_sheet(aoa);
     workbook.Sheets[sheetName] = newSheet;
     const wbout = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });

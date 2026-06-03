@@ -62,7 +62,8 @@ model Catalog {
   manufacturer_id Int
   name            String    @db.VarChar(255)
   slug            String    @unique @db.VarChar(100)
-  description     String?
+  header_row_index Int      @default(0)
+  description      String?
   catalog_file    String?   @db.VarChar(500)
   created_at      DateTime  @default(now()) @db.Timestamptz
   updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
@@ -113,4 +114,16 @@ model Product {
   images       Image[]
 
   @@map("products")
+}
+
+model CatalogColumnRule {
+  id         Int      @id @default(autoincrement())
+  label      String   @db.VarChar(120)
+  candidates Json
+  sort_order Int      @default(0)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  @@map("catalog_column_rules")
 }

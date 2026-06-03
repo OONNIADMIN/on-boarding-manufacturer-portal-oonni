@@ -2,8 +2,13 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
+import { parseSpreadsheetRows, rowsToObjects } from "@/lib/catalog-file-headers";
+
+function catalogFileLabel(catalogFileUrl: string): string {
+  const pathname = catalogFileUrl.split("?")[0] ?? "catalog.csv";
+  const segment = pathname.split("/").pop() ?? "catalog.csv";
+  return segment.includes(".") ? segment : `${segment}.csv`;
+}
 
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth(req);
@@ -28,19 +33,12 @@ export async function POST(req: NextRequest) {
     const res = await fetch(catalog.catalog_file);
     if (!res.ok) return err("Failed to fetch catalog file");
 
-    const url = catalog.catalog_file.toLowerCase();
-    let rows: Record<string, unknown>[] = [];
-
-    if (url.endsWith(".csv") || url.includes("csv")) {
-      const text = await res.text();
-      const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true });
-      rows = parsed.data;
-    } else {
-      const arrayBuffer = await res.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
-    }
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const fileName = catalogFileLabel(catalog.catalog_file);
+    const allRows = parseSpreadsheetRows(buffer, fileName);
+    const headerRowIndex = catalog.header_row_index ?? 0;
+    const rows = rowsToObjects(allRows, headerRowIndex);
 
     const skus = [...new Set(rows.map((r) => String(r[sku_column] ?? "").trim()).filter(Boolean))];
     let created = 0;
@@ -50,7 +48,10 @@ export async function POST(req: NextRequest) {
       const exists = await prisma.product.findFirst({
         where: { sku, manufacturer_id, deleted_at: null },
       });
-      if (exists) { skipped++; continue; }
+      if (exists) {
+        skipped++;
+        continue;
+      }
 
       await prisma.product.create({
         data: { sku, manufacturer_id, catalog_id },

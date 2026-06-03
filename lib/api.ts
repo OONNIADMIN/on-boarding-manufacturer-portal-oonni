@@ -12,6 +12,7 @@ import {
   ProductListResponse
 } from '@/types'
 import { mimeToListFileType } from '@/lib/image-list-json'
+import type { CatalogColumnRuleRecord } from '@/lib/catalog-column-validation'
 
 // All API calls go to Next.js API routes (same origin — no CORS, no external backend needed)
 const API_URL = '/api'
@@ -139,6 +140,13 @@ export interface NauticalProductTypeWithTemplate {
   name: string
   template_search_name: string
   template: ImageKitTemplateSummary | null
+}
+
+/** DAM-hosted Excel template (dropdown on catalog template page). */
+export interface CatalogDamTemplateSummary {
+  id: string
+  name: string
+  slug: string
 }
 
 export interface ImageKitTemplatesResponse {
@@ -431,7 +439,7 @@ export const catalogAPI = {
   /**
    * Upload a catalog file (CSV or Excel)
    */
-  async uploadFile(file: File, manufacturerId?: number): Promise<UploadResponse> {
+  async uploadFile(file: File, manufacturerId?: number, headerRowIndex = 0): Promise<UploadResponse> {
     const token = authAPI.getToken()
     if (!token) {
       throw new Error('Authentication required')
@@ -439,6 +447,7 @@ export const catalogAPI = {
 
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('header_row_index', String(headerRowIndex))
     if (manufacturerId !== undefined) {
       formData.append('manufacturer_id', manufacturerId.toString())
     }
@@ -665,6 +674,96 @@ export const catalogAPI = {
   }
 }
 
+export type CatalogColumnRuleInput = {
+  id?: number
+  label: string
+  candidates: string[]
+  sort_order: number
+  is_active: boolean
+}
+
+export const catalogColumnRulesAPI = {
+  /** Active rules for catalog upload validation (manufacturer or admin). */
+  async listForUpload(): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/catalog-column-rules`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to load catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+
+  /** Full rule list for admin configuration. */
+  async listAdmin(): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to load catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+
+  async saveAdmin(rules: CatalogColumnRuleInput[]): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ rules }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to save catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+
+  async resetDefaults(): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'reset_defaults' }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to reset catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+}
+
 export const imageAPI = {
   /**
    * Upload an image file with optimization
@@ -886,6 +985,59 @@ export const imageAPI = {
       list.length
     return { images: list as ImageInfo[], total_images: total }
   }
+}
+
+export const catalogTemplatesAPI = {
+  async list(): Promise<CatalogDamTemplateSummary[]> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const response = await fetch(`${API_URL}/catalog-templates`, {
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(error.detail || 'Failed to load catalog templates')
+    }
+    const raw = (await response.json()) as { templates?: CatalogDamTemplateSummary[] }
+    return Array.isArray(raw.templates) ? raw.templates : []
+  },
+
+  async downloadTemplate(templateId: string): Promise<void> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const response = await fetch(
+      `${API_URL}/catalog-templates/download?id=${encodeURIComponent(templateId)}`,
+      { headers, credentials: 'include', cache: 'no-store' }
+    )
+    if (!response.ok) {
+      const errJson = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(errJson.detail || 'Failed to download template')
+    }
+    const blob = await response.blob()
+    const cd = response.headers.get('Content-Disposition')
+    let filename = 'catalog-template.xlsx'
+    const quoted = cd?.match(/filename="([^"]+)"/)
+    if (quoted?.[1]) {
+      filename = quoted[1]
+    } else {
+      const plain = cd?.match(/filename=([^;\s]+)/)
+      if (plain?.[1]) filename = plain[1].replace(/^"+|"+$/g, '')
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
 
 export const nauticalAPI = {

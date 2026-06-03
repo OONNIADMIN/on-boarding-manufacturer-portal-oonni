@@ -1,0 +1,203 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  @include flex-center;
+  z-index: $z-index-modal;
+  padding: $spacing-md;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: $white;
+  border-radius: $radius-2xl;
+  width: 100%;
+  max-width: 920px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: $shadow-xl;
+}
+
+.header {
+  @include flex-between;
+  align-items: flex-start;
+  gap: $spacing-md;
+  padding: $spacing-xl;
+  border-bottom: 1px solid $gray-200;
+}
+
+.title {
+  margin: 0 0 $spacing-xs;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: $font-size-sm;
+  color: $gray-600;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.closeButton {
+  @include button-ghost;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: $gray-500;
+}
+
+.body {
+  padding: $spacing-xl;
+  overflow: auto;
+}
+
+.fileName {
+  margin: 0 0 $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $oonni-teal;
+}
+
+.previewWrap {
+  overflow: auto;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  margin-bottom: $spacing-lg;
+}
+
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-xs;
+
+  th,
+  td {
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid $gray-100;
+    border-right: 1px solid $gray-100;
+    white-space: nowrap;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.rowSelectorCell {
+  position: sticky;
+  left: 0;
+  background: $white;
+  z-index: 1;
+  min-width: 7rem;
+}
+
+.rowSelectorLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+  cursor: pointer;
+}
+
+.selectedRow {
+  th,
+  td {
+    background: #eef6f6;
+  }
+
+  .rowSelectorCell {
+    background: #eef6f6;
+  }
+}
+
+.validationPanel {
+  background: #f8f8f6;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  padding: $spacing-md $spacing-lg;
+}
+
+.validationTitle {
+  margin: 0 0 $spacing-sm;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+}
+
+.validationList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.checkOk,
+.checkMissing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: $font-size-sm;
+}
+
+.checkOk {
+  color: #166534;
+}
+
+.checkMissing {
+  color: #991b1b;
+}
+
+.matchedColumn {
+  color: $gray-600;
+}
+
+.validationError {
+  margin: $spacing-sm 0 0;
+  font-size: $font-size-sm;
+  color: #991b1b;
+  line-height: 1.5;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+  padding: $spacing-lg $spacing-xl;
+  border-top: 1px solid $gray-200;
+}
+
+.cancelButton {
+  @include button-secondary;
+}
+
+.confirmButton {
+  @include button-primary;
+}
+
+.confirmButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@include respond-to('md') {
+  .header,
+  .body,
+  .footer {
+    padding-left: $spacing-lg;
+    padding-right: $spacing-lg;
+  }
+}

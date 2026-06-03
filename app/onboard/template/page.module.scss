@@ -160,6 +160,7 @@ $nautical-sage: #94b49f;
   border: none;
   box-shadow: none;
   text-align: left;
+  container-type: inline-size;
 }
 
 .nauticalTitle {
@@ -174,18 +175,24 @@ $nautical-sage: #94b49f;
 }
 
 .nauticalTitleLine1 {
-  font-size: 1rem;
+  display: block;
+  width: 100%;
+  margin-bottom: 0.15rem;
+  font-size: $portal-title-size;
   font-weight: $font-weight-normal;
-  line-height: 1.3;
+  line-height: $portal-title-line-height;
+  letter-spacing: 0.06em;
   color: $nautical-forest;
 }
 
 .nauticalTitleLine2 {
-  font-size: 1.85rem;
-  font-weight: $font-weight-bold;
+  display: block;
+  width: 100%;
+  font-size: clamp(1.85rem, 10.2cqi, 3.15rem);
+  font-weight: $font-weight-semibold;
   line-height: 1.15;
+  letter-spacing: 0.02em;
   color: $nautical-forest;
-  letter-spacing: -0.01em;
 }
 
 .nauticalDescription {
@@ -421,6 +428,16 @@ $nautical-sage: #94b49f;
   }
 
   .introTitleLine1 {
+    white-space: normal;
+    font-size: $portal-title-size;
+  }
+
+  .nauticalTitleLine2 {
+    white-space: normal;
+    font-size: clamp(1.75rem, 9cqi, 2.5rem);
+  }
+
+  .nauticalTitleLine1 {
     white-space: normal;
     font-size: $portal-title-size;
   }

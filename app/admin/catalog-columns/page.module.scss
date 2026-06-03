@@ -1,0 +1,183 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  @include flex-column;
+}
+
+.loadingContainer {
+  min-height: 100vh;
+  @include flex-center;
+}
+
+.spinner {
+  @include spinner(3rem, $oonni-green);
+}
+
+.content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
+}
+
+.pageTitle {
+  margin: 0 0 $spacing-sm;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+}
+
+.pageDescription {
+  margin: 0;
+  max-width: 62ch;
+  color: $gray-600;
+  line-height: 1.55;
+}
+
+.headerActions {
+  display: flex;
+  gap: $spacing-sm;
+  flex-shrink: 0;
+}
+
+.primaryButton {
+  @include button-primary;
+}
+
+.secondaryButton {
+  @include button-secondary;
+}
+
+.successMessage,
+.errorMessage {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md 1rem;
+  border-radius: $radius-lg;
+  font-size: $font-size-sm;
+}
+
+.successMessage {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.errorMessage {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.loadingPanel {
+  padding: $spacing-2xl;
+  text-align: center;
+  background: $white;
+  border-radius: $radius-xl;
+  color: $gray-600;
+}
+
+.rulesPanel {
+  background: $white;
+  border-radius: $radius-xl;
+  border: 1px solid $gray-200;
+  padding: $spacing-lg;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.rulesTable {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 0.75rem;
+    border-bottom: 1px solid $gray-100;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $gray-700;
+  }
+}
+
+.orderCell {
+  width: 5rem;
+}
+
+.orderControls {
+  display: flex;
+  gap: 0.25rem;
+
+  button {
+    @include button-ghost;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0;
+  }
+}
+
+.textInput,
+.textInputWide {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+}
+
+.textInputWide {
+  min-width: 18rem;
+}
+
+.activeCell {
+  width: 4rem;
+  text-align: center;
+}
+
+.actionsCell {
+  width: 6rem;
+}
+
+.removeButton {
+  @include button-ghost;
+  color: #b91c1c;
+  font-size: $font-size-sm;
+}
+
+.addButton {
+  @include button-secondary;
+  margin-top: $spacing-lg;
+}
+
+@include respond-to('md') {
+  .pageHeader {
+    flex-direction: column;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

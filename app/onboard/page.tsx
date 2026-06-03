@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
-import CatalogFilePicker from '@/components/file-management/CatalogFilePicker'
+import CatalogFilePicker, { type CatalogFileSelection } from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
 import { authAPI, catalogAPI, imageAPI, productAPI } from '@/lib/api'
 import { detectImageUrlColumn, detectSkuColumn } from '@/lib/catalog-column-detection'
@@ -19,6 +19,8 @@ export default function CatalogsPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
+  const [catalogHeaderRowIndex, setCatalogHeaderRowIndex] = useState<number | null>(null)
+  const [catalogColumnNames, setCatalogColumnNames] = useState<string[]>([])
   const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
   const [isUploadCompleted, setIsUploadCompleted] = useState(false)
   const [hasUploadImages, setHasUploadImages] = useState(false)
@@ -73,8 +75,10 @@ export default function CatalogsPage() {
   }
 
   // Handle catalog file selection
-  const handleCatalogFileSelect = (file: File) => {
-    setSelectedCatalogFile(file)
+  const handleCatalogFileSelect = (selection: CatalogFileSelection) => {
+    setSelectedCatalogFile(selection.file)
+    setCatalogHeaderRowIndex(selection.headerRowIndex)
+    setCatalogColumnNames(selection.columnNames)
     setUploadError(null)
   }
 
@@ -103,9 +107,15 @@ export default function CatalogsPage() {
 
       const manufacturerIdNum = parseInt(user.manufacturer_id.toString())
 
-      const catalogResult = await catalogAPI.uploadFile(selectedCatalogFile, manufacturerIdNum)
+      const catalogResult = await catalogAPI.uploadFile(
+        selectedCatalogFile,
+        manufacturerIdNum,
+        catalogHeaderRowIndex ?? 0
+      )
 
-      let columns: string[] = catalogResult.data_info?.column_names ?? []
+      let columns: string[] = catalogColumnNames.length
+        ? catalogColumnNames
+        : catalogResult.data_info?.column_names ?? []
       if (!columns.length && catalogResult.id) {
         try {
           const colRes = await catalogAPI.getColumns(catalogResult.id)
@@ -180,6 +190,8 @@ export default function CatalogsPage() {
 
       setUploadSuccess(successMessage)
       setSelectedCatalogFile(null)
+      setCatalogHeaderRowIndex(null)
+      setCatalogColumnNames([])
       setIsUploadCompleted(true)
       setRefreshKey((prev) => prev + 1)
     } catch (err) {
@@ -300,7 +312,9 @@ export default function CatalogsPage() {
                       <CatalogFilePicker
                         size="large"
                         onFileSelect={handleCatalogFileSelect}
+                        onValidationError={setUploadError}
                         selectedFile={selectedCatalogFile}
+                        headerRowIndex={catalogHeaderRowIndex}
                       />
                       {(selectedCatalogFile || isUploading) && (
                         <div className={styles.catalogUploadActions}>
