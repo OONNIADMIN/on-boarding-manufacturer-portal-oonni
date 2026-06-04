@@ -11,7 +11,8 @@
  */
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
-const BREVO_API_URL = process.env.BREVO_API_URL?.trim();
+const BREVO_API_URL =
+  process.env.BREVO_API_URL?.trim() || "https://api.brevo.com/v3/smtp/email";
 const FROM_EMAIL = process.env.SMTP_FROM_EMAIL?.trim();
 const FROM_NAME = process.env.SMTP_FROM_NAME?.trim();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim();
@@ -37,10 +38,6 @@ async function sendViaBrevo(
       error: "BREVO_API_KEY no configurada. Créala en Brevo → Settings → API Keys y añádela en las variables de entorno.",
     };
   }
-  if (!BREVO_API_URL) {
-    console.error("[email] BREVO_API_URL no configurada");
-    return { ok: false, error: "BREVO_API_URL no configurada." };
-  }
   if (!FROM_EMAIL) {
     console.error("[email] SMTP_FROM_EMAIL no configurada");
     return { ok: false, error: "SMTP_FROM_EMAIL no configurada." };
@@ -49,7 +46,6 @@ async function sendViaBrevo(
     console.error("[email] SMTP_FROM_NAME no configurada");
     return { ok: false, error: "SMTP_FROM_NAME no configurada." };
   }
-  const brevoApiUrl = BREVO_API_URL;
 
   const toList = Array.isArray(to) ? to : [to];
 
@@ -61,26 +57,50 @@ async function sendViaBrevo(
     htmlContent: html,
   };
 
-  const res = await fetch(brevoApiUrl, {
-    method: "POST",
-    headers: {
-      "api-key": BREVO_API_KEY,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  try {
+    const res = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "api-key": BREVO_API_KEY,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20_000),
+    });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({ message: res.statusText }));
-    const errMsg = errData?.message ?? JSON.stringify(errData);
-    console.error(`[email] Brevo ${res.status}:`, errMsg);
-    return { ok: false, error: `Brevo ${res.status}: ${errMsg}` };
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ message: res.statusText }));
+      const errMsg = errData?.message ?? JSON.stringify(errData);
+      console.error(`[email] Brevo ${res.status}:`, errMsg);
+      return { ok: false, error: `Brevo ${res.status}: ${errMsg}` };
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { messageId?: string };
+    console.log("[email] Sent ok →", { to: toList, subject, messageId: data.messageId });
+    return { ok: true, messageId: data.messageId };
+  } catch (e) {
+    const cause =
+      e instanceof Error && "cause" in e && e.cause instanceof Error
+        ? e.cause.message
+        : "";
+    const message = e instanceof Error ? e.message : String(e);
+    const isNetwork =
+      cause.includes("ENOTFOUND") ||
+      cause.includes("ECONNREFUSED") ||
+      message.includes("fetch failed");
+
+    console.warn(
+      "[email] Brevo unreachable — admin notification skipped:",
+      isNetwork ? "DNS/network (api.brevo.com)" : message
+    );
+    return {
+      ok: false,
+      error: isNetwork
+        ? "Email service unreachable from this server (DNS/network). Upload and catalog processing are unaffected."
+        : message,
+    };
   }
-
-  const data = await res.json().catch(() => ({})) as { messageId?: string };
-  console.log("[email] Sent ok →", { to: toList, subject, messageId: data.messageId });
-  return { ok: true, messageId: data.messageId };
 }
 
 // ─────────────────────────────────────────────

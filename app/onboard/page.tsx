@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
-import CatalogFilePicker from '@/components/file-management/CatalogFilePicker'
+import CatalogFilePicker, { type CatalogFileSelection } from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
-import { authAPI, catalogAPI, imageAPI, productAPI } from '@/lib/api'
+import { authAPI, catalogAPI, catalogColumnRulesAPI, imageAPI, productAPI, type CatalogImageIngestProgress } from '@/lib/api'
 import { detectImageUrlColumn, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
@@ -19,7 +19,12 @@ export default function CatalogsPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
+  const [catalogHeaderRowIndex, setCatalogHeaderRowIndex] = useState<number | null>(null)
+  const [catalogColumnNames, setCatalogColumnNames] = useState<string[]>([])
+  const [catalogColumnMappings, setCatalogColumnMappings] = useState<Record<string, string>>({})
   const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
+  const [catalogProcessingPhase, setCatalogProcessingPhase] = useState<'products' | 'images' | null>(null)
+  const [imageIngestProgress, setImageIngestProgress] = useState<CatalogImageIngestProgress | null>(null)
   const [isUploadCompleted, setIsUploadCompleted] = useState(false)
   const [hasUploadImages, setHasUploadImages] = useState(false)
 
@@ -73,8 +78,11 @@ export default function CatalogsPage() {
   }
 
   // Handle catalog file selection
-  const handleCatalogFileSelect = (file: File) => {
-    setSelectedCatalogFile(file)
+  const handleCatalogFileSelect = (selection: CatalogFileSelection) => {
+    setSelectedCatalogFile(selection.file)
+    setCatalogHeaderRowIndex(selection.headerRowIndex)
+    setCatalogColumnNames(selection.columnNames)
+    setCatalogColumnMappings(selection.columnMappings)
     setUploadError(null)
   }
 
@@ -92,6 +100,8 @@ export default function CatalogsPage() {
 
     setIsUploading(true)
     setIsProcessingCatalog(false)
+    setCatalogProcessingPhase(null)
+    setImageIngestProgress(null)
     setUploadError(null)
     setUploadSuccess('')
 
@@ -103,9 +113,23 @@ export default function CatalogsPage() {
 
       const manufacturerIdNum = parseInt(user.manufacturer_id.toString())
 
-      const catalogResult = await catalogAPI.uploadFile(selectedCatalogFile, manufacturerIdNum)
+      const columnRules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
+      const columnsForUpload = catalogColumnNames.length ? catalogColumnNames : []
+      const skuColForUpload =
+        columnsForUpload.length
+          ? catalogColumnMappings['sku'] ?? detectSkuColumn(columnsForUpload, columnRules)
+          : null
 
-      let columns: string[] = catalogResult.data_info?.column_names ?? []
+      const catalogResult = await catalogAPI.uploadFile(
+        selectedCatalogFile,
+        manufacturerIdNum,
+        catalogHeaderRowIndex ?? 0,
+        skuColForUpload ? { skuColumn: skuColForUpload } : undefined
+      )
+
+      let columns: string[] = catalogColumnNames.length
+        ? catalogColumnNames
+        : catalogResult.data_info?.column_names ?? []
       if (!columns.length && catalogResult.id) {
         try {
           const colRes = await catalogAPI.getColumns(catalogResult.id)
@@ -131,25 +155,48 @@ export default function CatalogsPage() {
         setIsProcessingCatalog(true)
         setUploadError(null)
         try {
-          const skuCol = detectSkuColumn(columns)
+          const columnRules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
+          const skuCol =
+            skuColForUpload ??
+            catalogColumnMappings['sku'] ??
+            detectSkuColumn(columns, columnRules)
           if (!skuCol) {
             setUploadError(
-              'Catalog uploaded, but no SKU column was detected. Use the downloaded template and include a column named "sku" (or rename your SKU column to match).'
+              'Catalog uploaded, but no SKU column was detected. Use the downloaded template and include a column that matches the configured SKU header names (e.g. "sku").'
             )
           } else {
-            const productResult = await productAPI.createProductsFromCatalog(
-              catalogResult.id,
-              skuCol,
-              manufacturerIdNum
-            )
-            const created = productResult.created_count ?? 0
-            const imgCol = detectImageUrlColumn(columns, skuCol)
+            setCatalogProcessingPhase('products')
+            let created = catalogResult.products_from_upload?.created_count ?? 0
+            if (!catalogResult.products_from_upload) {
+              const productResult = await productAPI.createProductsFromCatalog(
+                catalogResult.id,
+                skuCol,
+                manufacturerIdNum
+              )
+              created = productResult.created_count ?? 0
+            }
+            const imgCol =
+              catalogColumnMappings['images'] ??
+              detectImageUrlColumn(columns, skuCol, columnRules)
             if (imgCol && imgCol !== skuCol) {
+              setCatalogProcessingPhase('images')
+              setImageIngestProgress({
+                phase: 'uploading',
+                processed: 0,
+                total: 0,
+                uploaded: 0,
+                failed: 0,
+                images_created: 0,
+              })
               const ingestResult = await catalogAPI.ingestImagesFromSpreadsheetUrls(
                 catalogResult.id,
                 skuCol,
                 imgCol,
-                manufacturerIdNum
+                manufacturerIdNum,
+                {
+                  onProgress: setImageIngestProgress,
+                  catalogFile: selectedCatalogFile,
+                }
               )
               processingNote =
                 ` Created ${created} product(s) from "${skuCol}". Imported images from "${imgCol}" (${ingestResult.images_created ?? 0} linked, ` +
@@ -167,6 +214,8 @@ export default function CatalogsPage() {
           )
         } finally {
           setIsProcessingCatalog(false)
+          setCatalogProcessingPhase(null)
+          setImageIngestProgress(null)
         }
       } else if (catalogResult.id && !columns.length) {
         setUploadError(
@@ -180,6 +229,9 @@ export default function CatalogsPage() {
 
       setUploadSuccess(successMessage)
       setSelectedCatalogFile(null)
+      setCatalogHeaderRowIndex(null)
+      setCatalogColumnNames([])
+      setCatalogColumnMappings({})
       setIsUploadCompleted(true)
       setRefreshKey((prev) => prev + 1)
     } catch (err) {
@@ -231,6 +283,16 @@ export default function CatalogsPage() {
   if (!user) {
     return null
   }
+
+  const imageIngestPercent =
+    imageIngestProgress && imageIngestProgress.total > 0
+      ? Math.min(
+          100,
+          Math.round((imageIngestProgress.processed / imageIngestProgress.total) * 100)
+        )
+      : imageIngestProgress?.phase === 'finalizing'
+        ? 100
+        : 0
 
   return (
     <main className={styles.main}>
@@ -300,7 +362,9 @@ export default function CatalogsPage() {
                       <CatalogFilePicker
                         size="large"
                         onFileSelect={handleCatalogFileSelect}
+                        onValidationError={setUploadError}
                         selectedFile={selectedCatalogFile}
+                        headerRowIndex={catalogHeaderRowIndex}
                       />
                       {(selectedCatalogFile || isUploading) && (
                         <div className={styles.catalogUploadActions}>
@@ -328,6 +392,54 @@ export default function CatalogsPage() {
                             Ready to upload - products and image URLs from the spreadsheet are processed
                             automatically.
                           </p>
+                          {(isProcessingCatalog || imageIngestProgress) && (
+                            <div
+                              className={styles.imageKitProgress}
+                              role="status"
+                              aria-live="polite"
+                              aria-busy={isProcessingCatalog}
+                            >
+                              <div className={styles.imageKitProgressHeader}>
+                                <span className={styles.imageKitProgressLabel}>
+                                  {catalogProcessingPhase === 'products'
+                                    ? 'Creating products from catalog…'
+                                    : imageIngestProgress?.phase === 'finalizing'
+                                      ? 'Finalizing catalog in ImageKit…'
+                                      : 'Uploading images to ImageKit…'}
+                                </span>
+                                {imageIngestProgress && catalogProcessingPhase === 'images' ? (
+                                  <span className={styles.imageKitProgressPct}>
+                                    {imageIngestPercent}%
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className={styles.imageKitProgressTrack}>
+                                <div
+                                  className={styles.imageKitProgressFill}
+                                  style={{
+                                    width:
+                                      catalogProcessingPhase === 'products'
+                                        ? '35%'
+                                        : `${Math.max(imageIngestPercent, catalogProcessingPhase === 'images' ? 8 : 0)}%`,
+                                  }}
+                                />
+                              </div>
+                              {imageIngestProgress && catalogProcessingPhase === 'images' ? (
+                                <p className={styles.imageKitProgressMeta}>
+                                  {imageIngestProgress.uploaded} uploaded to ImageKit
+                                  {imageIngestProgress.total > 0
+                                    ? ` · ${imageIngestProgress.processed} of ${imageIngestProgress.total} source URL(s)`
+                                    : ''}
+                                  {imageIngestProgress.failed > 0
+                                    ? ` · ${imageIngestProgress.failed} failed`
+                                    : ''}
+                                  {imageIngestProgress.images_created > 0
+                                    ? ` · ${imageIngestProgress.images_created} linked to products`
+                                    : ''}
+                                </p>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

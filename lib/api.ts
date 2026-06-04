@@ -12,6 +12,10 @@ import {
   ProductListResponse
 } from '@/types'
 import { mimeToListFileType } from '@/lib/image-list-json'
+import type { CatalogColumnRuleRecord } from '@/lib/catalog-column-validation'
+import type { CatalogImageIngestProgress } from '@/lib/catalog-image-ingest'
+
+export type { CatalogImageIngestProgress }
 
 // All API calls go to Next.js API routes (same origin — no CORS, no external backend needed)
 const API_URL = '/api'
@@ -26,6 +30,11 @@ export interface UploadResponse {
   file_size_bytes: number
   manufacturer_id?: number
   uploaded_at: string
+  products_from_upload?: {
+    total_skus: number
+    created_count: number
+    skipped: number
+  } | null
   data_info: {
     rows: number
     columns: number
@@ -71,6 +80,8 @@ export interface ImageInfo {
   original_filename?: string
   s3_key: string
   s3_url: string
+  /** Smaller ImageKit transform for grid thumbnails */
+  preview_url?: string
   size_bytes: number
   last_modified: string
   file_type: string
@@ -141,6 +152,13 @@ export interface NauticalProductTypeWithTemplate {
   template: ImageKitTemplateSummary | null
 }
 
+/** DAM-hosted Excel template (dropdown on catalog template page). */
+export interface CatalogDamTemplateSummary {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface ImageKitTemplatesResponse {
   count: number
   product_types: NauticalProductTypeWithTemplate[]
@@ -157,9 +175,11 @@ function normalizeImageStorageKey(key: string): string {
 function imageKitFolderFileToImageInfo(
   f: ImageKitListFolderResponse['files'][number]
 ): ImageInfo {
+  const deliveryUrl = f.url || f.thumbnail || ''
   return {
     s3_key: f.filePath,
-    s3_url: f.url || f.thumbnail || '',
+    s3_url: deliveryUrl,
+    preview_url: f.thumbnail || deliveryUrl,
     size_bytes: typeof f.size === 'number' ? f.size : 0,
     last_modified: '',
     file_type: mimeToListFileType(f.mime),
@@ -431,7 +451,12 @@ export const catalogAPI = {
   /**
    * Upload a catalog file (CSV or Excel)
    */
-  async uploadFile(file: File, manufacturerId?: number): Promise<UploadResponse> {
+  async uploadFile(
+    file: File,
+    manufacturerId?: number,
+    headerRowIndex = 0,
+    options?: { skuColumn?: string }
+  ): Promise<UploadResponse> {
     const token = authAPI.getToken()
     if (!token) {
       throw new Error('Authentication required')
@@ -439,8 +464,12 @@ export const catalogAPI = {
 
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('header_row_index', String(headerRowIndex))
     if (manufacturerId !== undefined) {
       formData.append('manufacturer_id', manufacturerId.toString())
+    }
+    if (options?.skuColumn?.trim()) {
+      formData.append('sku_column', options.skuColumn.trim())
     }
 
     const response = await fetch(`${API_URL}/catalogs/upload`, {
@@ -615,7 +644,11 @@ export const catalogAPI = {
     catalogId: number,
     skuColumn: string,
     imageColumn: string,
-    manufacturerId: number
+    manufacturerId: number,
+    options?: {
+      onProgress?: (progress: CatalogImageIngestProgress) => void
+      catalogFile?: File | null
+    }
   ): Promise<{
     message: string
     catalog_id: number
@@ -630,18 +663,109 @@ export const catalogAPI = {
       throw new Error('Authentication required')
     }
 
+    const useMultipart = Boolean(options?.catalogFile?.size)
+
     const response = await fetch(`${API_URL}/catalogs/${catalogId}/ingest-url-images`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sku_column: skuColumn,
-        image_column: imageColumn,
-        manufacturer_id: manufacturerId,
-      }),
+      headers: useMultipart
+        ? { Authorization: `Bearer ${token}` }
+        : {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+      body: useMultipart
+        ? (() => {
+            const formData = new FormData()
+            formData.append('file', options!.catalogFile!)
+            formData.append('sku_column', skuColumn)
+            formData.append('image_column', imageColumn)
+            formData.append('manufacturer_id', String(manufacturerId))
+            formData.append('stream', 'true')
+            return formData
+          })()
+        : JSON.stringify({
+            sku_column: skuColumn,
+            image_column: imageColumn,
+            manufacturer_id: manufacturerId,
+            stream: true,
+          }),
     })
+
+    const contentType = response.headers.get('content-type') ?? ''
+
+    if (contentType.includes('ndjson') && response.body) {
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let result: {
+        message: string
+        catalog_id: number
+        catalog_file: string
+        unique_sources_fetched: number
+        images_created: number
+        upload_failures: number
+        rows_missing_product: number
+      } | null = null
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          const event = JSON.parse(trimmed) as {
+            type?: string
+            message?: string
+            phase?: CatalogImageIngestProgress['phase']
+            processed?: number
+            total?: number
+            uploaded?: number
+            failed?: number
+            images_created?: number
+            catalog_id?: number
+            catalog_file?: string
+            unique_sources_fetched?: number
+            upload_failures?: number
+            rows_missing_product?: number
+          }
+
+          if (event.type === 'progress' && event.phase != null) {
+            options?.onProgress?.({
+              phase: event.phase,
+              processed: event.processed ?? 0,
+              total: event.total ?? 0,
+              uploaded: event.uploaded ?? 0,
+              failed: event.failed ?? 0,
+              images_created: event.images_created ?? 0,
+            })
+          } else if (event.type === 'done') {
+            result = {
+              message: event.message ?? 'Images imported',
+              catalog_id: event.catalog_id ?? catalogId,
+              catalog_file: event.catalog_file ?? '',
+              unique_sources_fetched: event.unique_sources_fetched ?? 0,
+              images_created: event.images_created ?? 0,
+              upload_failures: event.upload_failures ?? 0,
+              rows_missing_product: event.rows_missing_product ?? 0,
+            }
+          } else if (event.type === 'error') {
+            throw new Error(event.message || 'Failed to import images from catalog URLs')
+          }
+        }
+      }
+
+      if (!response.ok && !result) {
+        throw new Error('Failed to import images from catalog URLs')
+      }
+      if (!result) {
+        throw new Error('Image import ended without a result')
+      }
+      return result
+    }
 
     if (!response.ok) {
       const error = await response.json()
@@ -665,16 +789,110 @@ export const catalogAPI = {
   }
 }
 
+export type CatalogColumnRuleInput = {
+  id?: number
+  label: string
+  candidates: string[]
+  sort_order: number
+  is_active: boolean
+}
+
+export const catalogColumnRulesAPI = {
+  /** Active rules for catalog upload validation (manufacturer or admin). */
+  async listForUpload(): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/catalog-column-rules`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to load catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+
+  /** Full rule list for admin configuration. */
+  async listAdmin(): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to load catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+
+  async saveAdmin(rules: CatalogColumnRuleInput[]): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ rules }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to save catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+
+  async resetDefaults(): Promise<CatalogColumnRuleRecord[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'reset_defaults' }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to reset catalog column rules')
+    }
+
+    const data = await response.json()
+    return data.rules ?? []
+  },
+}
+
 export const imageAPI = {
   /**
    * Upload an image file with optimization
    */
-  async uploadImage(file: File, manufacturerId: number): Promise<ImageUploadResponse> {
+  async uploadImage(
+    file: File,
+    manufacturerId: number,
+    options?: { onProgress?: (percent: number) => void }
+  ): Promise<ImageUploadResponse> {
     const token = authAPI.getToken()
     if (!token) {
       throw new Error('Authentication required')
     }
-    
+
     if (!manufacturerId) {
       throw new Error('Manufacturer ID is required for image upload')
     }
@@ -683,20 +901,34 @@ export const imageAPI = {
     formData.append('file', file)
     formData.append('manufacturer_id', manufacturerId.toString())
 
-    const response = await fetch(`${API_URL}/images/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${API_URL}/images/upload`)
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !options?.onProgress) return
+        const percent = Math.round((event.loaded / event.total) * 100)
+        options.onProgress(percent)
+      }
+
+      xhr.onload = () => {
+        try {
+          const body = JSON.parse(xhr.responseText) as ImageUploadResponse & { detail?: string }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            options?.onProgress?.(100)
+            resolve(body)
+          } else {
+            reject(new Error(body.detail || 'Image upload failed'))
+          }
+        } catch {
+          reject(new Error('Image upload failed'))
+        }
+      }
+
+      xhr.onerror = () => reject(new Error('Image upload failed'))
+      xhr.send(formData)
     })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Image upload failed')
-    }
-
-    return response.json()
   },
 
   /**
@@ -886,6 +1118,59 @@ export const imageAPI = {
       list.length
     return { images: list as ImageInfo[], total_images: total }
   }
+}
+
+export const catalogTemplatesAPI = {
+  async list(): Promise<CatalogDamTemplateSummary[]> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const response = await fetch(`${API_URL}/catalog-templates`, {
+      headers,
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(error.detail || 'Failed to load catalog templates')
+    }
+    const raw = (await response.json()) as { templates?: CatalogDamTemplateSummary[] }
+    return Array.isArray(raw.templates) ? raw.templates : []
+  },
+
+  async downloadTemplate(templateId: string): Promise<void> {
+    const token = authAPI.getToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const response = await fetch(
+      `${API_URL}/catalog-templates/download?id=${encodeURIComponent(templateId)}`,
+      { headers, credentials: 'include', cache: 'no-store' }
+    )
+    if (!response.ok) {
+      const errJson = (await response.json().catch(() => ({}))) as { detail?: string }
+      throw new Error(errJson.detail || 'Failed to download template')
+    }
+    const blob = await response.blob()
+    const cd = response.headers.get('Content-Disposition')
+    let filename = 'catalog-template.xlsx'
+    const quoted = cd?.match(/filename="([^"]+)"/)
+    if (quoted?.[1]) {
+      filename = quoted[1]
+    } else {
+      const plain = cd?.match(/filename=([^;\s]+)/)
+      if (plain?.[1]) filename = plain[1].replace(/^"+|"+$/g, '')
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
 
 export const nauticalAPI = {

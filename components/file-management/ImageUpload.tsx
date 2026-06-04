@@ -2,6 +2,7 @@
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react'
 import { imageAPI, ImageUploadResponse } from '@/lib/api'
+import ImageUploadProgress from './ImageUploadProgress'
 import styles from './ImageUpload.module.scss'
 
 interface ImageUploadProps {
@@ -17,6 +18,12 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
   const [error, setError] = useState<string | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const [batchProgress, setBatchProgress] = useState({
+    totalImages: 0,
+    uploadedImages: 0,
+    failedImages: 0,
+    isUploading: false,
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const justUploadedRef = useRef(false)
 
@@ -109,26 +116,43 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
     setIsUploading(true)
     setError(null)
     setUploadProgress({})
+    setBatchProgress({
+      totalImages: selectedFiles.length,
+      uploadedImages: 0,
+      failedImages: 0,
+      isUploading: true,
+    })
 
     const results: ImageUploadResponse[] = []
     const errors: string[] = []
 
     try {
-      // Upload files sequentially to avoid overwhelming the server
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i]
         const fileKey = `${file.name}-${file.size}`
-        
+
         try {
-          setUploadProgress(prev => ({ ...prev, [fileKey]: 0 }))
-          
-          const result = await imageAPI.uploadImage(file, manufacturerId)
+          setUploadProgress((prev) => ({ ...prev, [fileKey]: 0 }))
+
+          const result = await imageAPI.uploadImage(file, manufacturerId, {
+            onProgress: (percent) => {
+              setUploadProgress((prev) => ({ ...prev, [fileKey]: percent }))
+            },
+          })
           results.push(result)
-          
-          setUploadProgress(prev => ({ ...prev, [fileKey]: 100 }))
+
+          setUploadProgress((prev) => ({ ...prev, [fileKey]: 100 }))
+          setBatchProgress((prev) => ({
+            ...prev,
+            uploadedImages: prev.uploadedImages + 1,
+          }))
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : 'Upload failed'
           errors.push(`${file.name}: ${errorMessage}`)
+          setBatchProgress((prev) => ({
+            ...prev,
+            failedImages: prev.failedImages + 1,
+          }))
         }
       }
 
@@ -164,7 +188,16 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
       }
     } finally {
       setIsUploading(false)
-      setUploadProgress({})
+      setBatchProgress((prev) => ({ ...prev, isUploading: false }))
+      setTimeout(() => {
+        setUploadProgress({})
+        setBatchProgress({
+          totalImages: 0,
+          uploadedImages: 0,
+          failedImages: 0,
+          isUploading: false,
+        })
+      }, 2500)
     }
   }
 
@@ -232,6 +265,13 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
         </div>
       </div>
 
+      <ImageUploadProgress
+        totalImages={batchProgress.totalImages}
+        uploadedImages={batchProgress.uploadedImages}
+        failedImages={batchProgress.failedImages}
+        isUploading={batchProgress.isUploading}
+      />
+
       {selectedFiles.length > 0 && (
         <div className={styles.filesPreview}>
           <div className={styles.filesHeader}>
@@ -268,12 +308,12 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
                     <div className={styles.fileDetails}>
                       <p className={styles.fileName}>{file.name}</p>
                       <p className={styles.fileSize}>{formatFileSize(file.size)}</p>
-                      {progress > 0 && progress < 100 && (
+                      {isUploading && progress >= 0 && (
                         <div className={styles.progressBar}>
-                          <div 
-                            className={styles.progressFill} 
+                          <div
+                            className={styles.progressFill}
                             style={{ width: `${progress}%` }}
-                          ></div>
+                          />
                         </div>
                       )}
                     </div>

@@ -3,17 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
-import { authAPI, nauticalAPI, type NauticalProductTypeSummary } from '@/lib/api'
+import { authAPI, catalogTemplatesAPI, type CatalogDamTemplateSummary } from '@/lib/api'
 import { User } from '@/types'
 import styles from './page.module.scss'
 
 export default function CatalogTemplatePage() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [productTypes, setProductTypes] = useState<NauticalProductTypeSummary[]>([])
+  const [templates, setTemplates] = useState<CatalogDamTemplateSummary[]>([])
   const [typesLoading, setTypesLoading] = useState(false)
   const [typesError, setTypesError] = useState<string | null>(null)
-  const [selectedProductTypeId, setSelectedProductTypeId] = useState('')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [downloading, setDownloading] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
 
@@ -44,12 +44,12 @@ export default function CatalogTemplatePage() {
       setTypesLoading(true)
       setTypesError(null)
       try {
-        const list = await nauticalAPI.listProductTypes()
-        if (!cancelled) setProductTypes(list)
+        const list = await catalogTemplatesAPI.list()
+        if (!cancelled) setTemplates(list)
       } catch (e) {
         if (!cancelled) {
-          setProductTypes([])
-          setTypesError(e instanceof Error ? e.message : 'Could not load Nautical product types')
+          setTemplates([])
+          setTypesError(e instanceof Error ? e.message : 'Could not load catalog templates')
         }
       } finally {
         if (!cancelled) setTypesLoading(false)
@@ -61,14 +61,14 @@ export default function CatalogTemplatePage() {
   }, [user])
 
   const handleDownload = async () => {
-    if (!selectedProductTypeId) {
-      setPageError('Select a Nautical product type before downloading the template.')
+    if (!selectedTemplateId) {
+      setPageError('Select a product line template before downloading.')
       return
     }
     setDownloading(true)
     setPageError(null)
     try {
-      await nauticalAPI.downloadCatalogTemplate(selectedProductTypeId)
+      await catalogTemplatesAPI.downloadTemplate(selectedTemplateId)
     } catch (e) {
       setPageError(e instanceof Error ? e.message : 'Failed to download template')
     } finally {
@@ -128,10 +128,9 @@ export default function CatalogTemplatePage() {
                 <span className={styles.introTitleLine2}>Your Products Lines</span>
               </h2>
               <p className={styles.introText}>
-                Each template corresponds to a product type in our catalogue (for example tools, textiles, or
-                electronics). Choose the type that best matches what your company actually produces for the
-                assortment you are about to load - that way columns, attributes, and categories line up with how
-                those products are structured in the platform.
+                Templates are pre-configured in our media library (DAM) for each supported product line—for
+                example furniture &amp; fixtures. Choose the line that matches what your company produces so
+                column names and structure align with how those products are onboarded.
               </p>
               <p className={styles.introText}>
                 If you manufacture more than one distinct products line, download a separate template for each
@@ -142,7 +141,7 @@ export default function CatalogTemplatePage() {
             </div>
           </section>
 
-          <section className={styles.nauticalSection} aria-labelledby="nautical-template-heading">
+          <section className={styles.nauticalSection} aria-labelledby="dam-template-heading">
             {pageError && (
               <div className={styles.errorMessage} role="alert">
                 <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -158,14 +157,13 @@ export default function CatalogTemplatePage() {
             )}
 
             <div className={styles.nauticalCard}>
-              <h2 id="nautical-template-heading" className={styles.nauticalTitle}>
+              <h2 id="dam-template-heading" className={styles.nauticalTitle}>
                 <span className={styles.nauticalTitleLine1}>Download Your</span>
                 <span className={styles.nauticalTitleLine2}>Excel Template</span>
               </h2>
               <p className={styles.nauticalDescription}>
-                Select the product type that matches the line you are preparing. The Excel template
-                is loaded from ImageKit using the same name as the product type and the tag
-                &quot;template&quot;.
+                Select the product line that matches what you are preparing. Each Excel file is served from
+                ImageKit (Template-excel-oonni) with the standard catalog columns for that line.
               </p>
               <p className={styles.nauticalDescription}>
                 Need another line? Change the selection and download again—each template is independent.
@@ -173,10 +171,7 @@ export default function CatalogTemplatePage() {
               {typesLoading && (
                 <div className={styles.nauticalProgress} aria-busy="true" aria-live="polite">
                   <div className={styles.nauticalProgressHeader}>
-                    <span className={styles.nauticalProgressLabel}>
-                      Loading product types from Nautical...
-                    </span>
-                    <span className={styles.nauticalProgressPct}>65%</span>
+                    <span className={styles.nauticalProgressLabel}>Loading templates…</span>
                   </div>
                   <div className={styles.nauticalProgressTrack}>
                     <div className={styles.nauticalProgressFill} />
@@ -188,36 +183,35 @@ export default function CatalogTemplatePage() {
                   {typesError}
                 </p>
               )}
-              {!typesLoading && !typesError && productTypes.length === 0 && (
-                <p className={styles.nauticalHint}>No product types returned from Nautical.</p>
+              {!typesLoading && !typesError && templates.length === 0 && (
+                <p className={styles.nauticalHint}>No catalog templates are configured yet.</p>
               )}
               <div className={styles.nauticalRow}>
                 <select
                   className={styles.nauticalSelect}
-                  aria-label="Nautical product type"
-                  value={selectedProductTypeId}
-                  onChange={(e) => setSelectedProductTypeId(e.target.value)}
-                  disabled={typesLoading || productTypes.length === 0}
+                  aria-label="Product line template"
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  disabled={typesLoading || templates.length === 0}
                 >
                   <option value="">Select Product Line/Type</option>
-                  {productTypes.map((pt) => (
-                    <option key={pt.id} value={pt.id}>
-                      {pt.name}
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
                     </option>
                   ))}
                 </select>
                 <button
                   type="button"
                   onClick={() => void handleDownload()}
-                  disabled={downloading || !selectedProductTypeId || productTypes.length === 0}
+                  disabled={downloading || !selectedTemplateId || templates.length === 0}
                   className={styles.downloadTemplateButton}
                 >
-                  {downloading ? 'Preparing…' : 'Download Excel Template'}
+                  {downloading ? 'Downloading…' : 'Download Excel Template'}
                 </button>
               </div>
               <p className={styles.nauticalHint}>
-                If a download fails, confirm the template exists in ImageKit with tag &quot;template&quot;
-                and the same name as the selected product type, then contact your OONNI administrator.
+                If the list is empty or download fails, contact your OONNI administrator.
               </p>
 
               <div className={styles.nextSection}>
