@@ -16,6 +16,8 @@ export type CatalogFileSelection = {
   file: File
   headerRowIndex: number
   columnNames: string[]
+  /** Rule label (lowercase) → matched spreadsheet header from validation */
+  columnMappings: Record<string, string>
 }
 
 interface CatalogHeaderRowModalProps {
@@ -79,7 +81,13 @@ export default function CatalogHeaderRowModal({
 
   const handleConfirm = () => {
     if (!validation.valid) return
-    onConfirm({ file, headerRowIndex, columnNames })
+    const columnMappings: Record<string, string> = {}
+    for (const check of columnChecks) {
+      if (check.matchedColumn) {
+        columnMappings[check.label.trim().toLowerCase()] = check.matchedColumn
+      }
+    }
+    onConfirm({ file, headerRowIndex, columnNames, columnMappings })
   }
 
   return (

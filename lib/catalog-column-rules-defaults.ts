@@ -5,7 +5,7 @@ export const DEFAULT_CATALOG_COLUMN_RULES: Omit<
   CatalogColumnRuleRecord,
   "id" | "created_at" | "updated_at"
 >[] = [
-  { label: "sku", candidates: ["sku"], sort_order: 0, is_active: true },
+  { label: "sku", candidates: ["sku", "variant sku", "item sku", "product sku", "product sku code"], sort_order: 0, is_active: true },
   {
     label: "images",
     candidates: ["images", "image", "image url", "image urls", "image_url"],

@@ -23,6 +23,36 @@ function findColumn(columnNames: string[], candidates: string[]): string | null 
   return null;
 }
 
+/** Match a spreadsheet header against configured candidate names (exported for reuse). */
+export function findCatalogColumn(columnNames: string[], candidates: string[]): string | null {
+  return findColumn(columnNames, candidates);
+}
+
+/** Resolve the actual header for an active column rule by its label (e.g. "sku", "images"). */
+export function resolveCatalogColumnForRule(
+  columnNames: string[],
+  rules: CatalogColumnRuleRecord[],
+  ruleLabel: string
+): string | null {
+  const labelNorm = ruleLabel.trim().toLowerCase();
+  const rule = rules.find((r) => r.is_active && r.label.trim().toLowerCase() === labelNorm);
+  if (!rule) return null;
+  return findColumn(columnNames, rule.candidates);
+}
+
+/** Map each active rule label (lowercase) to the matched spreadsheet header, when found. */
+export function buildCatalogColumnMappings(
+  columnNames: string[],
+  rules: CatalogColumnRuleRecord[]
+): Record<string, string> {
+  const mappings: Record<string, string> = {};
+  for (const rule of rules.filter((r) => r.is_active)) {
+    const matched = findColumn(columnNames, rule.candidates);
+    if (matched) mappings[rule.label.trim().toLowerCase()] = matched;
+  }
+  return mappings;
+}
+
 export type CatalogColumnValidationResult = {
   valid: boolean;
   missing: string[];

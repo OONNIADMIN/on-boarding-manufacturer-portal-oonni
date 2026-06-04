@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
 import CatalogFilePicker, { type CatalogFileSelection } from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
-import { authAPI, catalogAPI, imageAPI, productAPI } from '@/lib/api'
+import { authAPI, catalogAPI, catalogColumnRulesAPI, imageAPI, productAPI } from '@/lib/api'
 import { detectImageUrlColumn, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
@@ -21,6 +21,7 @@ export default function CatalogsPage() {
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
   const [catalogHeaderRowIndex, setCatalogHeaderRowIndex] = useState<number | null>(null)
   const [catalogColumnNames, setCatalogColumnNames] = useState<string[]>([])
+  const [catalogColumnMappings, setCatalogColumnMappings] = useState<Record<string, string>>({})
   const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
   const [isUploadCompleted, setIsUploadCompleted] = useState(false)
   const [hasUploadImages, setHasUploadImages] = useState(false)
@@ -79,6 +80,7 @@ export default function CatalogsPage() {
     setSelectedCatalogFile(selection.file)
     setCatalogHeaderRowIndex(selection.headerRowIndex)
     setCatalogColumnNames(selection.columnNames)
+    setCatalogColumnMappings(selection.columnMappings)
     setUploadError(null)
   }
 
@@ -141,10 +143,12 @@ export default function CatalogsPage() {
         setIsProcessingCatalog(true)
         setUploadError(null)
         try {
-          const skuCol = detectSkuColumn(columns)
+          const columnRules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
+          const skuCol =
+            catalogColumnMappings['sku'] ?? detectSkuColumn(columns, columnRules)
           if (!skuCol) {
             setUploadError(
-              'Catalog uploaded, but no SKU column was detected. Use the downloaded template and include a column named "sku" (or rename your SKU column to match).'
+              'Catalog uploaded, but no SKU column was detected. Use the downloaded template and include a column that matches the configured SKU header names (e.g. "sku").'
             )
           } else {
             const productResult = await productAPI.createProductsFromCatalog(
@@ -153,7 +157,9 @@ export default function CatalogsPage() {
               manufacturerIdNum
             )
             const created = productResult.created_count ?? 0
-            const imgCol = detectImageUrlColumn(columns, skuCol)
+            const imgCol =
+              catalogColumnMappings['images'] ??
+              detectImageUrlColumn(columns, skuCol, columnRules)
             if (imgCol && imgCol !== skuCol) {
               const ingestResult = await catalogAPI.ingestImagesFromSpreadsheetUrls(
                 catalogResult.id,
@@ -192,6 +198,7 @@ export default function CatalogsPage() {
       setSelectedCatalogFile(null)
       setCatalogHeaderRowIndex(null)
       setCatalogColumnNames([])
+      setCatalogColumnMappings({})
       setIsUploadCompleted(true)
       setRefreshKey((prev) => prev + 1)
     } catch (err) {
