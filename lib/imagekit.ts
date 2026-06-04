@@ -85,6 +85,20 @@ function withAutoWebOptimization(url: string): string {
     const u = new URL(url);
     if (!shouldStripUpdatedAtForHost(u.hostname)) return url;
     if (hasTransformationInPath(u.pathname)) return url;
+
+    const segments = u.pathname.split("/").filter(Boolean);
+    if (!segments.length) return url;
+
+    // Default CDN: /{imagekitId}/path/to/file → /{imagekitId}/tr:…/path/to/file
+    if (u.hostname.toLowerCase().endsWith(".imagekit.io") && segments.length >= 2) {
+      const [imagekitId, ...rest] = segments;
+      if (rest.length) {
+        u.pathname = `/${imagekitId}/tr:q-auto,f-auto/${rest.join("/")}`;
+        return u.toString();
+      }
+    }
+
+    // Custom CNAME or legacy paths: /path/to/file → /tr:…/path/to/file
     const p = u.pathname.startsWith("/") ? u.pathname : `/${u.pathname}`;
     u.pathname = `/tr:q-auto,f-auto${p}`;
     return u.toString();
@@ -155,6 +169,29 @@ export function resolveImageKitDeliveryUrl(
     return withAutoWebOptimization(canonicalImageKitUrl(joinDeliveryBaseAndFilePath(base, key)));
   }
   return withAutoWebOptimization(canonicalImageKitUrl(trimmed));
+}
+
+/** Thumbnail-friendly delivery URL for image grids (smaller transform). */
+export function resolveImageKitPreviewUrl(
+  s3_url: string | null | undefined,
+  s3_key: string | null | undefined
+): string {
+  const delivery = resolveImageKitDeliveryUrl(s3_url, s3_key);
+  if (!delivery || !shouldAutoOptimizeDelivery()) return delivery;
+
+  try {
+    const u = new URL(delivery);
+    if (!shouldStripUpdatedAtForHost(u.hostname)) return delivery;
+    if (!u.pathname.includes("/tr:")) return delivery;
+
+    u.pathname = u.pathname.replace(
+      /\/tr:[^/]+/,
+      "/tr:w-320,h-320,c-at_max,q-80,f-auto"
+    );
+    return u.toString();
+  } catch {
+    return delivery;
+  }
 }
 
 /** Normalize s3_url on image rows returned to clients (fixes legacy ?updatedAt= in DB). */

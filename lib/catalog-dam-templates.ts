@@ -166,5 +166,5 @@ export async function resolveCatalogTemplateDownload(
 }
 
 export function catalogDamTemplateListErrorMessage(error: unknown): string | null {
-  return imageKitUploadFailureMessage(error);
+  return imageKitUploadFailureMessage(error) ?? null;
 }

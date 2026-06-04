@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Manufacturer } from "@prisma/client";
 import {
   canonicalImageKitUrl,
   deleteFromImageKit,
@@ -279,7 +280,7 @@ export async function ingestCatalogImagesFromSpreadsheet(params: {
   catalogFileUrl: string;
   headerRowIndex: number;
   spreadsheetBuffer: Buffer;
-  manufacturer: { id: number; slug: string; imagekit_media_root?: string | null };
+  manufacturer: Manufacturer;
   onProgress?: (progress: CatalogImageIngestProgress) => void;
 }): Promise<CatalogImageIngestResult> {
   const imagesFolder = manufacturerImageKitImagesFolder(params.manufacturer);

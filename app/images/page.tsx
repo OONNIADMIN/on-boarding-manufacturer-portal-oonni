@@ -495,12 +495,16 @@ export default function ImagesPage() {
                       <td className={styles.preview}>
                         <div className={styles.imagePreview}>
                           <img 
-                            src={image.s3_url} 
+                            src={image.preview_url?.trim() || image.s3_url} 
                             alt={image.original_filename || 'Image'}
                             className={styles.previewImage}
                             loading="lazy"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
+                              if (image.s3_url && target.src !== image.s3_url) {
+                                target.src = image.s3_url
+                                return
+                              }
                               target.style.display = 'none'
                               target.nextElementSibling?.classList.add(styles.show)
                             }}

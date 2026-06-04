@@ -6,12 +6,10 @@ import {
   extractColumnNamesFromRows,
   parseSpreadsheetRows,
 } from "@/lib/catalog-file-headers";
-
-function catalogFileLabel(catalogFileUrl: string): string {
-  const pathname = catalogFileUrl.split("?")[0] ?? "catalog.csv";
-  const segment = pathname.split("/").pop() ?? "catalog.csv";
-  return segment.includes(".") ? segment : `${segment}.csv`;
-}
+import {
+  catalogSpreadsheetFileName,
+  fetchCatalogSpreadsheetBuffer,
+} from "@/lib/catalog-file-fetch";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth(req);
@@ -28,12 +26,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!catalog.catalog_file) return notFound("Catalog file not found");
 
   try {
-    const res = await fetch(catalog.catalog_file);
-    if (!res.ok) return err("Failed to fetch catalog file");
-
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const fileName = catalogFileLabel(catalog.catalog_file);
+    const buffer = await fetchCatalogSpreadsheetBuffer(catalog.catalog_file);
+    const fileName = catalogSpreadsheetFileName(catalog.catalog_file);
     const rows = parseSpreadsheetRows(buffer, fileName);
     const headerRowIndex = catalog.header_row_index ?? 0;
     const columns = extractColumnNamesFromRows(rows, headerRowIndex);

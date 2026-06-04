@@ -348,6 +348,61 @@
   padding-bottom: $spacing-md;
 }
 
+.imageKitProgress {
+  @include flex-column;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 520px;
+  margin-top: $spacing-sm;
+  padding: $spacing-md $spacing-lg;
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+}
+
+.imageKitProgressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.imageKitProgressLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-800;
+}
+
+.imageKitProgressPct {
+  font-size: $font-size-xs;
+  font-variant-numeric: tabular-nums;
+  color: $oonni-teal;
+  font-weight: $font-weight-semibold;
+}
+
+.imageKitProgressTrack {
+  height: 6px;
+  border-radius: $radius-full;
+  background: $gray-200;
+  overflow: hidden;
+}
+
+.imageKitProgressFill {
+  height: 100%;
+  border-radius: $radius-full;
+  background: linear-gradient(90deg, $oonni-teal 0%, $oonni-green 100%);
+  transition: width 0.35s ease;
+}
+
+.imageKitProgressMeta {
+  margin: 0;
+  font-size: $font-size-xs;
+  color: $gray-600;
+  line-height: 1.45;
+  text-align: center;
+}
+
 // Step Section
 .stepSection {
   width: 100%;

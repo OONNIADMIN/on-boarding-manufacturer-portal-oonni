@@ -87,6 +87,9 @@ export default function ImageList({ onImagesLoaded }: ImageListProps) {
     }
   }
 
+  const displayImageUrl = (image: ImageInfo): string =>
+    image.preview_url?.trim() || image.s3_url
+
   const handleOpenInNewTab = (url: string) => {
     if (!url) return
     window.open(url, '_blank', 'noopener,noreferrer')
@@ -312,12 +315,16 @@ export default function ImageList({ onImagesLoaded }: ImageListProps) {
             <div className={styles.imageThumbColumn}>
               <div className={styles.imagePreview}>
                 <img 
-                  src={image.s3_url} 
+                  src={displayImageUrl(image)} 
                   alt="Uploaded image"
                   className={styles.image}
                   loading="lazy"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
+                    if (image.s3_url && target.src !== image.s3_url) {
+                      target.src = image.s3_url
+                      return
+                    }
                     target.style.display = 'none'
                     target.nextElementSibling?.classList.add(styles.show)
                   }}

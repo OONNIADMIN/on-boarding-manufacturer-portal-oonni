@@ -12,6 +12,7 @@ import {
 } from "@/lib/catalog-file-headers";
 import { validateCatalogColumns } from "@/lib/catalog-column-validation";
 import { getActiveCatalogColumnRules } from "@/lib/catalog-column-rules-service";
+import { createProductsFromCatalogSpreadsheet } from "@/lib/create-products-from-catalog-spreadsheet";
 
 const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     const manufacturerIdRaw = formData.get("manufacturer_id");
     const headerRowIndexRaw = formData.get("header_row_index");
+    const skuColumnRaw = formData.get("sku_column");
 
     if (!file) return err("No file provided");
     if (!manufacturerIdRaw) return err("manufacturer_id is required");
@@ -38,6 +40,9 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(headerRowIndex) || headerRowIndex < 0) {
       return err("header_row_index must be a zero-based row number");
     }
+
+    const skuColumn =
+      typeof skuColumnRaw === "string" && skuColumnRaw.trim() ? skuColumnRaw.trim() : null;
 
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) return err(`Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`);
@@ -96,6 +101,19 @@ export async function POST(req: NextRequest) {
       include: { manufacturer: true },
     });
 
+    let productsFromUpload: Awaited<ReturnType<typeof createProductsFromCatalogSpreadsheet>> | null =
+      null;
+    if (skuColumn) {
+      productsFromUpload = await createProductsFromCatalogSpreadsheet({
+        buffer,
+        fileName: file.name,
+        headerRowIndex,
+        skuColumn,
+        catalogId: catalog.id,
+        manufacturerId,
+      });
+    }
+
     return created({
       ...catalog,
       message: `Catalog uploaded successfully`,
@@ -105,6 +123,7 @@ export async function POST(req: NextRequest) {
       file_size_bytes: buffer.length,
       uploaded_at: catalog.created_at,
       data_info: dataInfo,
+      products_from_upload: productsFromUpload,
     });
   } catch (e) {
     console.error("Catalog upload error:", e);

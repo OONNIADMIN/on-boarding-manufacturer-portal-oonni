@@ -1,4 +1,4 @@
-import { resolveImageKitDeliveryUrl } from "@/lib/imagekit";
+import { resolveImageKitDeliveryUrl, resolveImageKitPreviewUrl } from "@/lib/imagekit";
 
 export function mimeToListFileType(mime: string | undefined): string {
   if (!mime) return "";
@@ -32,6 +32,7 @@ export function serializeImageForListJson(img: {
   product?: unknown;
 }) {
   const s3_url = resolveImageKitDeliveryUrl(img.s3_url, img.s3_key);
+  const preview_url = resolveImageKitPreviewUrl(img.s3_url, img.s3_key);
   return {
     id: img.id,
     manufacturer_id: img.manufacturer_id,
@@ -40,6 +41,7 @@ export function serializeImageForListJson(img: {
     original_filename: img.original_filename,
     s3_key: img.s3_key,
     s3_url,
+    preview_url,
     imagekit_file_id: img.imagekit_file_id,
     mime_type: img.mime_type,
     width: img.width,
