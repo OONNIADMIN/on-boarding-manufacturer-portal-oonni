@@ -161,13 +161,31 @@ export default function CatalogTemplatePage() {
                 <span className={styles.nauticalTitleLine1}>Download Your</span>
                 <span className={styles.nauticalTitleLine2}>Excel Template</span>
               </h2>
-              <p className={styles.nauticalDescription}>
-                Select the product line that matches what you are preparing. Each Excel file is served from
-                ImageKit (Template-excel-oonni) with the standard catalog columns for that line.
-              </p>
-              <p className={styles.nauticalDescription}>
-                Need another line? Change the selection and download again—each template is independent.
-              </p>
+
+              <div className={styles.categoryTemplatesBlock} aria-labelledby="category-templates-heading">
+                <h3 id="category-templates-heading" className={styles.categoryTemplatesHeading}>
+                  Category Templates
+                </h3>
+                <hr className={styles.categoryTemplatesDivider} aria-hidden="true" />
+                <ol className={styles.templateSteps}>
+                  <li className={styles.templateStep}>
+                    <span className={styles.templateStepLabel}>Step 1:</span> From the dropdown list,
+                    select the category that best matches your product type.
+                  </li>
+                  <li className={styles.templateStep}>
+                    <span className={styles.templateStepLabel}>Step 2:</span> Select Download Excel
+                    Template.
+                  </li>
+                  <li className={styles.templateStep}>
+                    <span className={styles.templateStepLabel}>Step 3:</span> Complete the template with
+                    as much detail as possible.
+                  </li>
+                  <li className={styles.templateStep}>
+                    <span className={styles.templateStepLabel}>Step 4:</span> After completion of the
+                    template, continue to upload the template.
+                  </li>
+                </ol>
+              </div>
               {typesLoading && (
                 <div className={styles.nauticalProgress} aria-busy="true" aria-live="polite">
                   <div className={styles.nauticalProgressHeader}>
