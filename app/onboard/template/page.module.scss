@@ -74,44 +74,60 @@
   container-type: inline-size;
 }
 
-// Intro heading (two-line headline + thin gold underline — matches design reference)
-$intro-heading-gold: #C4C39D;
+// Intro panel — gold headings, white body (design reference)
+$intro-heading-gold: #c4c39d;
 
-.introHeading {
-  display: block;
-  margin: 0 0 $spacing-xl 0;
-  width: 100%;
-  min-width: 100%;
-  box-sizing: border-box;
-}
-
-.introTitleLine1 {
-  display: block;
-  width: 100%;
-  margin-bottom: 0.15rem;
-  font-size: $portal-title-size;
-  font-weight: $font-weight-normal;
-  line-height: $portal-title-line-height;
-  letter-spacing: 0.06em;
-  text-transform: none;
-  color: $intro-heading-gold;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.introTitleLine2 {
-  display: block;
+.introMainTitle {
+  margin: 0 0 0.85rem;
   width: 100%;
   font-size: clamp(1.85rem, 10.2cqi, 3.15rem);
   font-weight: $font-weight-semibold;
   line-height: 1.15;
   letter-spacing: 0.02em;
   color: $intro-heading-gold;
-  padding-bottom: 0.45rem;
-  border-bottom: 1px solid $intro-heading-gold;
-  box-sizing: border-box;
   text-align: left;
-  white-space: nowrap;
+}
+
+.introDivider {
+  width: 100%;
+  height: 0;
+  border: none;
+  border-top: 1px solid $intro-heading-gold;
+  margin: 0 0 1.35rem;
+  opacity: 0.95;
+}
+
+.introLead {
+  margin: 0 0 1.75rem;
+  font-size: $font-size-base;
+  font-weight: $font-weight-normal;
+  line-height: 1.65;
+  color: $white;
+  opacity: 0.98;
+  width: 100%;
+  text-align: left;
+}
+
+.introBlocks {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.introBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.introSubheading {
+  margin: 0;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  line-height: 1.4;
+  color: $intro-heading-gold;
+  text-align: left;
 }
 
 .introText {
@@ -121,13 +137,7 @@ $intro-heading-gold: #C4C39D;
   color: $white;
   opacity: 0.95;
   width: 100%;
-  text-align: justify;
-  text-align-last: left;
-  hyphens: auto;
-
-  & + & {
-    margin-top: $spacing-lg;
-  }
+  text-align: left;
 }
 
 // Right panel — download section (design reference)
@@ -468,14 +478,9 @@ $template-step-sage: #96b09c;
     padding: 1.5rem clamp(1rem, 4vw, 1.5rem);
   }
 
-  .introTitleLine2 {
+  .introMainTitle {
     white-space: normal;
     font-size: clamp(1.75rem, 9cqi, 2.5rem);
-  }
-
-  .introTitleLine1 {
-    white-space: normal;
-    font-size: $portal-title-size;
   }
 
   .nauticalTitleLine2 {

@@ -123,21 +123,38 @@ export default function CatalogTemplatePage() {
           <div className={styles.content}>
             <section className={styles.introCard} aria-labelledby="template-intro-heading">
             <div className={styles.introBody}>
-              <h2 id="template-intro-heading" className={styles.introHeading}>
-                <span className={styles.introTitleLine1}>Match The Template To</span>
-                <span className={styles.introTitleLine2}>Your Products Lines</span>
+              <h2 id="template-intro-heading" className={styles.introMainTitle}>
+                It&apos;s All In The Details
               </h2>
-              <p className={styles.introText}>
-                Templates are pre-configured in our media library (DAM) for each supported product line—for
-                example furniture &amp; fixtures. Choose the line that matches what your company produces so
-                column names and structure align with how those products are onboarded.
+              <hr className={styles.introDivider} aria-hidden="true" />
+              <p className={styles.introLead}>
+                Oonni&apos;s rapport with manufacturers safeguards product data integrity supplied
+                directly by the manufacturer.
               </p>
-              <p className={styles.introText}>
-                If you manufacture more than one distinct products line, download a separate template for each
-                line: pick a type, download the excel file, then repeat for the next line. You can fill each
-                file and upload them when you continue to Onboard Catalog (one upload at the time or as your
-                process requires).
-              </p>
+              <div className={styles.introBlocks}>
+                <div className={styles.introBlock}>
+                  <h3 className={styles.introSubheading}>Why is it important for Buyers:</h3>
+                  <p className={styles.introText}>
+                    Accurate product data is crucial for buyers to be able to make purchasing decisions
+                    on the product detail page (PDP). Lack of product information makes the difference to
+                    purchase your product as opposed to the competitors.
+                  </p>
+                </div>
+                <div className={styles.introBlock}>
+                  <h3 className={styles.introSubheading}>Why is it important for Sellers:</h3>
+                  <p className={styles.introText}>
+                    This process guarantees brands authorized sellers, product data accuracy and limits
+                    mistakes. Expedites the listing process, onboard faster and start selling.
+                  </p>
+                </div>
+                <div className={styles.introBlock}>
+                  <h3 className={styles.introSubheading}>What&apos;s next:</h3>
+                  <p className={styles.introText}>
+                    We have outlined easy to follow steps so your dataset aligns with our platform&apos;s
+                    catalog structure.
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
 
