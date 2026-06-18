@@ -206,6 +206,52 @@ $nautical-sage: #94b49f;
   hyphens: auto;
 }
 
+$template-step-sage: #96b09c;
+
+.categoryTemplatesBlock {
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
+.categoryTemplatesHeading {
+  margin: 0 0 0.75rem;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: 1.25;
+  color: $nautical-forest;
+  letter-spacing: 0.01em;
+}
+
+.categoryTemplatesDivider {
+  width: 100%;
+  height: 0;
+  border: none;
+  border-top: 1px solid $gray-200;
+  margin: 0 0 1.35rem;
+}
+
+.templateSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.templateStep {
+  margin: 0;
+  font-size: $font-size-base;
+  font-weight: $font-weight-normal;
+  line-height: 1.55;
+  color: $gray-900;
+}
+
+.templateStepLabel {
+  font-weight: $font-weight-bold;
+  color: $template-step-sage;
+}
+
 .nauticalProgress {
   @include flex-column;
   gap: 0.45rem;
