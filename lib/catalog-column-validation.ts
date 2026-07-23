@@ -82,6 +82,13 @@ export function getCatalogColumnChecks(
   });
 }
 
+export function scoreCatalogColumnMatches(
+  columnNames: string[],
+  rules: CatalogColumnRuleRecord[]
+): number {
+  return getCatalogColumnChecks(columnNames, rules).filter((check) => check.satisfied).length;
+}
+
 export function validateCatalogColumns(
   columnNames: string[],
   rules: CatalogColumnRuleRecord[]
@@ -119,6 +126,6 @@ export function validateCatalogColumns(
   return {
     valid: false,
     missing,
-    message: `The file is missing required columns: ${missing.join(", ")}. Expected headers include: ${requiredLabels}.`,
+    message: `Some expected columns were not found: ${missing.join(", ")}. Typical headers include: ${requiredLabels}.`,
   };
 }

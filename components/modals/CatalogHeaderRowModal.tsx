@@ -7,7 +7,7 @@ import {
 } from '@/lib/catalog-file-headers'
 import {
   getCatalogColumnChecks,
-  validateCatalogColumns,
+  scoreCatalogColumnMatches,
   type CatalogColumnRuleRecord,
 } from '@/lib/catalog-column-validation'
 import styles from './CatalogHeaderRowModal.module.scss'
@@ -31,11 +31,23 @@ interface CatalogHeaderRowModalProps {
 
 function suggestHeaderRowIndex(rows: string[][], rules: CatalogColumnRuleRecord[]): number {
   const limit = Math.min(rows.length, MAX_HEADER_PREVIEW_ROWS)
+  let bestIndex = 0
+  let bestScore = -1
+
   for (let index = 0; index < limit; index++) {
     const columns = extractColumnNamesFromRows(rows, index)
-    if (validateCatalogColumns(columns, rules).valid) return index
+    const score = columns.length
+      ? rules.length
+        ? scoreCatalogColumnMatches(columns, rules)
+        : columns.length
+      : 0
+    if (score > bestScore) {
+      bestScore = score
+      bestIndex = index
+    }
   }
-  return 0
+
+  return bestIndex
 }
 
 function formatPreviewCell(value: string): string {
@@ -54,7 +66,7 @@ export default function CatalogHeaderRowModal({
   const [headerRowIndex, setHeaderRowIndex] = useState(0)
 
   useEffect(() => {
-    if (!isOpen || !previewRows.length || !columnRules.length) return
+    if (!isOpen || !previewRows.length) return
     setHeaderRowIndex(suggestHeaderRowIndex(previewRows, columnRules))
   }, [isOpen, previewRows, file?.name, columnRules])
 
@@ -67,10 +79,6 @@ export default function CatalogHeaderRowModal({
     () => getCatalogColumnChecks(columnNames, columnRules),
     [columnNames, columnRules]
   )
-  const validation = useMemo(
-    () => validateCatalogColumns(columnNames, columnRules),
-    [columnNames, columnRules]
-  )
 
   const maxColumns = useMemo(
     () => Math.max(1, ...previewRows.map((row) => row.length)),
@@ -80,7 +88,6 @@ export default function CatalogHeaderRowModal({
   if (!isOpen || !file) return null
 
   const handleConfirm = () => {
-    if (!validation.valid) return
     const columnMappings: Record<string, string> = {}
     for (const check of columnChecks) {
       if (check.matchedColumn) {
@@ -150,9 +157,17 @@ export default function CatalogHeaderRowModal({
           </div>
 
           <div className={styles.validationPanel}>
-            <h3 className={styles.validationTitle}>Required columns</h3>
+            <h3 className={styles.validationTitle}>Expected columns (informational)</h3>
+            <p className={styles.validationHint}>
+              These checks help you align with the catalog template. Missing columns will not block
+              upload.
+            </p>
             {!columnNames.length ? (
-              <p className={styles.validationError}>This row has no column headers.</p>
+              <p className={styles.validationNote}>This row has no column headers.</p>
+            ) : columnChecks.length === 0 ? (
+              <p className={styles.validationNote}>
+                No column guide is configured. You can continue with the selected header row.
+              </p>
             ) : (
               <ul className={styles.validationList}>
                 {columnChecks.map((check) => (
@@ -163,14 +178,13 @@ export default function CatalogHeaderRowModal({
                     <span>{check.label}</span>
                     {check.matchedColumn ? (
                       <span className={styles.matchedColumn}>→ {check.matchedColumn}</span>
-                    ) : null}
+                    ) : (
+                      <span className={styles.notFoundLabel}>Not found in this row</span>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
-            {!validation.valid && columnNames.length > 0 ? (
-              <p className={styles.validationError}>{validation.message}</p>
-            ) : null}
           </div>
         </div>
 
@@ -178,12 +192,7 @@ export default function CatalogHeaderRowModal({
           <button type="button" className={styles.cancelButton} onClick={onClose}>
             Cancel
           </button>
-          <button
-            type="button"
-            className={styles.confirmButton}
-            onClick={handleConfirm}
-            disabled={!validation.valid}
-          >
+          <button type="button" className={styles.confirmButton} onClick={handleConfirm}>
             Use this header row
           </button>
         </div>

@@ -161,9 +161,8 @@ export default function CatalogsPage() {
             catalogColumnMappings['sku'] ??
             detectSkuColumn(columns, columnRules)
           if (!skuCol) {
-            setUploadError(
-              'Catalog uploaded, but no SKU column was detected. Use the downloaded template and include a column that matches the configured SKU header names (e.g. "sku").'
-            )
+            processingNote =
+              ' No SKU column was detected — automatic product creation was skipped. Include a column such as "sku" to enable it.'
           } else {
             setCatalogProcessingPhase('products')
             let created = catalogResult.products_from_upload?.created_count ?? 0
@@ -218,9 +217,8 @@ export default function CatalogsPage() {
           setImageIngestProgress(null)
         }
       } else if (catalogResult.id && !columns.length) {
-        setUploadError(
-          'Catalog uploaded, but column headers could not be read. Check the file format; automatic processing was skipped.'
-        )
+        processingNote =
+          ' Column headers could not be read — automatic processing was skipped. Check the file format or header row selection.'
       }
 
       const successMessage = `Catalog "${catalogName}"${catalogIdStr} uploaded.${processingNote}${

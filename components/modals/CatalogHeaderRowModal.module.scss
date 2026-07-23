@@ -145,6 +145,20 @@
   gap: 0.35rem;
 }
 
+.validationHint {
+  margin: 0 0 $spacing-sm;
+  font-size: $font-size-sm;
+  color: $gray-600;
+  line-height: 1.5;
+}
+
+.validationNote {
+  margin: 0;
+  font-size: $font-size-sm;
+  color: $gray-700;
+  line-height: 1.5;
+}
+
 .checkOk,
 .checkMissing {
   display: flex;
@@ -158,7 +172,12 @@
 }
 
 .checkMissing {
-  color: #991b1b;
+  color: $gray-700;
+}
+
+.notFoundLabel {
+  color: $gray-500;
+  font-style: italic;
 }
 
 .matchedColumn {
@@ -186,11 +205,6 @@
 
 .confirmButton {
   @include button-primary;
-}
-
-.confirmButton:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 @include respond-to('md') {
