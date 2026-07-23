@@ -79,12 +79,7 @@ export default function CatalogFilePicker({
         return
       }
 
-      const rules = await catalogColumnRulesAPI.listForUpload()
-      if (!rules.length) {
-        onValidationError?.('No catalog column rules are configured. Contact your administrator.')
-        resetFileInput()
-        return
-      }
+      const rules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
 
       setPendingFile(file)
       setPreviewRows(rows)

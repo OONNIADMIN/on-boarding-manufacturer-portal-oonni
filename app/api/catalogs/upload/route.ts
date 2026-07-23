@@ -10,8 +10,6 @@ import {
   extractColumnNamesFromRows,
   parseSpreadsheetRows,
 } from "@/lib/catalog-file-headers";
-import { validateCatalogColumns } from "@/lib/catalog-column-validation";
-import { getActiveCatalogColumnRules } from "@/lib/catalog-column-rules-service";
 import { createProductsFromCatalogSpreadsheet } from "@/lib/create-products-from-catalog-spreadsheet";
 
 const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
@@ -65,9 +63,6 @@ export async function POST(req: NextRequest) {
     }
 
     const columnNames = extractColumnNamesFromRows(spreadsheetRows, headerRowIndex);
-    const columnRules = await getActiveCatalogColumnRules();
-    const columnValidation = validateCatalogColumns(columnNames, columnRules);
-    if (!columnValidation.valid) return err(columnValidation.message);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
