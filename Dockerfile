@@ -1,11 +1,12 @@
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:22.23.2-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+# postinstall runs `prisma generate`, which needs prisma/ (copied in the builder stage)
+RUN npm ci --ignore-scripts
 
 # Stage 2: Builder
-FROM node:20-alpine AS builder
+FROM node:22.23.2-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -17,15 +18,17 @@ COPY lib ./lib
 COPY public ./public
 COPY styles ./styles
 COPY types ./types
+COPY data_json ./data_json
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 COPY middleware.ts ./
 COPY next.config.js ./
 COPY tsconfig.json ./
-COPY next-env.d.ts ./
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
+# prisma.config.ts requires DATABASE_URL; generate does not connect to the DB
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/oonni_onboarding?schema=public"
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -34,7 +37,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Stage 3: Runner
-FROM node:20-alpine AS runner
+FROM node:22.23.2-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache openssl
