@@ -9,14 +9,16 @@ export type NauticalConfig = {
 
 export function getNauticalConfig(): NauticalConfig | null {
   const url = process.env.NAUTICAL_API_URL?.trim();
-  const token = process.env.NAUTICAL_BEARER_TOKEN?.trim();
+  const token =
+    process.env.NAUTICAL_BEARER_TOKEN?.trim() ||
+    process.env.NAUTICAL_KEY_BEARER?.trim();
   if (!url) return null;
   if (!token) return null;
   return { url, token };
 }
 
 export function nauticalNotConfiguredMessage(): string {
-  return "Nautical integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN on the server.";
+  return "Nautical integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN (or NAUTICAL_KEY_BEARER) on the server.";
 }
 
 export async function nauticalGraphql<T>(
