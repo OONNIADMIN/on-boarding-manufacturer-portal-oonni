@@ -1,2 +1,5 @@
 export { default as Header } from './Header'
 export { default as Pagination } from './Pagination'
+export { default as DataTable } from './DataTable'
+export { default as RowActions } from './RowActions'
+export { CompletenessMeter, CompletenessChart, CompletenessBreakdown } from './CompletenessReport'

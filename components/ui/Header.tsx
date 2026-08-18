@@ -18,7 +18,7 @@ interface HeaderProps {
   onBackClick?: () => void
   onLogout?: () => void
   showNavigation?: boolean
-  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns'
+  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory'
   navStyle?: 'default' | 'flat'
 }
 
@@ -69,7 +69,10 @@ export default function Header({
         break
       case 'historical':
           router.push('/historical')
-          break          
+          break
+      case 'inventory':
+          router.push('/inventory')
+          break
       case 'profile':
           router.push('/profile')
           break
@@ -265,14 +268,24 @@ export default function Header({
 
                 <button
                   type="button"
-                onClick={() => handleNavigation('historical')}
-                className={`${styles.navLink} ${currentPage === 'historical' ? styles.active : ''}`}
-              >
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Historical
-              </button>
+                  onClick={() => handleNavigation('historical')}
+                  className={`${styles.navLink} ${currentPage === 'historical' ? styles.active : ''}`}
+                >
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Historical
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigation('inventory')}
+                  className={`${styles.navLink} ${currentPage === 'inventory' ? styles.active : ''}`}
+                >
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                  </svg>
+                  Manage all Products
+                </button>
               </>
               )}
 

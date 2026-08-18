@@ -1,0 +1,356 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+}
+
+.toolbar {
+  @include flex-between;
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+  align-items: flex-end;
+}
+
+.title {
+  margin: 0 0 $spacing-xs;
+  font-size: $font-size-2xl;
+  color: $gray-900;
+}
+
+.subtitle {
+  margin: 0;
+  color: $gray-600;
+  font-size: $font-size-sm;
+}
+
+.syncButton {
+  @include button-primary;
+  white-space: nowrap;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.addButton {
+  @include button-secondary;
+  white-space: nowrap;
+}
+
+.nestedBlock {
+  min-width: 0;
+}
+
+.nestedHeader {
+  @include flex-between;
+  gap: $spacing-sm;
+  margin-bottom: 0.5rem;
+
+  .detailLabel {
+    margin: 0;
+  }
+}
+
+.addVariantButton {
+  @include button-base;
+  padding: 0.4rem 0.75rem;
+  background: $gray-100;
+  color: $gray-800;
+  font-size: $font-size-sm;
+
+  &:hover:not(:disabled) {
+    background: $gray-200;
+  }
+}
+
+.completenessFilters {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  font-size: $font-size-sm;
+  color: $gray-700;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  select {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid $gray-300;
+    border-radius: $radius-sm;
+    background: $white;
+  }
+}
+
+.issueChip {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid $gray-300;
+  border-radius: $radius-full;
+  background: $gray-50;
+  cursor: pointer;
+
+  input {
+    margin: 0;
+  }
+}
+
+.issueList {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: $gray-700;
+  font-size: $font-size-xs;
+
+  li + li {
+    margin-top: 0.2rem;
+  }
+}
+
+.tableCard {
+  background: $white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  @include table-base;
+
+  th,
+  td {
+    vertical-align: top;
+  }
+}
+
+.expandButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $gray-500;
+  cursor: pointer;
+  border-radius: $radius-sm;
+
+  &:hover {
+    color: $oonni-teal;
+    background: $gray-100;
+  }
+}
+
+.productCell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  max-width: 16rem;
+  min-width: 0;
+}
+
+.productText {
+  min-width: 0;
+  overflow: hidden;
+
+  strong,
+  .slug {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.thumb,
+.thumbFallback {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: $radius-md;
+  object-fit: cover;
+  background: $gray-100;
+  flex-shrink: 0;
+}
+
+.slug {
+  display: block;
+  color: $gray-500;
+  font-size: $font-size-xs;
+  font-family: monospace;
+}
+
+.truncateCell {
+  display: block;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badgeOk,
+.badgeMuted {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: $radius-full;
+  font-size: $font-size-xs;
+}
+
+.badgeOk {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.badgeMuted {
+  background: $gray-100;
+  color: $gray-600;
+}
+
+.detailRow td {
+  background: #f8faf9;
+}
+
+.detailGrid,
+.detailStack {
+  display: grid;
+  gap: $spacing-lg;
+}
+
+.detailGrid {
+  grid-template-columns: minmax(16rem, 1fr) minmax(22rem, 1.4fr);
+}
+
+.seoCell {
+  max-width: 16rem;
+  white-space: normal;
+}
+
+.nestedBlock {
+  min-width: 0;
+}
+
+.detailLabel {
+  margin: 0 0 0.5rem;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: $gray-500;
+}
+
+.detailText {
+  margin: 0;
+  color: $gray-700;
+  font-size: $font-size-sm;
+}
+
+.attributesBlock {
+  width: fit-content;
+  max-width: 28rem;
+  min-width: 0;
+}
+
+.nestedTable {
+  width: max-content;
+  max-width: 100%;
+  border-collapse: collapse;
+  background: $white;
+  border: 1px solid $table-border;
+  border-radius: $radius-md;
+  table-layout: auto;
+
+  th,
+  td {
+    padding: 0.4rem 0.65rem;
+    text-align: left;
+    font-size: $font-size-sm;
+    border-bottom: 1px solid $table-border;
+    vertical-align: top;
+  }
+
+  th {
+    background: $table-header-bg;
+    color: $gray-700;
+    font-weight: $font-weight-semibold;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  td:first-child {
+    color: $gray-600;
+    white-space: nowrap;
+  }
+
+  td:last-child {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.error {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: $error;
+}
+
+.empty,
+.loadingRow,
+.loadingScreen {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: $spacing-2xl;
+  color: $gray-600;
+}
+
+.spinner {
+  @include spinner(36px, $oonni-green);
+}
+
+@include respond-to('md') {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -1,4 +1,7 @@
 export { default as CreateSellerModal } from './CreateSellerModal'
 export { default as InviteManufacturerModal } from './InviteManufacturerModal'
 export { default as CatalogHeaderRowModal } from './CatalogHeaderRowModal'
+export { default as ConfirmDialog } from './ConfirmDialog'
+export { default as InventoryProductModal } from './InventoryProductModal'
+export { default as InventoryVariantModal } from './InventoryVariantModal'
 export type { CatalogFileSelection } from './CatalogHeaderRowModal'
