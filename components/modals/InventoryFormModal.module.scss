@@ -1,0 +1,177 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  @include flex-center;
+  z-index: $z-index-modal;
+  padding: $spacing-md;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: $white;
+  border-radius: $radius-2xl;
+  width: 100%;
+  max-width: 44rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: $shadow-xl;
+}
+
+.header {
+  @include flex-between;
+  padding: $spacing-lg;
+  border-bottom: 1px solid $gray-200;
+}
+
+.title {
+  margin: 0;
+  font-size: $font-size-xl;
+  color: $gray-900;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  padding: $spacing-sm;
+  cursor: pointer;
+  color: $gray-600;
+  @include flex-center;
+  border-radius: $radius-lg;
+
+  &:hover:not(:disabled) {
+    background: $gray-100;
+    color: $gray-900;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.form {
+  padding: $spacing-lg;
+  @include flex-column;
+  gap: 1rem;
+}
+
+.error {
+  padding: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: #991b1b;
+  font-size: $font-size-sm;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.formGroup {
+  @include flex-column;
+  gap: $spacing-xs;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+}
+
+.input,
+.select,
+.textarea {
+  @include input-base;
+  padding: 0.7rem;
+  font-size: $font-size-sm;
+}
+
+.textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: $font-size-sm;
+  color: $gray-700;
+}
+
+.attrList {
+  @include flex-column;
+  gap: 0.5rem;
+}
+
+.attrRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+}
+
+.removeButton,
+.addButton {
+  @include button-base;
+  padding: 0.55rem 0.8rem;
+  background: $gray-100;
+  color: $gray-700;
+  font-size: $font-size-sm;
+}
+
+.removeButton {
+  padding: 0.55rem;
+}
+
+.addButton {
+  align-self: flex-start;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.cancelButton,
+.submitButton {
+  @include button-base;
+  padding: 0.7rem $spacing-lg;
+}
+
+.cancelButton {
+  background: $gray-100;
+  color: $gray-700;
+
+  &:hover:not(:disabled) {
+    background: $gray-200;
+  }
+}
+
+.submitButton {
+  @include button-primary;
+}
+
+@include respond-to('md') {
+  .grid,
+  .attrRow {
+    grid-template-columns: 1fr;
+  }
+}
