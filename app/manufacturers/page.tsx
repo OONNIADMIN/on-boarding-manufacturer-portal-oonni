@@ -19,6 +19,10 @@ export default function ManufacturersPage() {
   const [showUsersModal, setShowUsersModal] = useState(false)
   const [resendingUserId, setResendingUserId] = useState<number | null>(null)
   const [resendMessage, setResendMessage] = useState('')
+  const [activatingUserId, setActivatingUserId] = useState<number | null>(null)
+  const [activatePassword, setActivatePassword] = useState('')
+  const [activateConfirm, setActivateConfirm] = useState('')
+  const [activateSubmitting, setActivateSubmitting] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -87,6 +91,14 @@ export default function ManufacturersPage() {
     setUsersError('')
     setResendMessage('')
     setResendingUserId(null)
+    resetActivateForm()
+  }
+
+  const resetActivateForm = () => {
+    setActivatingUserId(null)
+    setActivatePassword('')
+    setActivateConfirm('')
+    setActivateSubmitting(false)
   }
 
   const handleResendInvitation = async (userId: number) => {
@@ -105,6 +117,43 @@ export default function ManufacturersPage() {
       setUsersError(err instanceof Error ? err.message : 'Failed to resend invitation')
     } finally {
       setResendingUserId(null)
+    }
+  }
+
+  const handleOpenActivateForm = (userId: number) => {
+    setUsersError('')
+    setResendMessage('')
+    setActivatingUserId(userId)
+    setActivatePassword('')
+    setActivateConfirm('')
+  }
+
+  const handleActivateUser = async (userId: number) => {
+    const token = authAPI.getToken()
+    if (!token || !selectedManufacturer) return
+
+    if (activatePassword.length < 8) {
+      setUsersError('Password must be at least 8 characters')
+      return
+    }
+    if (activatePassword !== activateConfirm) {
+      setUsersError('Passwords do not match')
+      return
+    }
+
+    setActivateSubmitting(true)
+    setUsersError('')
+    setResendMessage('')
+    try {
+      await authAPI.activateUser(token, userId, activatePassword)
+      setResendMessage('User activated. They can now log in with the password you set.')
+      resetActivateForm()
+      const users = await manufacturerAPI.getManufacturerUsers(token, selectedManufacturer.id)
+      setManufacturerUsers(users)
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to activate user')
+    } finally {
+      setActivateSubmitting(false)
     }
   }
 
@@ -243,7 +292,7 @@ export default function ManufacturersPage() {
                       <div className={styles.spinner}></div>
                       <p>Loading users...</p>
                     </div>
-                  ) : usersError ? (
+                  ) : manufacturerUsers.length === 0 && usersError ? (
                     <div className={styles.errorState}>
                       <svg className={styles.errorIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -265,41 +314,116 @@ export default function ManufacturersPage() {
                           {resendMessage}
                         </div>
                       )}
-                      {manufacturerUsers.map((user) => (
-                        <div key={user.id} className={styles.userCard}>
-                          <div className={styles.userInfo}>
-                            <h4 className={styles.userName}>{user.name}</h4>
-                            <p className={styles.userEmail}>{user.email}</p>
-                            <span className={styles.userRole}>{user.role?.name || 'No role'}</span>
-                            {user.pending_invitation && (
-                              <span className={styles.pendingBadge}>Invitation pending</span>
-                            )}
+                      {usersError && (
+                        <div className={styles.usersActionError}>
+                          {usersError}
+                        </div>
+                      )}
+                      {manufacturerUsers.map((mfrUser) => {
+                        const canActivate = !mfrUser.is_active || mfrUser.pending_invitation
+                        return (
+                        <div key={mfrUser.id} className={styles.userCard}>
+                          <div className={styles.userCardMain}>
+                            <div className={styles.userInfo}>
+                              <h4 className={styles.userName}>{mfrUser.name}</h4>
+                              <p className={styles.userEmail}>{mfrUser.email}</p>
+                              <span className={styles.userRole}>{mfrUser.role?.name || 'No role'}</span>
+                              {mfrUser.pending_invitation && (
+                                <span className={styles.pendingBadge}>Invitation pending</span>
+                              )}
+                            </div>
+                            <div className={styles.userActions}>
+                              <button
+                                type="button"
+                                className={styles.resendButton}
+                                onClick={(e) => { e.stopPropagation(); handleResendInvitation(mfrUser.id); }}
+                                disabled={resendingUserId !== null}
+                                title="Resend invitation email"
+                              >
+                                {resendingUserId === mfrUser.id ? (
+                                  <span className={styles.resendButtonSpinner} />
+                                ) : (
+                                  <>
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className={styles.resendIcon}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    Resend email
+                                  </>
+                                )}
+                              </button>
+                              <span className={`${styles.statusBadge} ${mfrUser.is_active ? styles.active : styles.inactive}`}>
+                                {mfrUser.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
                           </div>
-                          <div className={styles.userActions}>
+                          {canActivate && activatingUserId !== mfrUser.id && (
                             <button
                               type="button"
-                              className={styles.resendButton}
-                              onClick={(e) => { e.stopPropagation(); handleResendInvitation(user.id); }}
-                              disabled={resendingUserId !== null}
-                              title="Resend invitation email"
+                              className={styles.activateButton}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenActivateForm(mfrUser.id)
+                              }}
+                              disabled={activateSubmitting}
                             >
-                              {resendingUserId === user.id ? (
-                                <span className={styles.resendButtonSpinner} />
-                              ) : (
-                                <>
-                                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className={styles.resendIcon}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                  </svg>
-                                  Resend email
-                                </>
-                              )}
+                              Activate & set password
                             </button>
-                            <span className={`${styles.statusBadge} ${user.is_active ? styles.active : styles.inactive}`}>
-                              {user.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
+                          )}
+                          {activatingUserId === mfrUser.id && (
+                            <form
+                              className={styles.activateForm}
+                              onSubmit={(e) => {
+                                e.preventDefault()
+                                handleActivateUser(mfrUser.id)
+                              }}
+                            >
+                              <p className={styles.activateFormHint}>
+                                Set a password to activate this account. The user will be able to log in immediately.
+                              </p>
+                              <div className={styles.activateFields}>
+                                <input
+                                  type="password"
+                                  className={styles.activateInput}
+                                  placeholder="New password (min. 8 characters)"
+                                  value={activatePassword}
+                                  onChange={(e) => setActivatePassword(e.target.value)}
+                                  autoComplete="new-password"
+                                  minLength={8}
+                                  required
+                                />
+                                <input
+                                  type="password"
+                                  className={styles.activateInput}
+                                  placeholder="Confirm password"
+                                  value={activateConfirm}
+                                  onChange={(e) => setActivateConfirm(e.target.value)}
+                                  autoComplete="new-password"
+                                  minLength={8}
+                                  required
+                                />
+                              </div>
+                              <div className={styles.activateFormActions}>
+                                <button
+                                  type="button"
+                                  className={styles.activateCancel}
+                                  onClick={resetActivateForm}
+                                  disabled={activateSubmitting}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  className={styles.activateSubmit}
+                                  disabled={activateSubmitting}
+                                >
+                                  {activateSubmitting ? 'Activating...' : 'Activate user'}
+                                </button>
+                              </div>
+                            </form>
+                          )}
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>

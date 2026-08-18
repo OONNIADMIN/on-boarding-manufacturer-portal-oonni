@@ -261,6 +261,20 @@
   .manufacturerCard {
     padding: $spacing-lg;
   }
+
+  .userCardMain {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .userActions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .activateFields {
+    grid-template-columns: 1fr;
+  }
 }
 
 @include respond-to('sm') {
@@ -422,8 +436,8 @@
 
 .userCard {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: $spacing-md;
   padding: $spacing-lg;
   background: $gray-50;
   border-radius: $radius-xl;
@@ -435,6 +449,13 @@
     box-shadow: $shadow-sm;
     border-color: $oonni-green;
   }
+}
+
+.userCardMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
 }
 
 .userInfo {
@@ -471,8 +492,120 @@
 .userActions {
   display: flex;
   align-items: center;
-  gap: $spacing-md;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: $spacing-sm;
   margin-left: $spacing-lg;
+}
+
+.activateButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $white;
+  background: $oonni-green;
+  border: 1px solid $oonni-green;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.usersActionError {
+  padding: $spacing-sm $spacing-md;
+  margin-bottom: $spacing-md;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: $radius-lg;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.activateForm {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding-top: $spacing-md;
+  border-top: 1px solid $gray-200;
+}
+
+.activateFormHint {
+  margin: 0;
+  font-size: $font-size-sm;
+  color: $gray-600;
+}
+
+.activateFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-sm;
+}
+
+.activateInput {
+  width: 100%;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+
+  &:focus {
+    outline: none;
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.1);
+  }
+}
+
+.activateFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+}
+
+.activateCancel {
+  padding: $spacing-xs $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $gray-700;
+  background: $white;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $gray-100;
+  }
+}
+
+.activateSubmit {
+  padding: $spacing-xs $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $white;
+  background: $oonni-green;
+  border: 1px solid $oonni-green;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
 }
 
 .resendSuccess {
