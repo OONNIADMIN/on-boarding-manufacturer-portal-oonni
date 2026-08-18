@@ -2,7 +2,8 @@
 
 import { useRef, ChangeEvent, useState } from 'react'
 import CatalogHeaderRowModal, { type CatalogFileSelection } from '@/components/modals/CatalogHeaderRowModal'
-import { parseSpreadsheetPreviewFromFile } from '@/lib/catalog-file-headers'
+import { MAX_HEADER_PREVIEW_ROWS, parseSpreadsheetPreviewFromFile } from '@/lib/catalog-file-headers'
+import { IMAGE_COLUMN_SAMPLE_ROWS } from '@/lib/catalog-column-detection'
 import { catalogColumnRulesAPI } from '@/lib/api'
 import type { CatalogColumnRuleRecord } from '@/lib/catalog-column-validation'
 import styles from './FilePicker.module.scss'
@@ -71,7 +72,10 @@ export default function CatalogFilePicker({
 
     setIsReadingFile(true)
     try {
-      const rows = await parseSpreadsheetPreviewFromFile(file)
+      const rows = await parseSpreadsheetPreviewFromFile(
+        file,
+        MAX_HEADER_PREVIEW_ROWS + IMAGE_COLUMN_SAMPLE_ROWS
+      )
       if (!rows.length) {
         const message = 'The file appears to be empty. Add your catalog data and try again.'
         onValidationError?.(message)
