@@ -6,16 +6,25 @@ import { Header } from '@/components'
 import CatalogFilePicker, { type CatalogFileSelection } from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
 import { authAPI, catalogAPI, catalogColumnRulesAPI, imageAPI, productAPI, type CatalogImageIngestProgress } from '@/lib/api'
-import { detectImageUrlColumn, detectSkuColumn } from '@/lib/catalog-column-detection'
+import { detectImageUrlColumns, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
+
+type CatalogUploadReport = {
+  catalogName: string
+  catalogId: number | null
+  productsCreated: number | null
+  imagesUploaded: number
+  imageColumns: number
+  uploadFailures: number
+}
 
 export default function CatalogsPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadSuccess, setUploadSuccess] = useState('')
+  const [uploadReport, setUploadReport] = useState<CatalogUploadReport | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
@@ -77,23 +86,36 @@ export default function CatalogsPage() {
     setHasUploadImages(count > 0)
   }
 
-  // Handle catalog file selection
+  const resolveManufacturerId = (currentUser: User | null): number | null => {
+    const raw = currentUser?.manufacturer_id ?? currentUser?.manufacturer?.id
+    if (raw == null) return null
+    const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+
   const handleCatalogFileSelect = (selection: CatalogFileSelection) => {
     setSelectedCatalogFile(selection.file)
     setCatalogHeaderRowIndex(selection.headerRowIndex)
     setCatalogColumnNames(selection.columnNames)
     setCatalogColumnMappings(selection.columnMappings)
     setUploadError(null)
+    setUploadReport(null)
+    void handleUploadCatalog(selection)
   }
 
   const handleBackToUploadStep = () => {
     setIsUploadCompleted(false)
-    setUploadSuccess('')
+    setUploadReport(null)
     setUploadError(null)
   }
 
-  const handleUploadCatalog = async () => {
-    if (!selectedCatalogFile) {
+  const handleUploadCatalog = async (selection?: CatalogFileSelection) => {
+    const catalogFile = selection?.file ?? selectedCatalogFile
+    const headerRowIndex = selection?.headerRowIndex ?? catalogHeaderRowIndex ?? 0
+    const columnNames = selection?.columnNames?.length ? selection.columnNames : catalogColumnNames
+    const columnMappings = selection?.columnMappings ?? catalogColumnMappings
+
+    if (!catalogFile) {
       setUploadError('Please select a catalog file')
       return
     }
@@ -103,32 +125,31 @@ export default function CatalogsPage() {
     setCatalogProcessingPhase(null)
     setImageIngestProgress(null)
     setUploadError(null)
-    setUploadSuccess('')
+    setUploadReport(null)
 
     try {
-      if (!user?.manufacturer_id) {
+      const manufacturerIdNum = resolveManufacturerId(user)
+      if (!manufacturerIdNum) {
         setUploadError('Manufacturer ID is missing. Please contact support.')
         return
       }
 
-      const manufacturerIdNum = parseInt(user.manufacturer_id.toString())
-
       const columnRules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
-      const columnsForUpload = catalogColumnNames.length ? catalogColumnNames : []
+      const columnsForUpload = columnNames.length ? columnNames : []
       const skuColForUpload =
         columnsForUpload.length
-          ? catalogColumnMappings['sku'] ?? detectSkuColumn(columnsForUpload, columnRules)
+          ? columnMappings['sku'] ?? detectSkuColumn(columnsForUpload, columnRules)
           : null
 
       const catalogResult = await catalogAPI.uploadFile(
-        selectedCatalogFile,
+        catalogFile,
         manufacturerIdNum,
-        catalogHeaderRowIndex ?? 0,
+        headerRowIndex,
         skuColForUpload ? { skuColumn: skuColForUpload } : undefined
       )
 
-      let columns: string[] = catalogColumnNames.length
-        ? catalogColumnNames
+      let columns: string[] = columnNames.length
+        ? columnNames
         : catalogResult.data_info?.column_names ?? []
       if (!columns.length && catalogResult.id) {
         try {
@@ -139,18 +160,16 @@ export default function CatalogsPage() {
         }
       }
 
-      if (catalogResult.id) {
-        try {
-          await catalogAPI.sendUploadNotification(catalogResult.id, 0, 0)
-        } catch (err) {
-          console.error('Failed to send admin notification:', err)
-        }
+      const catalogName = catalogResult.name || catalogFile.name || 'catalog'
+      const report: CatalogUploadReport = {
+        catalogName,
+        catalogId: catalogResult.id ?? null,
+        productsCreated: null,
+        imagesUploaded: 0,
+        imageColumns: 0,
+        uploadFailures: 0,
       }
 
-      const catalogName = catalogResult.name || 'catalog'
-      const catalogIdStr = catalogResult.id ? ` (ID: ${catalogResult.id})` : ''
-
-      let processingNote = ''
       if (catalogResult.id && columns.length) {
         setIsProcessingCatalog(true)
         setUploadError(null)
@@ -158,12 +177,9 @@ export default function CatalogsPage() {
           const columnRules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
           const skuCol =
             skuColForUpload ??
-            catalogColumnMappings['sku'] ??
+            columnMappings['sku'] ??
             detectSkuColumn(columns, columnRules)
-          if (!skuCol) {
-            processingNote =
-              ' No SKU column was detected — automatic product creation was skipped. Include a column such as "sku" to enable it.'
-          } else {
+          if (skuCol) {
             setCatalogProcessingPhase('products')
             let created = catalogResult.products_from_upload?.created_count ?? 0
             if (!catalogResult.products_from_upload) {
@@ -174,10 +190,23 @@ export default function CatalogsPage() {
               )
               created = productResult.created_count ?? 0
             }
-            const imgCol =
-              catalogColumnMappings['images'] ??
-              detectImageUrlColumn(columns, skuCol, columnRules)
-            if (imgCol && imgCol !== skuCol) {
+            report.productsCreated = created
+            const imgCols = [
+              ...new Set(
+                [
+                  ...(selection?.imageColumns ?? []),
+                  ...detectImageUrlColumns(
+                    selection?.headerCells?.length ? selection.headerCells : columns,
+                    skuCol,
+                    columnRules,
+                    selection?.sampleRows
+                  ),
+                ]
+                  .map((name) => String(name ?? '').trim())
+                  .filter((name) => name && name !== skuCol)
+              ),
+            ]
+            if (imgCols.length) {
               setCatalogProcessingPhase('images')
               setImageIngestProgress({
                 phase: 'uploading',
@@ -190,18 +219,16 @@ export default function CatalogsPage() {
               const ingestResult = await catalogAPI.ingestImagesFromSpreadsheetUrls(
                 catalogResult.id,
                 skuCol,
-                imgCol,
+                imgCols,
                 manufacturerIdNum,
                 {
                   onProgress: setImageIngestProgress,
-                  catalogFile: selectedCatalogFile,
+                  catalogFile,
                 }
               )
-              processingNote =
-                ` Created ${created} product(s) from "${skuCol}". Imported images from "${imgCol}" (${ingestResult.images_created ?? 0} linked, ` +
-                `${ingestResult.upload_failures ?? 0} fetch/upload issue(s)).`
-            } else {
-              processingNote = ` Created ${created} product(s) from "${skuCol}". No image URL column found (expected e.g. "images") — skipped link import.`
+              report.imageColumns = imgCols.length
+              report.imagesUploaded = ingestResult.images_created ?? 0
+              report.uploadFailures = ingestResult.upload_failures ?? 0
             }
           }
         } catch (procErr) {
@@ -216,16 +243,21 @@ export default function CatalogsPage() {
           setCatalogProcessingPhase(null)
           setImageIngestProgress(null)
         }
-      } else if (catalogResult.id && !columns.length) {
-        processingNote =
-          ' Column headers could not be read — automatic processing was skipped. Check the file format or header row selection.'
       }
 
-      const successMessage = `Catalog "${catalogName}"${catalogIdStr} uploaded.${processingNote}${
-        catalogResult.id ? ' Admin users have been notified.' : ''
-      }`
+      if (catalogResult.id) {
+        try {
+          await catalogAPI.sendUploadNotification(
+            catalogResult.id,
+            report.imagesUploaded,
+            report.uploadFailures
+          )
+        } catch (err) {
+          console.error('Failed to send admin notification:', err)
+        }
+      }
 
-      setUploadSuccess(successMessage)
+      setUploadReport(report)
       setSelectedCatalogFile(null)
       setCatalogHeaderRowIndex(null)
       setCatalogColumnNames([])
@@ -303,14 +335,46 @@ export default function CatalogsPage() {
         />
 
         <div className={styles.content}>
-          {/* Success Messages */}
-          {uploadSuccess && (
-            <div className={styles.successMessage}>
-              <svg className={styles.successIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {uploadSuccess}
-            </div>
+          {uploadReport && (
+            <section className={styles.uploadReport} aria-labelledby="catalog-upload-report-title">
+              <div className={styles.uploadReportHeader}>
+                <svg className={styles.successIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h2 id="catalog-upload-report-title" className={styles.uploadReportTitle}>
+                    Catalog uploaded
+                  </h2>
+                  <p className={styles.uploadReportLead}>
+                    Your catalog <strong>{uploadReport.catalogName}</strong>
+                    {uploadReport.catalogId ? ` (ID: ${uploadReport.catalogId})` : ''} is uploaded
+                    and will be processed by the OONNI catalog team.
+                  </p>
+                </div>
+              </div>
+              <dl className={styles.uploadReportStats}>
+                {uploadReport.productsCreated != null ? (
+                  <div className={styles.uploadReportStat}>
+                    <dt>Products created</dt>
+                    <dd>{uploadReport.productsCreated}</dd>
+                  </div>
+                ) : null}
+                <div className={styles.uploadReportStat}>
+                  <dt>Images uploaded</dt>
+                  <dd>{uploadReport.imagesUploaded}</dd>
+                </div>
+                <div className={styles.uploadReportStat}>
+                  <dt>Image columns imported</dt>
+                  <dd>{uploadReport.imageColumns}</dd>
+                </div>
+                {uploadReport.uploadFailures > 0 ? (
+                  <div className={`${styles.uploadReportStat} ${styles.uploadReportStatWarn}`}>
+                    <dt>Images that could not be imported</dt>
+                    <dd>{uploadReport.uploadFailures}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
           )}
 
           {/* Error Messages */}
