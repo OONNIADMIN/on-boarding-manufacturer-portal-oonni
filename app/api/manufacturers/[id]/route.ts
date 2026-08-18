@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
-import { ok, err, unauthorized, notFound } from "@/lib/api-response";
+import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
+import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,22 +20,37 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (error || !user) return unauthorized(error ?? undefined);
 
   const { id } = await params;
+  const manufacturerId = parseInt(id, 10);
+  if (!Number.isFinite(manufacturerId) || manufacturerId < 1) return err("Invalid manufacturer id");
+
+  const isAdmin = isAdminUser(user);
+  const ownId = effectiveManufacturerId(user);
+  if (!isAdmin && ownId !== manufacturerId) return forbidden("You can only update your own manufacturer");
+
   try {
     const body = await req.json();
     const data: {
       name?: string;
       thumbnail?: string | null;
       imagekit_media_root?: string | null;
-    } = {
-      name: body.name ?? undefined,
-      thumbnail: body.thumbnail ?? undefined,
-    };
-    if (user.role.name === "admin" && "imagekit_media_root" in body) {
+    } = {};
+
+    if (typeof body.name === "string") {
+      const name = body.name.trim();
+      if (!name) return err("name cannot be empty");
+      if (name.length > 255) return err("name is too long");
+      data.name = name;
+    }
+    if ("thumbnail" in body) {
+      data.thumbnail = body.thumbnail ?? null;
+    }
+    if (isAdmin && "imagekit_media_root" in body) {
       const v = body.imagekit_media_root;
       data.imagekit_media_root = v == null || v === "" ? null : String(v).trim();
     }
+
     const mfr = await prisma.manufacturer.update({
-      where: { id: parseInt(id, 10) },
+      where: { id: manufacturerId },
       data,
     });
     return ok(mfr);

@@ -107,6 +107,57 @@
   color: $error;
 }
 
+.infoInput {
+  min-width: 16rem;
+  max-width: 100%;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid $gray-300;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: $gray-900;
+  background: $white;
+
+  &:focus {
+    outline: none;
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.1);
+  }
+}
+
+.formError,
+.formSuccess {
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-lg;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.formError {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.formSuccess {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: $spacing-sm;
+}
+
+.saveButton {
+  @include button-base;
+  background: $oonni-green;
+  color: $white;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+}
+
 
 // Responsive
 @include respond-to('md') {
