@@ -14,8 +14,12 @@ export function defaultManufacturerMediaRoot(m: Pick<Manufacturer, "id" | "slug"
   return `/${slugPart}`;
 }
 
+export type ManufacturerMediaPathInput = Pick<Manufacturer, "id" | "slug"> & {
+  imagekit_media_root?: string | null;
+};
+
 /** Root path in ImageKit (no trailing slash). Subfolders: `images`, `catalogs`. */
-export function manufacturerImageKitRoot(m: Manufacturer): string {
+export function manufacturerImageKitRoot(m: ManufacturerMediaPathInput): string {
   const custom = m.imagekit_media_root?.trim();
   if (custom) {
     const normalized = custom.startsWith("/") ? custom : `/${custom}`;
@@ -24,10 +28,10 @@ export function manufacturerImageKitRoot(m: Manufacturer): string {
   return defaultManufacturerMediaRoot(m);
 }
 
-export function manufacturerImageKitImagesFolder(m: Manufacturer): string {
+export function manufacturerImageKitImagesFolder(m: ManufacturerMediaPathInput): string {
   return `${manufacturerImageKitRoot(m)}/images`;
 }
 
-export function manufacturerImageKitCatalogsFolder(m: Manufacturer): string {
+export function manufacturerImageKitCatalogsFolder(m: ManufacturerMediaPathInput): string {
   return `${manufacturerImageKitRoot(m)}/catalogs`;
 }

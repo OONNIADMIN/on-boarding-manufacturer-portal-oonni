@@ -1,4 +1,5 @@
 import ImageKit, { APIConnectionError, AuthenticationError, toFile } from "@imagekit/nodejs";
+import { manufacturerImageKitRoot } from "@/lib/manufacturer-media-path";
 
 let imagekitClient: ImageKit | null = null;
 
@@ -22,6 +23,19 @@ function getImageKit(): ImageKit {
 /** True when the private key is set (upload may still fail if the key is wrong). */
 export function isImageKitUploadConfigured(): boolean {
   return Boolean(process.env.IMAGEKIT_PRIVATE_KEY?.trim());
+}
+
+export function getImageKitIntegrationStatus(): {
+  private_key_configured: boolean;
+  url_endpoint_configured: boolean;
+  url_endpoint: string;
+} {
+  const urlEndpoint = imageKitDeliveryBase();
+  return {
+    private_key_configured: isImageKitUploadConfigured(),
+    url_endpoint_configured: Boolean(urlEndpoint),
+    url_endpoint: urlEndpoint,
+  };
 }
 
 /** User-facing hint when upload/delete to ImageKit fails. */
@@ -653,4 +667,69 @@ export async function downloadImageKitFileBuffer(url: string): Promise<Buffer> {
     throw new Error(`Failed to download ImageKit file (${res.status})`);
   }
   return Buffer.from(await res.arrayBuffer());
+}
+
+function imageKitFolderAlreadyExists(status: number, body: string): boolean {
+  if (status === 409) return true;
+  return /already exists|folder exists/i.test(body);
+}
+
+/** Create an empty Media Library folder. Idempotent if the folder already exists. */
+export async function createImageKitFolder(
+  folderName: string,
+  parentFolderPath = "/"
+): Promise<void> {
+  const name = folderName.replace(/^\/+|\/+$/g, "").trim();
+  if (!name) return;
+
+  let parent = parentFolderPath.trim() || "/";
+  if (!parent.startsWith("/")) parent = `/${parent}`;
+  parent = parent.replace(/\/+$/, "") || "/";
+
+  const auth = Buffer.from(`${requireImageKitPrivateKey()}:`).toString("base64");
+  const res = await fetch("https://api.imagekit.io/v1/folder", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folderName: name, parentFolderPath: parent }),
+  });
+
+  if (res.ok) return;
+  const body = await res.text();
+  if (imageKitFolderAlreadyExists(res.status, body)) return;
+  throw new Error(`ImageKit create folder failed (${res.status}): ${body || res.statusText}`);
+}
+
+/**
+ * Ensure `/{slug}`, `/{slug}/images` and `/{slug}/catalogs` exist in ImageKit.
+ * Does not throw — logs and returns false if ImageKit is not configured or the API fails.
+ */
+export async function ensureManufacturerImageKitFolders(m: {
+  id: number;
+  slug: string;
+  imagekit_media_root?: string | null;
+}): Promise<{ ok: boolean; root: string; error?: string }> {
+  const root = manufacturerImageKitRoot(m);
+  const folderName = root.replace(/^\/+|\/+$/g, "");
+
+  if (!isImageKitUploadConfigured()) {
+    return {
+      ok: false,
+      root,
+      error: "IMAGEKIT_PRIVATE_KEY is not set",
+    };
+  }
+
+  try {
+    await createImageKitFolder(folderName, "/");
+    await createImageKitFolder("images", root);
+    await createImageKitFolder("catalogs", root);
+    return { ok: true, root };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to create ImageKit folders";
+    console.error("[imagekit] ensureManufacturerImageKitFolders:", message);
+    return { ok: false, root, error: message };
+  }
 }
