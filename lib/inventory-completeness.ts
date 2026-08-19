@@ -257,6 +257,12 @@ export function completenessStatusLabel(status: CompletenessStatus): string {
   return "Incomplete";
 }
 
+/** Map a completeness issue field to the Excel header used in bulk edit files. */
+export function completenessIssueColumn(field: string): string {
+  if (field.startsWith("Attribute: ")) return field.slice("Attribute: ".length);
+  return field;
+}
+
 export type CompletenessFilter = {
   status?: CompletenessStatus | "";
   issues?: CompletenessIssueKind[];

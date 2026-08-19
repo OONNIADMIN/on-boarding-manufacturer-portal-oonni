@@ -360,6 +360,16 @@
   color: $error;
 }
 
+.notice {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-sm;
+}
+
 .empty,
 .loadingRow,
 .loadingScreen {

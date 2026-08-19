@@ -1877,6 +1877,60 @@ export const inventoryAPI = {
     return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, { method: 'DELETE' })
   },
 
+  async downloadBulk(kind: 'products' | 'variants', options?: {
+    search?: string
+    completeness?: string
+    issues?: string[]
+  }): Promise<void> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const params = new URLSearchParams({ kind })
+    if (options?.search?.trim()) params.set('search', options.search.trim())
+    if (options?.completeness?.trim()) params.set('completeness', options.completeness.trim())
+    if (options?.issues?.length) params.set('issues', options.issues.join(','))
+    const response = await fetch(`${API_URL}/inventory/export?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to download inventory')
+    }
+    const blob = await response.blob()
+    const cd = response.headers.get('Content-Disposition')
+    let filename = `inventory-${kind}.xlsx`
+    const quoted = cd?.match(/filename="([^"]+)"/)
+    if (quoted?.[1]) filename = quoted[1]
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  async uploadBulk(file: File, kind?: 'products' | 'variants'): Promise<{
+    kind: 'products' | 'variants'
+    updated: number
+    skipped: number
+    errors: string[]
+  }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const formData = new FormData()
+    formData.append('file', file)
+    if (kind) formData.append('kind', kind)
+    const response = await fetch(`${API_URL}/inventory/import`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to import inventory')
+    }
+    return response.json()
+  },
+
   async sync(): Promise<{ seller_id: string; products_synced: number; variants_synced: number }> {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')

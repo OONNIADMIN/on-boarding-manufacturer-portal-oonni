@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ColumnDef, ExpandedState, OnChangeFn, PaginationState, SortingState } from '@tanstack/react-table'
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, Plus, Upload } from 'lucide-react'
 import {
   Header,
   DataTable,
@@ -255,6 +255,9 @@ export default function InventoryPage() {
   const [variantsByProduct, setVariantsByProduct] = useState<Record<number, InventoryVariantRow[]>>({})
   const [loadingVariantsId, setLoadingVariantsId] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isBulkBusy, setIsBulkBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const bulkFileRef = useRef<HTMLInputElement>(null)
   const [productDialog, setProductDialog] = useState<{ mode: 'create' } | { mode: 'edit' | 'view'; product: InventoryProductRow } | null>(null)
   const [variantDialog, setVariantDialog] = useState<
     | { mode: 'create'; productId: number }
@@ -458,6 +461,48 @@ export default function InventoryPage() {
     }
   }
 
+  const bulkFilter = {
+    search,
+    completeness: completenessStatus || undefined,
+    issues: issueFilters,
+  }
+
+  const handleDownloadBulk = async (kind: 'products' | 'variants') => {
+    setIsBulkBusy(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await inventoryAPI.downloadBulk(kind, bulkFilter)
+      setNotice(
+        kind === 'variants'
+          ? 'Variants spreadsheet downloaded. Keep variant_id and product_id unchanged so each variant stays with its product.'
+          : 'Products spreadsheet downloaded. Keep product_id unchanged so variants stay linked.'
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to download inventory')
+    } finally {
+      setIsBulkBusy(false)
+    }
+  }
+
+  const handleUploadBulk = async (file: File) => {
+    setIsBulkBusy(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await inventoryAPI.uploadBulk(file)
+      const extra = result.errors.length ? ` ${result.errors.slice(0, 3).join(' ')}` : ''
+      setNotice(`Updated ${result.updated} ${result.kind}. Skipped ${result.skipped}.${extra}`)
+      setVariantsByProduct({})
+      setExpanded({})
+      await refreshList()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to import inventory')
+    } finally {
+      setIsBulkBusy(false)
+    }
+  }
+
   const handleSync = async () => {
     setIsSyncing(true)
     setError(null)
@@ -592,7 +637,7 @@ export default function InventoryPage() {
     <main className={styles.main}>
       <div className={styles.container}>
         <Header
-          subtitle="Marketplace products and variants"
+          subtitle="Traide products and variants"
           user={user}
           showNavigation={true}
           currentPage="inventory"
@@ -604,6 +649,7 @@ export default function InventoryPage() {
               <h2 className={styles.title}>Manage all inventory</h2>
               <p className={styles.subtitle}>
                 Search, sort and paginate products. Completeness flags N/A, zeros, short text, and empty fields.
+                Download products or variants separately to bulk-edit; gray ID columns keep the product–variant link.
               </p>
             </div>
             <div className={styles.toolbarActions}>
@@ -615,19 +661,58 @@ export default function InventoryPage() {
                 <Plus size={16} />
                 Add product
               </button>
-              <button type="button" className={styles.syncButton} onClick={() => void handleSync()} disabled={isSyncing}>
-                {isSyncing ? 'Syncing…' : 'Refresh from marketplace'}
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={() => void handleDownloadBulk('products')}
+                disabled={isBulkBusy || isSyncing}
+              >
+                <Download size={16} />
+                {isBulkBusy ? 'Working…' : 'Download products'}
+              </button>
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={() => void handleDownloadBulk('variants')}
+                disabled={isBulkBusy || isSyncing}
+              >
+                <Download size={16} />
+                {isBulkBusy ? 'Working…' : 'Download variants'}
+              </button>
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={() => bulkFileRef.current?.click()}
+                disabled={isBulkBusy || isSyncing}
+              >
+                <Upload size={16} />
+                Upload edits
+              </button>
+              <input
+                ref={bulkFileRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  if (file) void handleUploadBulk(file)
+                }}
+              />
+              <button type="button" className={styles.syncButton} onClick={() => void handleSync()} disabled={isSyncing || isBulkBusy}>
+                {isSyncing ? 'Syncing…' : 'Refresh from Traide'}
               </button>
             </div>
           </div>
 
           {error ? <div className={styles.error}>{error}</div> : null}
+          {notice ? <div className={styles.notice}>{notice}</div> : null}
 
           <div className={styles.tableCard}>
             {isSyncing ? (
               <div className={styles.loadingRow}>
                 <div className={styles.spinner} />
-                <p>Syncing products from Nautical…</p>
+                <p>Syncing products from Traide…</p>
               </div>
             ) : (
               <DataTable

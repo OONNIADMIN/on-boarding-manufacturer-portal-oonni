@@ -10,7 +10,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
 import { err, forbidden, ok, unauthorized } from "@/lib/api-response";
-import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/nautical-client";
+import { getNauticalConfig } from "@/lib/nautical-client";
 import { syncManufacturerInventory } from "@/lib/nautical-inventory";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
   if (!manufacturerId) return err("Manufacturer ID is missing", 400);
 
   if (!getNauticalConfig()) {
-    return err(nauticalNotConfiguredMessage(), 503);
+    return err("Traide integration is not configured.", 503);
   }
 
   try {
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     return ok(result);
   } catch (e) {
     console.error("inventory sync:", e);
-    const message = e instanceof Error ? e.message : "Failed to sync inventory from Nautical";
+    const message = e instanceof Error ? e.message : "Failed to sync inventory from Traide";
     return err(message, 502);
   }
 }
