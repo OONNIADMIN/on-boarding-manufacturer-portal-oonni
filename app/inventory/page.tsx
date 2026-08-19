@@ -24,6 +24,7 @@ import {
   type InventoryVariantRow,
 } from '@/lib/api'
 import { User } from '@/types'
+import { mapInventoryAttributes } from '@/lib/inventory-attributes'
 import {
   evaluateProductCompleteness,
   evaluateVariantCompleteness,
@@ -39,24 +40,52 @@ const COMPLETENESS_ISSUE_OPTIONS: Array<{ id: CompletenessIssueKind; label: stri
   { id: 'short', label: 'Short text' },
 ]
 
+function imageUrls(images: Array<{ url?: string | null }> | null | undefined): string[] {
+  if (!Array.isArray(images)) return []
+  return images.map((image) => String(image?.url ?? '').trim()).filter(Boolean)
+}
+
 function firstImageUrl(product: InventoryProductRow): string | null {
-  const url = product.images?.[0]?.url?.trim()
-  return url || null
+  return imageUrls(product.images)[0] ?? null
+}
+
+function ImageGallery({
+  urls,
+  alt,
+  size = 'sm',
+}: {
+  urls: string[]
+  alt: string
+  size?: 'sm' | 'md'
+}) {
+  if (!urls.length) {
+    return <span className={styles.thumbFallback} aria-hidden="true" />
+  }
+  return (
+    <div className={size === 'md' ? styles.imageGalleryMd : styles.imageGallery} role="list">
+      {urls.map((url, index) => (
+        <a
+          key={`${url}-${index}`}
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.imageLink}
+          title={`${alt} image ${index + 1}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={`${alt} ${index + 1}`} className={styles.thumb} />
+        </a>
+      ))}
+    </div>
+  )
 }
 
 function attributeRows(attrs: InventoryProductRow['attributes']): Array<{ name: string; value: string }> {
-  if (!Array.isArray(attrs)) return []
-  return attrs
-    .map((attr) => {
-      const name = String(attr?.name ?? '').trim()
-      if (!name) return null
-      const value =
-        String(attr.value ?? '').trim() ||
-        String(attr.values?.[0]?.name ?? attr.values?.[0]?.value ?? '').trim() ||
-        '—'
-      return { name, value }
-    })
-    .filter((row): row is { name: string; value: string } => Boolean(row))
+  return mapInventoryAttributes(attrs).map((attr) => ({
+    name: attr.name,
+    value: attr.value.trim() || '—',
+  }))
 }
 
 function AttributeTable({
@@ -96,6 +125,7 @@ function AttributeTable({
 function VariantInnerTable({
   productId,
   variants,
+  productImages,
   onCreate,
   onView,
   onEdit,
@@ -103,6 +133,7 @@ function VariantInnerTable({
 }: {
   productId: number
   variants: InventoryVariantRow[]
+  productImages?: InventoryProductRow['images']
   onCreate: (productId: number) => void
   onView: (productId: number, variant: InventoryVariantRow) => void
   onEdit: (productId: number, variant: InventoryVariantRow) => void
@@ -114,6 +145,19 @@ function VariantInnerTable({
 
   const columns = useMemo<ColumnDef<InventoryVariantRow>[]>(
     () => [
+      {
+        id: 'images',
+        header: 'Images',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className={styles.imageCell}>
+            <ImageGallery
+              urls={imageUrls(row.original.images?.length ? row.original.images : productImages)}
+              alt={row.original.name || 'Variant'}
+            />
+          </div>
+        ),
+      },
       {
         accessorKey: 'name',
         header: 'Name',
@@ -154,7 +198,7 @@ function VariantInnerTable({
         ),
       },
     ],
-    [onDelete, onEdit, onView, productId]
+    [onDelete, onEdit, onView, productId, productImages]
   )
 
   useEffect(() => {
@@ -673,6 +717,7 @@ export default function InventoryPage() {
                       ) : (
                         <VariantInnerTable
                           productId={product.id}
+                          productImages={product.images}
                           variants={loadedVariants ?? []}
                           onCreate={(productId) => setVariantDialog({ mode: 'create', productId })}
                           onView={(productId, variant) => setVariantDialog({ mode: 'view', productId, variant })}

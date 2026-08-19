@@ -6,6 +6,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { LOCAL_INVENTORY_PREFIX } from "@/lib/inventory-access";
+import { mapInventoryAttributes } from "@/lib/inventory-attributes";
+import { normalizeInventoryImages } from "@/lib/inventory-crud";
 import { nauticalGraphql } from "@/lib/nautical-client";
 
 export const INVENTORY_PRODUCTS_QUERY = `
@@ -23,6 +25,7 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
         id
         name
         images {
+           id
           url
         }
         descriptionHtml
@@ -62,7 +65,9 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
         }
         attributes {
           attribute {
+            id
             name
+            inputType
           }
           values {
             slug
@@ -75,17 +80,25 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
           name
           sku
           seoDescription
+          seoTitle
           dimensions {
             width
             height
             length
             unit
           }
+          images {
+            id
+            url
+          }
           attributes {
             attribute {
+              id
               name
+              inputType
             }
             values {
+              slug
               name
               value
             }
@@ -123,7 +136,9 @@ type AttributeValue = {
 
 type NamedAttribute = {
   attribute?: {
+    id?: string | null;
     name?: string | null;
+    inputType?: string | null;
     values?: AttributeValue[] | null;
   } | null;
   values?: AttributeValue[] | null;
@@ -159,11 +174,13 @@ export type NauticalInventoryProductNode = {
   category?: { id?: string | null; slug?: string | null; name?: string | null } | null;
   productType?: { id?: string | null; slug?: string | null; name?: string | null } | null;
   attributes?: NamedAttribute[] | null;
-  variants?: Array<{
+    variants?: Array<{
     id: string;
     name?: string | null;
     sku?: string | null;
     seoDescription?: string | null;
+    images?: Array<{ id?: string | null; url?: string | null }> | null;
+    media?: Array<{ id?: string | null; url?: string | null }> | null;
     dimensions?: {
       length?: number | null;
       width?: number | null;
@@ -190,24 +207,18 @@ function asJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
 }
 
-function firstAttributeValue(values: AttributeValue[] | null | undefined): string | null {
-  const first = (values ?? []).find((v) => v?.name || v?.value);
-  if (!first) return null;
-  return String(first.name || first.value || "").trim() || null;
+function collectVariantImages(variant: { images?: unknown; media?: unknown }) {
+  const fromImages = normalizeInventoryImages(variant.images);
+  if (fromImages.length) return fromImages;
+  return normalizeInventoryImages(variant.media);
 }
 
-function mapAttributes(list: NamedAttribute[] | null | undefined) {
-  return (list ?? [])
-    .map((item) => {
-      const name = item.attribute?.name?.trim();
-      if (!name) return null;
-      const assigned = item.values?.length ? item.values : item.attribute?.values;
-      return {
-        name,
-        value: firstAttributeValue(assigned),
-      };
-    })
-    .filter(Boolean);
+async function persistVariantImages(variantRowId: number, images: unknown) {
+  await prisma.$executeRawUnsafe(
+    `UPDATE inventory_variants SET images = $1::jsonb WHERE id = $2`,
+    JSON.stringify(images ?? []),
+    variantRowId
+  );
 }
 
 type ApprovedSellerNode = {
@@ -320,7 +331,7 @@ export async function syncManufacturerInventory(manufacturerId: number): Promise
   for (const node of nodes) {
     if (!node.id) continue;
     seenIds.add(node.id);
-    const attributes = mapAttributes(node.attributes);
+    const attributes = mapInventoryAttributes(node.attributes);
     const variants = node.variants ?? [];
 
     const product = await prisma.inventoryProduct.upsert({
@@ -402,8 +413,9 @@ export async function syncManufacturerInventory(manufacturerId: number): Promise
     for (const variant of variants) {
       if (!variant.id) continue;
       variantsSynced += 1;
-      const variantAttributes = mapAttributes(variant.attributes);
-      await prisma.inventoryVariant.upsert({
+      const variantAttributes = mapInventoryAttributes(variant.attributes);
+      const variantImages = collectVariantImages(variant);
+      const saved = await prisma.inventoryVariant.upsert({
         where: {
           inventory_product_id_nautical_id: {
             inventory_product_id: product.id,
@@ -429,6 +441,7 @@ export async function syncManufacturerInventory(manufacturerId: number): Promise
           payload: asJson(variant),
         },
       });
+      await persistVariantImages(saved.id, variantImages);
     }
   }
 

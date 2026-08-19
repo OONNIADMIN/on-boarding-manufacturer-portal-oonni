@@ -192,6 +192,31 @@
   }
 }
 
+.imageGallery,
+.imageGalleryMd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 14rem;
+}
+
+.imageGalleryMd {
+  max-width: none;
+  gap: 0.5rem;
+}
+
+.imageCell {
+  white-space: normal;
+  min-width: 6.5rem;
+}
+
+.imageLink {
+  display: block;
+  line-height: 0;
+  border-radius: $radius-md;
+}
+
 .thumb,
 .thumbFallback {
   width: 2.5rem;
@@ -200,6 +225,11 @@
   object-fit: cover;
   background: $gray-100;
   flex-shrink: 0;
+}
+
+.imageGalleryMd .thumb {
+  width: 4.5rem;
+  height: 4.5rem;
 }
 
 .slug {

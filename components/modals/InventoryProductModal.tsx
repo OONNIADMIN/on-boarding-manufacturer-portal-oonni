@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import type { InventoryAttribute, InventoryProductInput, InventoryProductRow } from '@/lib/api'
+import { mapInventoryAttributes } from '@/lib/inventory-attributes'
 import styles from './InventoryFormModal.module.scss'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -18,13 +19,9 @@ type InventoryProductModalProps = {
 type AttrRow = { name: string; value: string }
 
 function attributeRows(attrs: InventoryAttribute[] | undefined): AttrRow[] {
-  if (!Array.isArray(attrs) || !attrs.length) return [{ name: '', value: '' }]
-  return attrs.map((attr) => ({
-    name: String(attr.name ?? ''),
-    value:
-      String(attr.value ?? '').trim() ||
-      String(attr.values?.[0]?.name ?? attr.values?.[0]?.value ?? '').trim(),
-  }))
+  const mapped = mapInventoryAttributes(attrs)
+  if (!mapped.length) return [{ name: '', value: '' }]
+  return mapped.map((attr) => ({ name: attr.name, value: attr.value }))
 }
 
 const emptyForm = {

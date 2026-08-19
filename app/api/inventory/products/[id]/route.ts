@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
-import { parseProductInput } from "@/lib/inventory-crud";
+import { parseProductInput, resolveVariantImages } from "@/lib/inventory-crud";
+import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,16 @@ export async function GET(req: NextRequest, { params }: Params) {
     orderBy: [{ sku: "asc" }, { name: "asc" }],
   });
 
-  return ok({ ...product, variants, variant_count: variants.length });
+  return ok({
+    ...product,
+    attributes: resolveInventoryAttributes(product),
+    variants: variants.map((variant) => ({
+      ...variant,
+      images: resolveVariantImages(variant, product.payload, product.images),
+      attributes: resolveInventoryAttributes(variant),
+    })),
+    variant_count: variants.length,
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { slugify } from "@/lib/api-response";
+import { mapInventoryAttributes } from "@/lib/inventory-attributes";
 
 export type AttributeInput = { name: string; value: string };
 
@@ -26,6 +27,71 @@ export type VariantWriteInput = {
   attributes: Prisma.InputJsonValue;
 };
 
+export type InventoryImage = { id?: string | null; url?: string | null };
+
+function imageFromUnknown(item: unknown): InventoryImage | null {
+  if (!item || typeof item !== "object") return null;
+  const row = item as Record<string, unknown>;
+  const nested = row.node && typeof row.node === "object" ? (row.node as Record<string, unknown>) : row;
+  const url = String(nested.url ?? nested.originalUrl ?? nested.original_url ?? "").trim();
+  const id = nested.id == null ? null : String(nested.id);
+  if (!url && !id) return null;
+  return { id, url: url || null };
+}
+
+export function normalizeInventoryImages(value: unknown): InventoryImage[] {
+  if (Array.isArray(value)) {
+    return value.map(imageFromUnknown).filter((item): item is InventoryImage => Boolean(item));
+  }
+  if (value && typeof value === "object" && Array.isArray((value as { edges?: unknown }).edges)) {
+    return ((value as { edges: unknown[] }).edges)
+      .map(imageFromUnknown)
+      .filter((item): item is InventoryImage => Boolean(item));
+  }
+  return [];
+}
+
+/** Prefer the `images` column; fall back to variant payload, parent product payload, then product images. */
+export function resolveVariantImages(
+  variant: { images?: unknown; payload?: unknown; nautical_id?: string | null },
+  productPayload?: unknown,
+  productImages?: unknown
+): InventoryImage[] {
+  const fromColumn = normalizeInventoryImages(variant.images);
+  if (fromColumn.length) return fromColumn;
+
+  if (variant.payload && typeof variant.payload === "object") {
+    const fromVariantPayload = collectNodeImages(variant.payload);
+    if (fromVariantPayload.length) return fromVariantPayload;
+  }
+
+  if (productPayload && typeof productPayload === "object" && variant.nautical_id) {
+    const nested = (productPayload as { variants?: unknown }).variants;
+    if (Array.isArray(nested)) {
+      const match = nested.find((item) => {
+        if (!item || typeof item !== "object") return false;
+        return String((item as { id?: unknown }).id ?? "") === variant.nautical_id;
+      });
+      const fromMatch = match && typeof match === "object" ? collectNodeImages(match) : [];
+      if (fromMatch.length) return fromMatch;
+      if (nested.length === 1) {
+        const only = collectNodeImages(nested[0]);
+        if (only.length) return only;
+      }
+    }
+  }
+
+  return normalizeInventoryImages(productImages);
+}
+
+function collectNodeImages(node: unknown): InventoryImage[] {
+  if (!node || typeof node !== "object") return [];
+  const row = node as { images?: unknown; media?: unknown };
+  const fromImages = normalizeInventoryImages(row.images);
+  if (fromImages.length) return fromImages;
+  return normalizeInventoryImages(row.media);
+}
+
 function asOptionalString(value: unknown): string | null {
   if (value == null) return null;
   const text = String(value).trim();
@@ -40,22 +106,10 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
 }
 
 export function parseAttributes(value: unknown): AttributeInput[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const name = String(row.name ?? "").trim();
-      if (!name) return null;
-      const nested = Array.isArray(row.values) ? row.values[0] : null;
-      const nestedValue =
-        nested && typeof nested === "object"
-          ? String((nested as { name?: unknown; value?: unknown }).name ?? (nested as { value?: unknown }).value ?? "").trim()
-          : "";
-      const parsed = String(row.value ?? "").trim() || nestedValue;
-      return { name, value: parsed };
-    })
-    .filter((row): row is AttributeInput => Boolean(row));
+  return mapInventoryAttributes(value).map((attr) => ({
+    name: attr.name,
+    value: attr.value,
+  }));
 }
 
 export function attributesToJson(attrs: AttributeInput[]): Prisma.InputJsonValue {

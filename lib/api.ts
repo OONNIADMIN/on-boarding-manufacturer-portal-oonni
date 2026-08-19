@@ -1699,6 +1699,7 @@ export const productAPI = {
 export type InventoryAttribute = {
   name: string
   value?: string | null
+  inputType?: string | null
   values?: Array<{ slug?: string | null; name?: string | null; value?: string | null }>
 }
 
@@ -1715,6 +1716,7 @@ export type InventoryVariantRow = {
     unit?: string | null
   } | null
   attributes: InventoryAttribute[]
+  images: Array<{ id?: string | null; url?: string | null }>
   completeness?: EntityCompleteness
 }
 

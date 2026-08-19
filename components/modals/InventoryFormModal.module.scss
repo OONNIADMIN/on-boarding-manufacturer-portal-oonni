@@ -115,6 +115,26 @@
   color: $gray-700;
 }
 
+.imageGallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.imageLink {
+  display: block;
+  line-height: 0;
+  border-radius: $radius-md;
+}
+
+.imageThumb {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border-radius: $radius-md;
+  background: $gray-100;
+}
+
 .attrList {
   @include flex-column;
   gap: 0.5rem;

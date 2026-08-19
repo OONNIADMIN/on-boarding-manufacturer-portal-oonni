@@ -170,6 +170,7 @@ model InventoryVariant {
   name                 String   @db.VarChar(500)
   sku                  String?  @db.VarChar(255)
   seo_description      String?  @db.Text
+  images               Json     @default("[]")
   dimensions           Json?
   attributes           Json     @default("[]")
   payload              Json?

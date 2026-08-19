@@ -1,18 +1,28 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+/** Bump when Prisma schema fields change so the Next.js singleton is recreated. */
+const PRISMA_CLIENT_GENERATION = 2;
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaGeneration?: number;
+};
 
 function getPrisma(): PrismaClient {
-  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  if (globalForPrisma.prisma && globalForPrisma.prismaGeneration === PRISMA_CLIENT_GENERATION) {
+    return globalForPrisma.prisma;
+  }
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
   const adapter = new PrismaPg({ connectionString: url });
-  globalForPrisma.prisma = new PrismaClient({
+  const client = new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
-  return globalForPrisma.prisma;
+  globalForPrisma.prisma = client;
+  globalForPrisma.prismaGeneration = PRISMA_CLIENT_GENERATION;
+  return client;
 }
 
 export const prisma = new Proxy({} as PrismaClient, {

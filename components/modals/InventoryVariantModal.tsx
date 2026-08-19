@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import type { InventoryAttribute, InventoryVariantInput, InventoryVariantRow } from '@/lib/api'
+import { mapInventoryAttributes } from '@/lib/inventory-attributes'
 import styles from './InventoryFormModal.module.scss'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -18,13 +19,9 @@ type InventoryVariantModalProps = {
 type AttrRow = { name: string; value: string }
 
 function attributeRows(attrs: InventoryAttribute[] | undefined): AttrRow[] {
-  if (!Array.isArray(attrs) || !attrs.length) return [{ name: '', value: '' }]
-  return attrs.map((attr) => ({
-    name: String(attr.name ?? ''),
-    value:
-      String(attr.value ?? '').trim() ||
-      String(attr.values?.[0]?.name ?? attr.values?.[0]?.value ?? '').trim(),
-  }))
+  const mapped = mapInventoryAttributes(attrs)
+  if (!mapped.length) return [{ name: '', value: '' }]
+  return mapped.map((attr) => ({ name: attr.name, value: attr.value }))
 }
 
 const emptyForm = {
@@ -115,6 +112,30 @@ export default function InventoryVariantModal({
 
         <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
           {error ? <div className={styles.error}>{error}</div> : null}
+
+          {variant?.images?.length ? (
+            <div className={styles.formGroup}>
+              <span className={styles.label}>Images</span>
+              <div className={styles.imageGallery}>
+                {variant.images
+                  .map((image) => String(image?.url ?? '').trim())
+                  .filter(Boolean)
+                  .map((url, index) => (
+                    <a
+                      key={`${url}-${index}`}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.imageLink}
+                      title={`Variant image ${index + 1}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={`Variant ${index + 1}`} className={styles.imageThumb} />
+                    </a>
+                  ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className={styles.grid}>
             <label className={`${styles.formGroup} ${styles.full}`}>

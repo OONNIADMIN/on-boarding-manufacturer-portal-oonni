@@ -1,4 +1,5 @@
-import { parseAttributes } from "@/lib/inventory-crud";
+import { resolveVariantImages } from "@/lib/inventory-crud";
+import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 
 export const MIN_DESCRIPTION_LENGTH = 30;
 
@@ -158,22 +159,32 @@ type ProductLike = {
   product_type?: unknown;
   dimensions?: unknown;
   attributes?: unknown;
+  payload?: unknown;
 };
 
 type VariantLike = {
   id: number;
+  nautical_id?: string | null;
   name?: string | null;
   sku?: string | null;
   seo_description?: string | null;
+  images?: unknown;
+  payload?: unknown;
   dimensions?: unknown;
   attributes?: unknown;
 };
 
-export function evaluateVariantCompleteness(variant: VariantLike): EntityCompleteness {
-  const attributes = parseAttributes(variant.attributes);
+export function evaluateVariantCompleteness(
+  variant: VariantLike,
+  productPayload?: unknown,
+  productImages?: unknown
+): EntityCompleteness {
+  const attributes = resolveInventoryAttributes(variant);
+  const images = resolveVariantImages(variant, productPayload, productImages);
   const report = scoreSlots([
     { field: "Name", value: variant.name, kind: "text" },
     { field: "SKU", value: variant.sku, kind: "text" },
+    { field: "Images", value: images, kind: "image" },
     { field: "SEO description", value: variant.seo_description, kind: "description" },
     { field: "Length", value: dimensionValue(variant.dimensions, "length"), kind: "numeric" },
     { field: "Width", value: dimensionValue(variant.dimensions, "width"), kind: "numeric" },
@@ -194,7 +205,7 @@ export function evaluateVariantCompleteness(variant: VariantLike): EntityComplet
 }
 
 export function evaluateProductRecordCompleteness(product: ProductLike): EntityCompleteness {
-  const attributes = parseAttributes(product.attributes);
+  const attributes = resolveInventoryAttributes(product);
   const report = scoreSlots([
     { field: "Name", value: product.name, kind: "text" },
     { field: "Slug", value: product.slug, kind: "text" },
@@ -229,7 +240,9 @@ export function evaluateProductCompleteness(
   variants: VariantLike[] = []
 ): ProductCompleteness {
   const productReport = evaluateProductRecordCompleteness(product);
-  const variantReports = variants.map(evaluateVariantCompleteness);
+  const variantReports = variants.map((variant) =>
+    evaluateVariantCompleteness(variant, product.payload, product.images)
+  );
   const overall = mergeReports([productReport, ...variantReports]);
   return {
     ...overall,

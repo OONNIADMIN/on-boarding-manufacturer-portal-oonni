@@ -12,6 +12,7 @@ import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
 import { err, forbidden, ok, unauthorized } from "@/lib/api-response";
 import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/nautical-client";
 import { syncManufacturerInventory } from "@/lib/nautical-inventory";
+import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 
 export const dynamic = "force-dynamic";
 
@@ -109,8 +110,15 @@ export async function GET(req: NextRequest) {
     const productVariants = variantsByProduct.get(row.id) ?? [];
     return {
       ...row,
+      attributes: resolveInventoryAttributes(row),
       variant_count: productVariants.length,
-      completeness: evaluateProductCompleteness(row, productVariants),
+      completeness: evaluateProductCompleteness(
+        { ...row, attributes: resolveInventoryAttributes(row) },
+        productVariants.map((variant) => ({
+          ...variant,
+          attributes: resolveInventoryAttributes(variant),
+        }))
+      ),
     };
   });
   const products = filterByCompleteness
