@@ -144,15 +144,7 @@ export default function InventoryProductModal({
             </label>
             <label className={styles.formGroup}>
               <span className={styles.label}>Status</span>
-              <select
-                className={styles.select}
-                value={form.status}
-                onChange={(event) => {
-                  const status = event.target.value
-                  setForm((prev) => ({ ...prev, status, is_published: status === 'PUBLISHED' }))
-                }}
-                disabled={readOnly}
-              >
+              <select className={styles.select} value={form.status} disabled>
                 {form.status && !['DRAFT', 'PUBLISHED', 'HIDDEN'].includes(form.status) ? (
                   <option value={form.status}>{form.status}</option>
                 ) : null}
@@ -160,6 +152,7 @@ export default function InventoryProductModal({
                 <option value="PUBLISHED">Published</option>
                 <option value="HIDDEN">Hidden</option>
               </select>
+              <p className={styles.hint}>Status comes from Traide and cannot be edited here.</p>
             </label>
             <label className={styles.formGroup}>
               <span className={styles.label}>Category</span>

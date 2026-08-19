@@ -38,12 +38,10 @@ const REVIEW_HEADER_FILL = "FFF59E0B";
 const REVIEW_CELL_FILL = "FFFFF3CD";
 const HEADER_FILL = "FFE8F4F1";
 
-const PRODUCT_LOCKED = ["product_id", "traide_id"] as const;
+const PRODUCT_LOCKED = ["product_id", "traide_id", "Status", "Published"] as const;
 const PRODUCT_CORE = [
   "Name",
   "Slug",
-  "Status",
-  "Published",
   "Available for purchase",
   "Category",
   "Type",
@@ -193,7 +191,7 @@ function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
         ? "Keep variant_id, product_id, and traide_id unchanged. Each variant stays grouped under its parent product."
         : "Keep product_id and traide_id unchanged. Variants stay linked through product_id even if you edit variants in a separate file.",
     ],
-    ["Gray columns", "Locked. Do not edit product_id, variant_id, or traide_id."],
+    ["Gray columns", "Locked. Do not edit product_id, variant_id, traide_id, Status, or Published."],
     ["Orange headers", "This column has completeness issues (empty, N/A, zero, or short text) in at least one row."],
     ["Yellow cells", "This value needs review, matching the completeness report in inventory."],
     ["Attributes", "Each attribute name is its own column header."],
@@ -343,10 +341,10 @@ async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
     const values = [
       product.id,
       product.nautical_id,
-      product.name ?? "",
-      product.slug ?? "",
       product.status ?? "",
       product.is_published ? "TRUE" : "FALSE",
+      product.name ?? "",
+      product.slug ?? "",
       product.available_for_purchase ? "TRUE" : "FALSE",
       namedValue(product.category),
       namedValue(product.product_type),
@@ -575,9 +573,6 @@ async function applyProductRows(
       errors.push(`Row ${line}: Name is required`);
       continue;
     }
-    const isPublished = hasCol(headers, "Published")
-      ? parseBool(col(values, headers, "Published"), existing.is_published)
-      : existing.is_published;
     try {
       await prisma.inventoryProduct.update({
         where: { id: existing.id },
@@ -586,10 +581,6 @@ async function applyProductRows(
           slug: hasCol(headers, "Slug")
             ? (slugify(col(values, headers, "Slug") || name) || existing.slug).slice(0, 255)
             : existing.slug,
-          status: hasCol(headers, "Status")
-            ? col(values, headers, "Status") || (isPublished ? "PUBLISHED" : "DRAFT")
-            : existing.status,
-          is_published: isPublished,
           available_for_purchase: hasCol(headers, "Available for purchase")
             ? parseBool(col(values, headers, "Available for purchase"), existing.available_for_purchase)
             : existing.available_for_purchase,

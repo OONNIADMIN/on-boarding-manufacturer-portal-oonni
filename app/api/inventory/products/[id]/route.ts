@@ -83,8 +83,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       seo_description: parsed.seo_description,
       external_id: parsed.external_id,
       available_for_purchase: parsed.available_for_purchase,
-      status: parsed.status,
-      is_published: parsed.is_published,
       category: parsed.category,
       product_type: parsed.product_type,
       attributes: parsed.attributes,
