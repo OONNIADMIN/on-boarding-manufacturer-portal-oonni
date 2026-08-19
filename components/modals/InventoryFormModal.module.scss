@@ -135,6 +135,38 @@
   background: $gray-100;
 }
 
+.imageCard {
+  position: relative;
+}
+
+.imageRemove {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: none;
+  border-radius: 999px;
+  background: $gray-900;
+  color: $white;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.95rem;
+}
+
+.imageAddRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.hint {
+  margin: 0;
+  font-size: $font-size-sm;
+  color: $gray-600;
+}
+
 .attrList {
   @include flex-column;
   gap: 0.5rem;

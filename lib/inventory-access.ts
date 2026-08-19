@@ -9,7 +9,7 @@ function isManufacturerUser(user: { role: { name: string } }): boolean {
 }
 
 export async function requireInventoryManufacturer(req: NextRequest): Promise<
-  | { ok: true; manufacturerId: number }
+  | { ok: true; manufacturerId: number; userId: number }
   | { ok: false; response: NextResponse }
 > {
   const { user, error } = await requireAuth(req);
@@ -19,7 +19,7 @@ export async function requireInventoryManufacturer(req: NextRequest): Promise<
   }
   const manufacturerId = effectiveManufacturerId(user);
   if (!manufacturerId) return { ok: false, response: err("Manufacturer ID is missing", 400) };
-  return { ok: true, manufacturerId };
+  return { ok: true, manufacturerId, userId: user.id };
 }
 
 export function parsePositiveInt(value: string | undefined, label: string): number | null {

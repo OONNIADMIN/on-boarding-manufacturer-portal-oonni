@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseVariantInput } from "@/lib/inventory-crud";
+import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
@@ -44,9 +45,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     requireName: true,
     fallbackName: existing.name,
     existingAttributes: existing.attributes,
+    existingImages: existing.images,
   });
   if ("error" in parsed) return err(parsed.error);
 
+  const dam = await ensureVariantImagesInImageKit({
+    manufacturerId: auth.manufacturerId,
+    userId: auth.userId,
+    images: parsed.images,
+  });
+  if (dam.errors.length && !dam.images.length) {
+    return err(dam.errors[0] ?? "Failed to upload images to ImageKit");
+  }
+
+  const previousImages = existing.images;
   const variant = await prisma.inventoryVariant.update({
     where: { id: existing.id },
     data: {
@@ -55,17 +67,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       seo_description: parsed.seo_description,
       dimensions: parsed.dimensions,
       attributes: parsed.attributes,
+      images: dam.images,
     },
   });
 
-  const traide = await pushInventoryVariantsToTraide(auth.manufacturerId, [variant.id]);
+  const traide = await pushInventoryVariantsToTraide(auth.manufacturerId, [variant.id], {
+    previousImagesById: new Map([[variant.id, previousImages]]),
+  });
   const refreshed =
     (await prisma.inventoryVariant.findFirst({ where: { id: variant.id } })) ?? variant;
 
   return ok({
     variant: refreshed,
     traide_synced: traide.traide_synced,
-    traide_errors: traide.traide_errors,
+    traide_errors: [...dam.errors, ...traide.traide_errors],
   });
 }
 

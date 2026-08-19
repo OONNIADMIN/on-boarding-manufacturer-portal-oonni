@@ -849,6 +849,7 @@ export default function InventoryPage() {
         isOpen={Boolean(variantDialog)}
         mode={variantDialog?.mode ?? 'create'}
         variant={variantDialog && variantDialog.mode !== 'create' ? variantDialog.variant : null}
+        manufacturerId={user?.manufacturer_id}
         isSaving={isSaving}
         onClose={() => setVariantDialog(null)}
         onSubmit={handleSaveVariant}

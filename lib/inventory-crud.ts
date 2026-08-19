@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { slugify } from "@/lib/api-response";
 import { mergeInventoryAttributes, persistInventoryAttributes } from "@/lib/inventory-attributes";
+import { parseVariantImages, toInventoryImages } from "@/lib/traide/mappers/variant-images";
 
 export type AttributeInput = {
   name: string;
@@ -31,6 +32,7 @@ export type VariantWriteInput = {
   seo_description: string | null;
   dimensions: Prisma.InputJsonValue | typeof Prisma.JsonNull;
   attributes: Prisma.InputJsonValue;
+  images: Prisma.InputJsonValue;
 };
 
 export type InventoryImage = { id?: string | null; url?: string | null };
@@ -57,11 +59,12 @@ export function normalizeInventoryImages(value: unknown): InventoryImage[] {
   return [];
 }
 
-/** Prefer the `images` column; fall back to variant payload, parent product payload, then product images. */
+/** Prefer the `images` column; fall back to variant payload, then that variant's images on the product payload. */
 export function resolveVariantImages(
   variant: { images?: unknown; payload?: unknown; nautical_id?: string | null },
   productPayload?: unknown,
-  productImages?: unknown
+  productImages?: unknown,
+  options?: { includeProductFallback?: boolean }
 ): InventoryImage[] {
   const fromColumn = normalizeInventoryImages(variant.images);
   if (fromColumn.length) return fromColumn;
@@ -87,6 +90,7 @@ export function resolveVariantImages(
     }
   }
 
+  if (options?.includeProductFallback === false) return [];
   return normalizeInventoryImages(productImages);
 }
 
@@ -188,7 +192,7 @@ export function parseProductInput(
 
 export function parseVariantInput(
   body: unknown,
-  options: { requireName: boolean; fallbackName?: string; existingAttributes?: unknown }
+  options: { requireName: boolean; fallbackName?: string; existingAttributes?: unknown; existingImages?: unknown }
 ): VariantWriteInput | { error: string } {
   if (!body || typeof body !== "object") return { error: "Invalid payload" };
   const data = body as Record<string, unknown>;
@@ -202,6 +206,10 @@ export function parseVariantInput(
   const unit = asOptionalString(data.unit) || "in";
   const hasDimensions = length != null || width != null || height != null;
   const attributes = parseAttributes(data.attributes);
+  const images = parseVariantImages(
+    "images" in data ? data.images : options.existingImages,
+    options.existingImages
+  );
 
   return {
     name,
@@ -209,6 +217,7 @@ export function parseVariantInput(
     seo_description: asOptionalString(data.seo_description),
     dimensions: hasDimensions ? { length, width, height, unit } : Prisma.JsonNull,
     attributes: attributesToJson(attributes, options.existingAttributes),
+    images: toInventoryImages(images),
   };
 }
 

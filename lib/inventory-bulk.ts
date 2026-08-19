@@ -20,6 +20,7 @@ import {
   type InventoryImage,
 } from "@/lib/inventory-crud";
 import { slugify } from "@/lib/api-response";
+import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import {
   pushInventoryProductsToTraide,
   pushInventoryVariantsToTraide,
@@ -521,6 +522,7 @@ function optionalText(headers: string[], values: string[], name: string, fallbac
 
 export async function importInventoryWorkbook(
   manufacturerId: number,
+  userId: number,
   file: Buffer,
   requestedKind?: InventoryBulkKind
 ): Promise<InventoryBulkImportResult> {
@@ -533,7 +535,7 @@ export async function importInventoryWorkbook(
   if (!headers.length) throw new Error("The spreadsheet is missing a header row.");
   const kind = requestedKind ?? detectKind(wb, headers);
   const rows = matrix.slice(1);
-  if (kind === BULK_KIND_VARIANTS) return applyVariantRows(manufacturerId, headers, rows);
+  if (kind === BULK_KIND_VARIANTS) return applyVariantRows(manufacturerId, userId, headers, rows);
   return applyProductRows(manufacturerId, headers, rows);
 }
 
@@ -628,6 +630,7 @@ async function applyProductRows(
 
 async function applyVariantRows(
   manufacturerId: number,
+  userId: number,
   headers: string[],
   rows: string[][]
 ): Promise<InventoryBulkImportResult> {
@@ -643,6 +646,7 @@ async function applyVariantRows(
   let skipped = 0;
   const errors: string[] = [];
   const updatedIds: number[] = [];
+  const previousImagesById = new Map<number, unknown>();
 
   for (let i = 0; i < rows.length; i += 1) {
     const values = rows[i];
@@ -696,12 +700,18 @@ async function applyVariantRows(
         },
       });
       if (hasCol(headers, "Images")) {
-        const images = parseImageUrls(col(values, headers, "Images"), existing.images);
-        await prisma.$executeRawUnsafe(
-          `UPDATE inventory_variants SET images = $1::jsonb WHERE id = $2`,
-          JSON.stringify(images),
-          existing.id
-        );
+        previousImagesById.set(existing.id, existing.images);
+        const parsedImages = parseImageUrls(col(values, headers, "Images"), existing.images);
+        const dam = await ensureVariantImagesInImageKit({
+          manufacturerId,
+          userId,
+          images: parsedImages,
+        });
+        errors.push(...dam.errors.map((message) => `Row ${line}: ${message}`));
+        await prisma.inventoryVariant.update({
+          where: { id: existing.id },
+          data: { images: dam.images },
+        });
       }
       updated += 1;
       updatedIds.push(existing.id);
@@ -711,7 +721,9 @@ async function applyVariantRows(
     }
   }
 
-  const traide = await pushInventoryVariantsToTraide(manufacturerId, updatedIds);
+  const traide = await pushInventoryVariantsToTraide(manufacturerId, updatedIds, {
+    previousImagesById,
+  });
   return {
     kind: BULK_KIND_VARIANTS,
     updated,

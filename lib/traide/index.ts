@@ -27,9 +27,17 @@ export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operation
 export { productBulkCreate } from "./operations/product-bulk-create";
 export { productUpdate } from "./operations/product-update";
 export { productVariantBulkCreate } from "./operations/variant-bulk-create";
+export { productImageCreate } from "./operations/product-image-create";
+export { productVariantImageAssign } from "./operations/variant-image-assign";
+export { productImageBulkDelete } from "./operations/product-image-bulk-delete";
 
 export {
   pushInventoryProductsToTraide,
   pushInventoryVariantsToTraide,
   type TraidePushResult,
 } from "./services/inventory-bulk-push";
+
+export {
+  pushVariantImagesToTraide,
+  pushVariantImagesForIds,
+} from "./services/variant-images-push";

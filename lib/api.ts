@@ -57,16 +57,17 @@ export interface FilesListResponse {
 }
 
 export interface ImageUploadResponse {
-  message: string
+  message?: string
   original_filename: string
   s3_key: string
   s3_url: string
-  file_size_bytes: number
-  optimized_size_bytes: number
+  imagekit_url?: string
+  file_size_bytes?: number
+  optimized_size_bytes?: number
   manufacturer_id?: number
-  user_id: number
-  uploaded_at: string
-  optimization_info: {
+  user_id?: number
+  uploaded_at?: string
+  optimization_info?: {
     format: string
     saved: number
     reason: string
@@ -1778,6 +1779,7 @@ export type InventoryVariantInput = {
   height?: number | null
   unit?: string | null
   attributes?: Array<{ name: string; value: string }>
+  images?: Array<{ id?: string | null; url?: string | null }>
 }
 
 async function inventoryRequest<T>(path: string, options?: { method?: string; body?: unknown }): Promise<T> {

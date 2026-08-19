@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     if (!buffer.length) return err("The uploaded file is empty");
     const kind = parseKind(String(form.get("kind") ?? ""));
-    const result = await importInventoryWorkbook(auth.manufacturerId, buffer, kind);
+    const result = await importInventoryWorkbook(auth.manufacturerId, auth.userId, buffer, kind);
     return ok(result);
   } catch (e) {
     console.error("inventory import:", e);

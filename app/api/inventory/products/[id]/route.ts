@@ -37,7 +37,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     attributes: resolveInventoryAttributes(product),
     variants: variants.map((variant) => ({
       ...variant,
-      images: resolveVariantImages(variant, product.payload, product.images),
+      images: resolveVariantImages(variant, product.payload, product.images, {
+        includeProductFallback: false,
+      }),
       attributes: resolveInventoryAttributes(variant),
     })),
     variant_count: variants.length,

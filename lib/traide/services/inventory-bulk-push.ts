@@ -17,6 +17,7 @@ import { productUpdate } from "@/lib/traide/operations/product-update";
 import { fetchAllNauticalProductTypes } from "@/lib/traide/operations/product-types";
 import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
 import { productVariantBulkCreate } from "@/lib/traide/operations/variant-bulk-create";
+import { pushVariantImagesForIds } from "@/lib/traide/services/variant-images-push";
 
 export type TraidePushResult = {
   traide_synced: number;
@@ -193,7 +194,8 @@ export async function pushInventoryProductsToTraide(
 
 export async function pushInventoryVariantsToTraide(
   manufacturerId: number,
-  variantIds: number[]
+  variantIds: number[],
+  options?: { previousImagesById?: Map<number, unknown> }
 ): Promise<TraidePushResult> {
   if (!variantIds.length) return emptyPush();
   if (!getNauticalConfig()) {
@@ -236,6 +238,10 @@ export async function pushInventoryVariantsToTraide(
     >();
 
     for (const variant of rows) {
+      if (!isLocalTraideId(variant.nautical_id) && variant.nautical_id) {
+        synced += 1;
+        continue;
+      }
       const typeId = resolveProductTypeId(variant.product, productTypes);
       const catalog = productTypes.find((item) => item.id === typeId)?.variantAttributes ?? [];
       const result = toVariantBulkCreateInput(variant, { sellerId, catalog });
@@ -249,9 +255,8 @@ export async function pushInventoryVariantsToTraide(
       grouped.set(parentId, list);
     }
 
-    if (!grouped.size) return { traide_synced: 0, traide_errors: errors };
-
-    for (const [productId, items] of grouped) {
+    if (grouped.size) {
+      for (const [productId, items] of grouped) {
       const response = await productVariantBulkCreate(
         productId,
         items.map((item) => item.input),
@@ -285,7 +290,15 @@ export async function pushInventoryVariantsToTraide(
           );
         }
       }
+      }
     }
+
+    const imageErrors = await pushVariantImagesForIds(
+      rows.map((variant) => variant.id),
+      options?.previousImagesById
+    );
+    errors.push(...imageErrors);
+
     return { traide_synced: synced, traide_errors: errors.slice(0, 50) };
   } catch (e) {
     errors.push(e instanceof Error ? e.message : "Failed to push variants to Traide");

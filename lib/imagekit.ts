@@ -141,6 +141,19 @@ export function canonicalImageKitUrl(url: string): string {
   }
 }
 
+/** True when the URL is already served from this account's ImageKit CDN (or imagekit.io). */
+export function isImageKitPublicUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    const href = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+    const hostname = new URL(href).hostname.toLowerCase();
+    return shouldStripUpdatedAtForHost(hostname);
+  } catch {
+    return false;
+  }
+}
+
 function isAbsoluteHttpUrl(s: string): boolean {
   if (!s) return false;
   if (s.startsWith("//")) return true;

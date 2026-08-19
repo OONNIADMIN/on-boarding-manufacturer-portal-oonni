@@ -6,6 +6,7 @@ import { LOCAL_INVENTORY_PREFIX, parsePositiveInt, requireInventoryManufacturer 
 import { parseVariantInput, resolveVariantImages, normalizeInventoryImages } from "@/lib/inventory-crud";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 import { evaluateVariantCompleteness } from "@/lib/inventory-completeness";
+import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       const images = resolveVariantImages(
         { ...variant, images: imagesById.get(variant.id) ?? variant.images },
         product.payload,
-        product.images
+        product.images,
+        { includeProductFallback: false }
       );
       const attributes = resolveInventoryAttributes(variant);
       return {
@@ -84,6 +86,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   const parsed = parseVariantInput(body, { requireName: true });
   if ("error" in parsed) return err(parsed.error);
 
+  const dam = await ensureVariantImagesInImageKit({
+    manufacturerId: auth.manufacturerId,
+    userId: auth.userId,
+    images: parsed.images,
+  });
+  if (dam.errors.length && !dam.images.length) {
+    return err(dam.errors[0] ?? "Failed to upload images to ImageKit");
+  }
+
   const variant = await prisma.inventoryVariant.create({
     data: {
       inventory_product_id: product.id,
@@ -93,6 +104,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       seo_description: parsed.seo_description,
       dimensions: parsed.dimensions,
       attributes: parsed.attributes,
+      images: dam.images,
     },
   });
 
@@ -102,6 +114,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   return created({
     variant: refreshed,
     traide_synced: traide.traide_synced,
-    traide_errors: traide.traide_errors,
+    traide_errors: [...dam.errors, ...traide.traide_errors],
   });
 }
