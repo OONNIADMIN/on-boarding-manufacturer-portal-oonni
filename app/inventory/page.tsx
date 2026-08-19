@@ -86,8 +86,10 @@ function traideSaveNotice(
   kind: 'product' | 'variant',
   result: { traide_synced?: number; traide_errors?: string[] }
 ) {
-  const extra = result.traide_errors?.length ? ` ${result.traide_errors.slice(0, 2).join(' ')}` : ''
-  return `Saved ${kind} locally. Synced ${result.traide_synced ?? 0} to Traide.${extra}`
+  if (!result.traide_errors?.length) {
+    return `Saved ${kind} locally. Synced ${result.traide_synced ?? 0} to Traide.`
+  }
+  return `Saved ${kind} locally. Could not sync to Traide.`
 }
 
 function attributeRows(attrs: InventoryProductRow['attributes']): Array<{ name: string; value: string }> {
@@ -190,7 +192,7 @@ function VariantInnerTable({
         header: 'Completeness',
         enableSorting: false,
         cell: ({ row }) => {
-          const report = evaluateVariantCompleteness(row.original)
+          const report = row.original.completeness ?? evaluateVariantCompleteness(row.original)
           return <CompletenessMeter report={report} />
         },
       },

@@ -179,8 +179,9 @@ export function mapInventoryAttributes(list: unknown): MappedInventoryAttribute[
       : Array.isArray(attr?.values)
         ? attr.values
         : [];
-    let value = assignedAttributeDisplayValue(assigned, inputType);
-    if (!value) value = asText(row.value);
+    const fromAssigned = assignedAttributeDisplayValue(assigned, inputType);
+    const fromValue = asText(row.value);
+    let value = fromValue || fromAssigned;
     if (isPlaceholderValueName(value)) value = "";
     mapped.push({
       id,
@@ -252,14 +253,12 @@ export function resolveInventoryAttributes(source: {
   return stored.map((attr) => {
     const fallback = payloadByName.get(attr.name.toLowerCase());
     if (!fallback) return attr;
-    const value =
-      attr.value && !isPlaceholderValueName(attr.value) ? attr.value : fallback.value;
     return {
       id: attr.id || fallback.id,
       name: attr.name,
       slug: attr.slug || fallback.slug,
       inputType: attr.inputType || fallback.inputType,
-      value,
+      value: attr.value,
       values: attr.values?.length ? attr.values : fallback.values,
     };
   });

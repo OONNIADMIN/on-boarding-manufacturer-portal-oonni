@@ -12,7 +12,7 @@ import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
 import { err, forbidden, ok, unauthorized } from "@/lib/api-response";
 import { getNauticalConfig } from "@/lib/nautical-client";
 import { syncManufacturerInventory } from "@/lib/nautical-inventory";
-import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { persistInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
 import { resolveVariantImages } from "@/lib/inventory-crud";
 
 export const dynamic = "force-dynamic";
@@ -115,11 +115,15 @@ export async function GET(req: NextRequest) {
       variant_count: productVariants.length,
       completeness: evaluateProductCompleteness(
         { ...row, attributes: resolveInventoryAttributes(row) },
-        productVariants.map((variant) => ({
-          ...variant,
-          images: resolveVariantImages(variant, row.payload, row.images),
-          attributes: resolveInventoryAttributes(variant),
-        }))
+        productVariants.map((variant) => {
+          const storedAttrs = persistInventoryAttributes(variant.attributes);
+          return {
+            ...variant,
+            payload: null,
+            images: resolveVariantImages(variant, row.payload, row.images),
+            attributes: storedAttrs.length ? storedAttrs : resolveInventoryAttributes(variant),
+          };
+        })
       ),
     };
   });

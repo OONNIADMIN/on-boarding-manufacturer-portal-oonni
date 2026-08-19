@@ -27,6 +27,19 @@ export function nauticalNotConfiguredMessage(): string {
   return "Nautical integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN (or NAUTICAL_KEY_BEARER) on the server.";
 }
 
+/** Short user-facing Traide error. Raw GraphQL/HTTP payloads stay in server logs. */
+export function formatTraideUserError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/Field '[^']+' is not defined/i.test(raw) || /got invalid value/i.test(raw)) {
+    return "Traide rejected the update.";
+  }
+  if (/Nautical HTTP \d+/i.test(raw) || /"errors"\s*:/.test(raw)) {
+    return "Traide could not save this change.";
+  }
+  const firstLine = raw.split(/\r?\n/)[0]?.trim() || "Traide could not save this change.";
+  return firstLine.length > 160 ? "Traide could not save this change." : firstLine;
+}
+
 export async function nauticalGraphql<T>(
   query: string,
   variables?: Record<string, unknown>
@@ -48,7 +61,8 @@ export async function nauticalGraphql<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Nautical HTTP ${res.status}${text ? `: ${text.slice(0, 1200)}` : ""}`);
+    console.error("Traide HTTP error", res.status, text.slice(0, 4000));
+    throw new Error(formatTraideUserError(`Nautical HTTP ${res.status}: ${text}`));
   }
 
   const body = (await res.json()) as {
@@ -57,10 +71,11 @@ export async function nauticalGraphql<T>(
   };
 
   if (body.errors?.length) {
-    throw new Error(body.errors.map((e) => e.message).join("; "));
+    console.error("Traide GraphQL errors", body.errors);
+    throw new Error(formatTraideUserError(body.errors.map((e) => e.message).join("; ")));
   }
   if (body.data == null) {
-    throw new Error("Nautical returned no data");
+    throw new Error("Traide returned no data");
   }
   return body.data;
 }

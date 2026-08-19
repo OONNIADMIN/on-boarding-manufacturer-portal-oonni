@@ -13,6 +13,7 @@ mutation ($id: ID!, $input: ProductVariantInput!) {
       id
       name
       sku
+      seoTitle
       seoDescription
     }
   }
@@ -25,6 +26,7 @@ export type ProductVariantUpdatePayload = {
       id: string;
       name?: string | null;
       sku?: string | null;
+      seoTitle?: string | null;
       seoDescription?: string | null;
     } | null;
     productErrors: TraideProductError[];

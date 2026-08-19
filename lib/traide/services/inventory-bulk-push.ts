@@ -322,7 +322,10 @@ export async function pushInventoryVariantsToTraide(
               name: item.input.name,
               sku: item.input.sku,
               attributes: attributesForVariantUpdate(item.input.attributes),
-              ...(item.input.dimensions ? { dimensions: item.input.dimensions } : {}),
+              seo: {
+                title: item.input.name,
+                description: String(item.row.seo_description ?? "").trim(),
+              },
             });
             errors.push(...attrUpdate.errors.map((message) => `Variant ${item.row.id}: ${message}`));
           } catch (e) {

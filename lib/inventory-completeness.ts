@@ -1,5 +1,5 @@
 import { resolveVariantImages } from "@/lib/inventory-crud";
-import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { persistInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
 
 export const MIN_DESCRIPTION_LENGTH = 30;
 
@@ -36,6 +36,13 @@ export type ProductCompleteness = CompletenessReport & {
 };
 
 type SlotKind = "text" | "numeric" | "description" | "image";
+
+function attributeSlotKind(inputType: string | null | undefined): SlotKind {
+  const type = String(inputType ?? "").toUpperCase().replace(/[\s-]+/g, "_");
+  if (type === "NUMERIC" || type === "METRIC" || type === "MONEY") return "numeric";
+  if (type === "RICH_TEXT") return "description";
+  return "text";
+}
 
 const NA_PATTERN = /^(n\/a|n\.a\.?|na|not applicable|none|null|-|—)$/i;
 
@@ -118,6 +125,12 @@ function scoreSlots(slots: Array<{ field: string; value: unknown; kind: SlotKind
   };
 }
 
+function attributesForCompleteness(source: { attributes?: unknown; payload?: unknown }) {
+  const stored = persistInventoryAttributes(source.attributes);
+  if (stored.length) return stored;
+  return resolveInventoryAttributes(source);
+}
+
 function dimensionValue(dimensions: unknown, key: "length" | "width" | "height"): unknown {
   if (!dimensions || typeof dimensions !== "object") return null;
   return (dimensions as Record<string, unknown>)[key];
@@ -179,7 +192,7 @@ export function evaluateVariantCompleteness(
   productPayload?: unknown,
   productImages?: unknown
 ): EntityCompleteness {
-  const attributes = resolveInventoryAttributes(variant);
+  const attributes = attributesForCompleteness(variant);
   const images = resolveVariantImages(variant, productPayload, productImages);
   const report = scoreSlots([
     { field: "Name", value: variant.name, kind: "text" },
@@ -192,7 +205,7 @@ export function evaluateVariantCompleteness(
     ...attributes.map((attr) => ({
       field: `Attribute: ${attr.name}`,
       value: attr.value,
-      kind: "text" as const,
+      kind: attributeSlotKind(attr.inputType),
     })),
   ]);
 
@@ -205,7 +218,7 @@ export function evaluateVariantCompleteness(
 }
 
 export function evaluateProductRecordCompleteness(product: ProductLike): EntityCompleteness {
-  const attributes = resolveInventoryAttributes(product);
+  const attributes = attributesForCompleteness(product);
   const report = scoreSlots([
     { field: "Name", value: product.name, kind: "text" },
     { field: "Slug", value: product.slug, kind: "text" },
@@ -223,7 +236,7 @@ export function evaluateProductRecordCompleteness(product: ProductLike): EntityC
     ...attributes.map((attr) => ({
       field: `Attribute: ${attr.name}`,
       value: attr.value,
-      kind: "text" as const,
+      kind: attributeSlotKind(attr.inputType),
     })),
   ]);
 

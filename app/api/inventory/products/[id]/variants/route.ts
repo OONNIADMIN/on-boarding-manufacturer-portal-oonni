@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { created, err, notFound, ok } from "@/lib/api-response";
 import { LOCAL_INVENTORY_PREFIX, parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseVariantInput, resolveVariantImages, normalizeInventoryImages } from "@/lib/inventory-crud";
-import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { persistInventoryAttributes } from "@/lib/inventory-attributes";
 import { evaluateVariantCompleteness } from "@/lib/inventory-completeness";
 import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
@@ -36,30 +36,38 @@ export async function GET(req: NextRequest, { params }: Params) {
     orderBy: [{ sku: "asc" }, { name: "asc" }],
   });
 
-  const storedImages = variants.length
-    ? await prisma.$queryRawUnsafe<Array<{ id: number; images: unknown }>>(
-        `SELECT id, images FROM inventory_variants WHERE inventory_product_id = $1`,
+  const storedRows = variants.length
+    ? await prisma.$queryRawUnsafe<Array<{ id: number; images: unknown; attributes: unknown }>>(
+        `SELECT id, images, attributes FROM inventory_variants WHERE inventory_product_id = $1`,
         product.id
       )
     : [];
-  const imagesById = new Map(
-    storedImages.map((row) => [Number(row.id), normalizeInventoryImages(row.images)])
+  const storedById = new Map(
+    storedRows.map((row) => [
+      Number(row.id),
+      {
+        images: normalizeInventoryImages(row.images),
+        attributes: row.attributes,
+      },
+    ])
   );
 
   return ok({
     variants: variants.map((variant) => {
+      const stored = storedById.get(variant.id);
       const images = resolveVariantImages(
-        { ...variant, images: imagesById.get(variant.id) ?? variant.images },
+        { ...variant, images: stored?.images ?? variant.images },
         product.payload,
         product.images,
         { includeProductFallback: false }
       );
-      const attributes = resolveInventoryAttributes(variant);
+      const attributes = persistInventoryAttributes(stored?.attributes ?? variant.attributes);
+      const scored = { ...variant, payload: null, images, attributes };
       return {
         ...variant,
         images,
         attributes,
-        completeness: evaluateVariantCompleteness({ ...variant, images, attributes }),
+        completeness: evaluateVariantCompleteness(scored),
       };
     }),
   });

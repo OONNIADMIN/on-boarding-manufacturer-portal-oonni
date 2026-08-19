@@ -108,13 +108,12 @@ export function toVariantBulkCreateInput(
   return { input };
 }
 
-/** Fields accepted by Traide `ProductVariantInput` (productVariantUpdate). Bulk-create-only keys are omitted. */
+/** Fields accepted by Traide `ProductVariantInput` (productVariantUpdate). */
 export type TraideProductVariantUpdateInput = {
   name: string;
   sku: string;
   attributes: TraideAttributeInput[];
-  seoDescription?: string;
-  dimensions?: { length: string; width: string; height: string };
+  seo: { title: string; description: string };
 };
 
 export function toVariantUpdateInput(
@@ -130,14 +129,17 @@ export function toVariantUpdateInput(
   const mapped = toVariantBulkCreateInput(variant, options);
   if ("error" in mapped) return mapped;
   const { input } = mapped;
-  const update: TraideProductVariantUpdateInput = {
-    name: input.name,
-    sku: input.sku,
-    attributes: attributesForVariantUpdate(input.attributes),
-    ...(asOptionalText(variant.seo_description)
-      ? { seoDescription: asOptionalText(variant.seo_description) as string }
-      : {}),
-    ...(input.dimensions ? { dimensions: input.dimensions } : {}),
+  const payload = asRecord(variant.payload);
+  return {
+    id: variant.nautical_id,
+    input: {
+      name: input.name,
+      sku: input.sku,
+      attributes: attributesForVariantUpdate(input.attributes),
+      seo: {
+        title: asOptionalText(payload?.seoTitle) || variant.name,
+        description: asOptionalText(variant.seo_description) ?? "",
+      },
+    },
   };
-  return { id: variant.nautical_id, input: update };
 }
