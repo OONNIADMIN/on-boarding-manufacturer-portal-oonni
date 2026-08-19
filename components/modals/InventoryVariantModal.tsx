@@ -249,15 +249,6 @@ export default function InventoryVariantModal({
                   )}
                 </div>
               ))}
-              {readOnly ? null : (
-                <button
-                  type="button"
-                  className={styles.addButton}
-                  onClick={() => setAttributes((prev) => [...prev, { name: '', value: '' }])}
-                >
-                  Add attribute
-                </button>
-              )}
             </div>
           </div>
 

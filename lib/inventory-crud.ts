@@ -128,9 +128,16 @@ export function attributesToJson(
   return mergeInventoryAttributes(existing, attrs);
 }
 
-function namedJson(name: string | null): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+function mergeNamedJson(
+  existing: unknown,
+  name: string | null
+): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (!name) return Prisma.JsonNull;
-  return { name };
+  const prev = existing && typeof existing === "object" ? (existing as Record<string, unknown>) : null;
+  if (prev && String(prev.name ?? "").trim().toLowerCase() === name.trim().toLowerCase()) {
+    return JSON.parse(JSON.stringify(prev)) as Prisma.InputJsonValue;
+  }
+  return { ...(prev ?? {}), name: name.trim() };
 }
 
 function parseNumber(value: unknown): number | null {
@@ -141,7 +148,13 @@ function parseNumber(value: unknown): number | null {
 
 export function parseProductInput(
   body: unknown,
-  options: { requireName: boolean; fallbackName?: string; existingAttributes?: unknown }
+  options: {
+    requireName: boolean;
+    fallbackName?: string;
+    existingAttributes?: unknown;
+    existingCategory?: unknown;
+    existingProductType?: unknown;
+  }
 ): ProductWriteInput | { error: string } {
   if (!body || typeof body !== "object") return { error: "Invalid payload" };
   const data = body as Record<string, unknown>;
@@ -167,8 +180,8 @@ export function parseProductInput(
     description: asOptionalString(data.description),
     seo_title: asOptionalString(data.seo_title),
     seo_description: asOptionalString(data.seo_description),
-    category: namedJson(asOptionalString(data.category_name)),
-    product_type: namedJson(asOptionalString(data.product_type_name)),
+    category: mergeNamedJson(options.existingCategory, asOptionalString(data.category_name)),
+    product_type: mergeNamedJson(options.existingProductType, asOptionalString(data.product_type_name)),
     attributes: attributesToJson(attributes, options.existingAttributes),
   };
 }

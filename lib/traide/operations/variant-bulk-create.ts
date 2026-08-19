@@ -3,7 +3,7 @@ import { executeTraideMutation } from "@/lib/traide/graphql/client";
 import type {
   ProductVariantBulkCreatePayload,
   TraideBulkProductError,
-} from "@/lib/traide/graphql/documents";
+} from "@/app/graphql";
 import type { TraideProductVariantBulkCreateInput } from "@/lib/traide/mappers/variant-input";
 
 function formatBulkError(error: TraideBulkProductError, productId: string): string {

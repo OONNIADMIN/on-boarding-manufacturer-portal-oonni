@@ -1702,7 +1702,15 @@ export type InventoryAttribute = {
   slug?: string | null
   value?: string | null
   inputType?: string | null
-  values?: Array<{ slug?: string | null; name?: string | null; value?: string | null }>
+  values?: Array<{
+    slug?: string | null
+    name?: string | null
+    plainText?: string | null
+    richText?: string | null
+    boolean?: boolean | null
+    amount?: string | number | null
+    value?: string | null
+  }>
 }
 
 export type InventoryVariantRow = {

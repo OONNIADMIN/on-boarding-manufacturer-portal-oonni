@@ -25,6 +25,7 @@ export {
 export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operations/sellers";
 
 export { productBulkCreate } from "./operations/product-bulk-create";
+export { productUpdate } from "./operations/product-update";
 export { productVariantBulkCreate } from "./operations/variant-bulk-create";
 
 export {

@@ -1,16 +1,22 @@
 export {
   TRAIDE_QUERIES,
-  TRAIDE_MUTATIONS,
   APPROVED_SELLERS_QUERY,
   CATEGORIES_FOR_TEMPLATE_QUERY,
   INVENTORY_PRODUCTS_QUERY,
   PRODUCT_TYPE_BY_ID_QUERY,
   PRODUCT_TYPES_PAGE_QUERY,
-  PRODUCT_BULK_CREATE_MUTATION,
-  PRODUCT_VARIANT_BULK_CREATE_MUTATION,
   type TraideQueryName,
-  type TraideMutationName,
-  type TraideBulkProductError,
+} from "./queries";
+
+export {
+  TRAIDE_MUTATIONS,
+  PRODUCT_BULK_CREATE_MUTATION,
+  PRODUCT_UPDATE_MUTATION,
+  PRODUCT_VARIANT_BULK_CREATE_MUTATION,
   type ProductBulkCreatePayload,
+  type ProductUpdatePayload,
   type ProductVariantBulkCreatePayload,
-} from "@/app/graphql";
+  type TraideBulkProductError,
+  type TraideProductError,
+  type TraideMutationName,
+} from "./mutations";

@@ -7,11 +7,13 @@ import {
   isLocalTraideId,
   resolveProductTypeId,
   toProductBulkCreateInput,
+  toProductUpdateInput,
   type InventoryProductLike,
 } from "@/lib/traide/mappers/product-input";
 import type { TraideProductVariantBulkCreateInput } from "@/lib/traide/mappers/variant-input";
 import { toVariantBulkCreateInput, type InventoryVariantLike } from "@/lib/traide/mappers/variant-input";
 import { productBulkCreate } from "@/lib/traide/operations/product-bulk-create";
+import { productUpdate } from "@/lib/traide/operations/product-update";
 import { fetchAllNauticalProductTypes } from "@/lib/traide/operations/product-types";
 import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
 import { productVariantBulkCreate } from "@/lib/traide/operations/variant-bulk-create";
@@ -100,55 +102,87 @@ export async function pushInventoryProductsToTraide(
       select: PRODUCT_SELECT,
     });
     const productTypes = await fetchAllNauticalProductTypes();
-    const mapped: Array<{ row: InventoryProductLike; input: TraideProductBulkCreateInput }> = [];
+    const toCreate: Array<{ row: InventoryProductLike; input: TraideProductBulkCreateInput }> = [];
+    let synced = 0;
 
     for (const product of products) {
+      if (!isLocalTraideId(product.nautical_id) && product.nautical_id) {
+        const result = toProductUpdateInput(product, { sellerId, productTypes });
+        if ("error" in result) {
+          errors.push(result.error);
+          continue;
+        }
+        try {
+          const response = await productUpdate(result.id, result.input);
+          errors.push(...response.errors.map((message) => `Product ${product.id}: ${message}`));
+          if (response.product?.id && !response.errors.length) {
+            synced += 1;
+            await prisma.inventoryProduct.update({
+              where: { id: product.id },
+              data: {
+                nautical_id: response.product.id,
+                external_id: product.external_id,
+                payload: mergePayload(product.payload, {
+                  id: response.product.id,
+                  externalId: product.external_id,
+                }),
+              },
+            });
+          }
+        } catch (e) {
+          errors.push(`Product ${product.id}: ${e instanceof Error ? e.message : "failed to update Traide"}`);
+        }
+        continue;
+      }
+
       const result = toProductBulkCreateInput(product, { sellerId, productTypes });
       if ("error" in result) {
         errors.push(result.error);
         continue;
       }
-      mapped.push({ row: product, input: result.input });
+      toCreate.push({ row: product, input: result.input });
     }
 
-    if (!mapped.length) return { traide_synced: 0, traide_errors: errors };
+    if (toCreate.length) {
+      const response = await productBulkCreate(
+        toCreate.map((item) => item.input),
+        TRAIDE_MUTATION_BATCH_SIZE
+      );
+      errors.push(...response.errors);
+      synced += Math.max(0, toCreate.length - response.errors.length);
 
-    const response = await productBulkCreate(
-      mapped.map((item) => item.input),
-      TRAIDE_MUTATION_BATCH_SIZE
-    );
-    errors.push(...response.errors);
+      const byExternalId = new Map(
+        response.products
+          .filter((item) => item.externalId)
+          .map((item) => [item.externalId as string, item])
+      );
 
-    const byExternalId = new Map(
-      response.products
-        .filter((item) => item.externalId)
-        .map((item) => [item.externalId as string, item])
-    );
-
-    for (const item of mapped) {
-      const created = byExternalId.get(item.input.externalId);
-      if (!created?.id) continue;
-      try {
-        await prisma.inventoryProduct.update({
-          where: { id: item.row.id },
-          data: {
-            nautical_id: created.id,
-            external_id: item.input.externalId,
-            payload: mergePayload(item.row.payload, {
-              id: created.id,
-              externalId: item.input.externalId,
-            }),
-          },
-        });
-      } catch (e) {
-        errors.push(
-          `Product ${item.row.id}: ${e instanceof Error ? e.message : "failed to save Traide id"}`
-        );
+      for (const item of toCreate) {
+        const created = byExternalId.get(item.input.externalId);
+        if (!created?.id) continue;
+        try {
+          await prisma.inventoryProduct.update({
+            where: { id: item.row.id },
+            data: {
+              nautical_id: created.id,
+              external_id: item.input.externalId,
+              payload: mergePayload(item.row.payload, {
+                id: created.id,
+                externalId: item.input.externalId,
+                externalSource: item.input.externalSource,
+              }),
+            },
+          });
+        } catch (e) {
+          errors.push(
+            `Product ${item.row.id}: ${e instanceof Error ? e.message : "failed to save Traide id"}`
+          );
+        }
       }
     }
 
     return {
-      traide_synced: Math.max(0, mapped.length - response.errors.length),
+      traide_synced: synced,
       traide_errors: errors.slice(0, 50),
     };
   } catch (e) {

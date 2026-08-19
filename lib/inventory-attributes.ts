@@ -13,6 +13,10 @@
 export type InventoryAttributeValue = {
   slug?: string | null;
   name?: string | null;
+  plainText?: string | null;
+  richText?: string | null;
+  boolean?: boolean | null;
+  amount?: string | number | null;
   value?: string | null;
 };
 
@@ -24,8 +28,6 @@ export type MappedInventoryAttribute = {
   value: string;
   values?: InventoryAttributeValue[];
 };
-
-const DROPDOWN_INPUT_TYPES = new Set(["DROPDOWN", "SWATCH"]);
 
 const PLACEHOLDER_VALUE_NAMES = new Set([
   "plaintext",
@@ -78,30 +80,67 @@ function attributeIdOf(row: Record<string, unknown>): string | null {
   return id || null;
 }
 
-function assignedValueRows(values: unknown): InventoryAttributeValue[] {
+function asValueRecord(item: unknown): Record<string, unknown> | null {
+  if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+    const text = String(item).trim();
+    return text ? { name: text, value: text } : null;
+  }
+  return asRecord(item);
+}
+
+function normalizeInputType(value: unknown): string {
+  return asText(value).toUpperCase().replace(/[\s-]+/g, "_");
+}
+
+function scalarFromTypedValue(row: Record<string, unknown>, inputType: string): string {
+  switch (inputType) {
+    case "DROPDOWN":
+    case "SWATCH":
+    case "MULTISELECT":
+      return asText(row.name) || asText(row.slug);
+    case "PLAIN_TEXT":
+      return asText(row.plainText ?? row.plain_text);
+    case "RICH_TEXT":
+      return asText(row.richText ?? row.rich_text);
+    case "BOOLEAN":
+      if (typeof row.boolean === "boolean") return row.boolean ? "true" : "false";
+      return asText(row.boolean);
+    case "NUMERIC":
+    case "METRIC":
+    case "MONEY":
+      return asText(row.amount);
+    default:
+      return (
+        asText(row.plainText ?? row.plain_text) ||
+        asText(row.richText ?? row.rich_text) ||
+        asText(row.amount) ||
+        (typeof row.boolean === "boolean" ? String(row.boolean) : "") ||
+        (isPlaceholderValueName(asText(row.name)) ? "" : asText(row.name))
+      );
+  }
+}
+
+function assignedValueRows(values: unknown, inputType?: string | null): InventoryAttributeValue[] {
   if (!Array.isArray(values)) return [];
+  const type = normalizeInputType(inputType);
   const rows: InventoryAttributeValue[] = [];
   for (const item of values) {
-    if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
-      const text = String(item).trim();
-      if (text) rows.push({ slug: null, name: text, value: text });
-      continue;
-    }
-    const row = asRecord(item);
+    const row = asValueRecord(item);
     if (!row) continue;
+    const booleanValue = typeof row.boolean === "boolean" ? row.boolean : null;
+    const amount = row.amount == null || row.amount === "" ? null : (row.amount as string | number);
+    const display = scalarFromTypedValue(row, type);
     rows.push({
       slug: asText(row.slug) || null,
       name: asText(row.name) || null,
-      value: asText(row.value ?? row.plainText ?? row.plain_text) || null,
+      plainText: asText(row.plainText ?? row.plain_text) || null,
+      richText: asText(row.richText ?? row.rich_text) || null,
+      boolean: booleanValue,
+      amount,
+      value: display || null,
     });
   }
   return rows;
-}
-
-function firstValueRow(values: unknown): Record<string, unknown> | null {
-  const rows = assignedValueRows(values);
-  const first = rows[0];
-  return first ? (first as Record<string, unknown>) : null;
 }
 
 function isPlaceholderValueName(name: string): boolean {
@@ -112,26 +151,15 @@ export function assignedAttributeDisplayValue(
   values: unknown,
   inputType?: string | null
 ): string {
-  const first = firstValueRow(values);
-  if (!first) return "";
-  const name = asText(first.name);
-  const value = asText(first.value ?? first.plainText ?? first.plain_text);
-  const type = (inputType ?? "").trim().toUpperCase();
-
-  if (DROPDOWN_INPUT_TYPES.has(type) || type === "MULTISELECT") return name || value;
-  if (!type) {
-    if (isPlaceholderValueName(name)) return value;
-    return name || value;
-  }
-  return value || name;
-}
-
-function scalarFromGraphqlKeys(row: Record<string, unknown>): string {
-  if (row.plainText != null) return asText(row.plainText);
-  if (row.amount != null) return asText(row.amount);
-  if (typeof row.boolean === "boolean") return row.boolean ? "true" : "false";
-  if (row.richText != null) return asText(row.richText);
-  return asText(row.value);
+  if (!Array.isArray(values) || !values.length) return "";
+  const type = normalizeInputType(inputType);
+  const rows = values.map(asValueRecord).filter((row): row is Record<string, unknown> => Boolean(row));
+  if (!rows.length) return "";
+  const text =
+    type === "MULTISELECT"
+      ? rows.map((row) => scalarFromTypedValue(row, type)).filter(Boolean).join(" | ")
+      : scalarFromTypedValue(rows[0], type);
+  return isPlaceholderValueName(text) ? "" : text;
 }
 
 export function mapInventoryAttributes(list: unknown): MappedInventoryAttribute[] {
@@ -151,9 +179,8 @@ export function mapInventoryAttributes(list: unknown): MappedInventoryAttribute[
       : Array.isArray(attr?.values)
         ? attr.values
         : [];
-    let value = assignedValueRows(assigned).length
-      ? assignedAttributeDisplayValue(assigned, inputType)
-      : scalarFromGraphqlKeys(row);
+    let value = assignedAttributeDisplayValue(assigned, inputType);
+    if (!value) value = asText(row.value);
     if (isPlaceholderValueName(value)) value = "";
     mapped.push({
       id,
@@ -161,7 +188,7 @@ export function mapInventoryAttributes(list: unknown): MappedInventoryAttribute[
       slug,
       inputType,
       value,
-      values: assignedValueRows(assigned),
+      values: assignedValueRows(assigned, inputType),
     });
   }
   return mapped;

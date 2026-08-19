@@ -6,8 +6,15 @@ import {
   type TraideAttributeInput,
 } from "./attribute-input";
 
+const PRODUCT_SUB_STATUSES = new Set(["IN_REVIEW", "APPROVED", "REJECTED", "DISABLED"]);
 const PRODUCT_TYPE_GLOBAL_ID_PREFIX = "UHJvZHVjdFR5cGU6";
 const CATEGORY_GLOBAL_ID_PREFIX = "Q2F0ZWdvcnk6";
+
+function resolveProductSubStatus(value: unknown): string {
+  const raw = asText(value).toUpperCase().replace(/[\s-]+/g, "_");
+  if (PRODUCT_SUB_STATUSES.has(raw)) return raw;
+  return "IN_REVIEW";
+}
 export const TRAIDE_EXTERNAL_SOURCE = "oonni-manufacturer-portal";
 
 export type TraideProductBulkCreateInput = {
@@ -39,6 +46,18 @@ export type TraideProductBulkCreateInput = {
   externalSource: string;
   externalId: string;
   dimensions?: { length: string; width: string; height: string };
+};
+
+/** Fields accepted by Traide `ProductInput` (productUpdate). Bulk-create-only keys are omitted. */
+export type TraideProductUpdateInput = {
+  name: string;
+  slug: string;
+  description: string;
+  descriptionHtml: string;
+  category?: string;
+  attributes: TraideAttributeInput[];
+  currency: string;
+  seo: { title: string; description: string };
 };
 
 export type ProductTypeLookup = {
@@ -94,6 +113,11 @@ export function resolveProductExternalId(product: InventoryProductLike): string 
     asOptionalText(payload?.external_id) ||
     (isLocalTraideId(product.nautical_id) ? product.nautical_id : null)
   );
+}
+
+export function resolveProductExternalSource(product: InventoryProductLike): string {
+  const payload = asRecord(product.payload);
+  return asOptionalText(payload?.externalSource) || asOptionalText(payload?.external_source) || TRAIDE_EXTERNAL_SOURCE;
 }
 
 export function resolveProductTypeId(
@@ -174,16 +198,42 @@ export function toProductBulkCreateInput(
     visibleInListings: true,
     overridePrice: false,
     overrideCurrency: false,
-    subStatus: asText(payload?.subStatus, product.is_published ? "LIVE" : "IN_REVIEW"),
+    subStatus: resolveProductSubStatus(payload?.subStatus),
     subStatusReason: asText(payload?.subStatusReason),
     isShippingRequired: product.is_shipping_required,
     isPriceOverrideAllowed: false,
     isAvailable: product.available_for_purchase,
     seller: options.sellerId,
     basePrice: decimalString(payload?.basePrice, "0.0"),
-    externalSource: TRAIDE_EXTERNAL_SOURCE,
+    externalSource: resolveProductExternalSource(product),
     externalId,
     ...(dimensionsInput(product.dimensions) ? { dimensions: dimensionsInput(product.dimensions) } : {}),
   };
   return { input, productType };
+}
+
+export function toProductUpdateInput(
+  product: InventoryProductLike,
+  options: {
+    sellerId: string;
+    productTypes: ProductTypeLookup[];
+  }
+): { id: string; input: TraideProductUpdateInput } | { error: string } {
+  if (isLocalTraideId(product.nautical_id) || !asText(product.nautical_id)) {
+    return { error: `Product ${product.id} has no Traide id to update` };
+  }
+  const mapped = toProductBulkCreateInput(product, options);
+  if ("error" in mapped) return mapped;
+  const { input } = mapped;
+  const update: TraideProductUpdateInput = {
+    name: input.name,
+    slug: input.slug,
+    description: input.description,
+    descriptionHtml: input.descriptionHtml,
+    ...(input.category ? { category: input.category } : {}),
+    attributes: input.attributes,
+    currency: input.currency,
+    seo: input.seo,
+  };
+  return { id: product.nautical_id, input: update };
 }

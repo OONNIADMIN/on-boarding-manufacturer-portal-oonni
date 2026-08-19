@@ -11,8 +11,9 @@ export {
   TRAIDE_MUTATIONS,
   TRAIDE_QUERIES,
   type ProductBulkCreatePayload,
+  type ProductUpdatePayload,
   type ProductVariantBulkCreatePayload,
   type TraideBulkProductError,
   type TraideMutationName,
   type TraideQueryName,
-} from "./documents";
+} from "@/app/graphql";

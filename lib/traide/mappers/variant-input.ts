@@ -96,7 +96,10 @@ export function toVariantBulkCreateInput(
     weight: decimalString(payload?.weight, "1"),
     sku,
     externalId,
-    externalSource: TRAIDE_EXTERNAL_SOURCE,
+    externalSource:
+      asOptionalText(payload?.externalSource) ||
+      asOptionalText(payload?.external_source) ||
+      TRAIDE_EXTERNAL_SOURCE,
     seller: options.sellerId,
     trackInventory: true,
     ...(dimensionsInput(variant.dimensions) ? { dimensions: dimensionsInput(variant.dimensions) } : {}),

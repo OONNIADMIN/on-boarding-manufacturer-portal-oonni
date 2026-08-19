@@ -11,12 +11,15 @@ import { normalizeInventoryImages } from "@/lib/inventory-crud";
 import { executeTraideQuery } from "@/lib/traide/graphql/client";
 import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
 
-export { INVENTORY_PRODUCTS_QUERY, APPROVED_SELLERS_QUERY } from "@/lib/traide/graphql/documents";
+export { INVENTORY_PRODUCTS_QUERY, APPROVED_SELLERS_QUERY } from "@/app/graphql";
 
 type AttributeValue = {
   slug?: string | null;
   name?: string | null;
-  value?: string | null;
+  plainText?: string | null;
+  richText?: string | null;
+  boolean?: boolean | null;
+  amount?: string | number | null;
 };
 
 type NamedAttribute = {
@@ -41,6 +44,7 @@ export type NauticalInventoryProductNode = {
   seoTitle?: string | null;
   seoDescription?: string | null;
   externalId?: string | null;
+  externalSource?: string | null;
   isDigital?: boolean | null;
   isShippingRequired?: boolean | null;
   isBundle?: boolean | null;
@@ -68,6 +72,7 @@ export type NauticalInventoryProductNode = {
     images?: Array<{ id?: string | null; url?: string | null }> | null;
     media?: Array<{ id?: string | null; url?: string | null }> | null;
     externalId?: string | null;
+    externalSource?: string | null;
     dimensions?: {
       length?: number | null;
       width?: number | null;

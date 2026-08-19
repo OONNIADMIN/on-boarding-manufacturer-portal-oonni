@@ -1,6 +1,6 @@
 import { TRAIDE_MUTATION_BATCH_SIZE } from "@/lib/traide/constants";
 import { executeTraideMutation } from "@/lib/traide/graphql/client";
-import type { ProductBulkCreatePayload, TraideBulkProductError } from "@/lib/traide/graphql/documents";
+import type { ProductBulkCreatePayload, TraideBulkProductError } from "@/app/graphql";
 import type { TraideProductBulkCreateInput } from "@/lib/traide/mappers/product-input";
 
 function formatBulkError(error: TraideBulkProductError): string {

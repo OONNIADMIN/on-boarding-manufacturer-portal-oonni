@@ -66,6 +66,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     requireName: true,
     fallbackName: existing.name,
     existingAttributes: existing.attributes,
+    existingCategory: existing.category,
+    existingProductType: existing.product_type,
   });
   if ("error" in parsed) return err(parsed.error);
 

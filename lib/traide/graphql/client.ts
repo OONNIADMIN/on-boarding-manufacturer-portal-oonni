@@ -2,7 +2,12 @@
  * Traide GraphQL HTTP client. Same Authorization: Bearer header as inventory queries.
  */
 
-import { TRAIDE_MUTATIONS, TRAIDE_QUERIES, type TraideMutationName, type TraideQueryName } from "./documents";
+import {
+  TRAIDE_MUTATIONS,
+  TRAIDE_QUERIES,
+  type TraideMutationName,
+  type TraideQueryName,
+} from "@/app/graphql";
 
 export type TraideConfig = {
   url: string;
@@ -43,7 +48,7 @@ export async function nauticalGraphql<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Nautical HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`);
+    throw new Error(`Nautical HTTP ${res.status}${text ? `: ${text.slice(0, 1200)}` : ""}`);
   }
 
   const body = (await res.json()) as {
