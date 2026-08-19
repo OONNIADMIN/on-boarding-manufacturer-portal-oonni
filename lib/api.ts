@@ -1834,6 +1834,7 @@ export const inventoryAPI = {
 
     const response = await fetch(`${API_URL}/inventory/products?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
@@ -1848,6 +1849,7 @@ export const inventoryAPI = {
 
     const response = await fetch(`${API_URL}/inventory/products/${productId}/variants`, {
       headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))

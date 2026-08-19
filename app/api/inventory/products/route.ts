@@ -13,6 +13,7 @@ import { err, forbidden, ok, unauthorized } from "@/lib/api-response";
 import { getNauticalConfig } from "@/lib/nautical-client";
 import { syncManufacturerInventory } from "@/lib/nautical-inventory";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { resolveVariantImages } from "@/lib/inventory-crud";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +117,7 @@ export async function GET(req: NextRequest) {
         { ...row, attributes: resolveInventoryAttributes(row) },
         productVariants.map((variant) => ({
           ...variant,
+          images: resolveVariantImages(variant, row.payload, row.images),
           attributes: resolveInventoryAttributes(variant),
         }))
       ),

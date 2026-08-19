@@ -28,6 +28,7 @@ import { mapInventoryAttributes } from '@/lib/inventory-attributes'
 import {
   evaluateProductCompleteness,
   evaluateVariantCompleteness,
+  completenessForProductRow,
   type CompletenessIssueKind,
   type CompletenessStatus,
 } from '@/lib/inventory-completeness'
@@ -189,7 +190,7 @@ function VariantInnerTable({
         header: 'Completeness',
         enableSorting: false,
         cell: ({ row }) => {
-          const report = row.original.completeness ?? evaluateVariantCompleteness(row.original)
+          const report = evaluateVariantCompleteness(row.original)
           return <CompletenessMeter report={report} />
         },
       },
@@ -366,9 +367,12 @@ export default function InventoryPage() {
     setLoadingVariantsId(productId)
     try {
       const response = await inventoryAPI.listVariants(productId)
-      setVariantsByProduct((prev) => ({ ...prev, [productId]: response.variants ?? [] }))
+      const variants = response.variants ?? []
+      setVariantsByProduct((prev) => ({ ...prev, [productId]: variants }))
+      return variants
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load variants')
+      return []
     } finally {
       setLoadingVariantsId(null)
     }
@@ -414,7 +418,20 @@ export default function InventoryPage() {
       }
       const updated = await inventoryAPI.updateProduct(productDialog.product.id, payload)
       setNotice(traideSaveNotice('product', updated))
+      const productId = productDialog.product.id
+      const loaded = variantsByProduct[productId]
+      setProducts((prev) =>
+        prev.map((row) => {
+          if (row.id !== productId) return row
+          const next = { ...row, ...updated }
+          return {
+            ...next,
+            completeness: completenessForProductRow(next, loaded, row.completeness),
+          }
+        })
+      )
       setProductDialog(null)
+      if (loaded) await loadVariants(productId)
       await refreshList()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save product')
@@ -436,7 +453,14 @@ export default function InventoryPage() {
       setNotice(traideSaveNotice('variant', result))
       const productId = variantDialog.productId
       setVariantDialog(null)
-      await loadVariants(productId)
+      const variants = await loadVariants(productId)
+      setProducts((prev) =>
+        prev.map((row) =>
+          row.id === productId
+            ? { ...row, completeness: evaluateProductCompleteness(row, variants) }
+            : row
+        )
+      )
       await refreshList()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save variant')
@@ -621,8 +645,15 @@ export default function InventoryPage() {
         id: 'completeness',
         header: 'Completeness',
         enableSorting: false,
-        cell: ({ row }) =>
-          row.original.completeness ? <CompletenessMeter report={row.original.completeness} /> : '—',
+        cell: ({ row }) => {
+          const loaded = variantsByProduct[row.original.id]
+          const report = completenessForProductRow(
+            row.original,
+            loaded,
+            row.original.completeness
+          )
+          return <CompletenessMeter report={report} />
+        },
       },
       {
         id: 'actions',
@@ -637,7 +668,7 @@ export default function InventoryPage() {
         ),
       },
     ],
-    []
+    [variantsByProduct]
   )
 
   if (!user && isLoading) {
@@ -790,9 +821,11 @@ export default function InventoryPage() {
                 getRowCanExpand={() => true}
                 renderSubComponent={(product) => {
                   const loadedVariants = variantsByProduct[product.id]
-                  const completeness = loadedVariants
-                    ? evaluateProductCompleteness(product, loadedVariants)
-                    : product.completeness
+                  const completeness = completenessForProductRow(
+                    product,
+                    loadedVariants,
+                    product.completeness
+                  )
                   if (loadingVariantsId === product.id && loadedVariants == null && !completeness) {
                     return <p className={styles.detailText}>Loading variants…</p>
                   }

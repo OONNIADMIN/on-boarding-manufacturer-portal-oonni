@@ -251,6 +251,29 @@ export function evaluateProductCompleteness(
   };
 }
 
+/**
+ * Recompute completeness after an edit.
+ * If variants are loaded, score product + those rows. Otherwise keep the previous
+ * variant slice and only refresh the product fields.
+ */
+export function completenessForProductRow(
+  product: ProductLike,
+  loadedVariants?: VariantLike[] | null,
+  previous?: ProductCompleteness
+): ProductCompleteness {
+  if (loadedVariants) {
+    return evaluateProductCompleteness(product, loadedVariants);
+  }
+  const productReport = evaluateProductRecordCompleteness(product);
+  const variantReports = previous?.variants ?? [];
+  const overall = mergeReports([productReport, ...variantReports]);
+  return {
+    ...overall,
+    product: productReport,
+    variants: variantReports,
+  };
+}
+
 export function completenessStatusLabel(status: CompletenessStatus): string {
   if (status === "complete") return "Complete";
   if (status === "needs_review") return "Needs review";

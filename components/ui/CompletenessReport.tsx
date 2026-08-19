@@ -21,7 +21,11 @@ export function CompletenessMeter({ report }: { report: CompletenessReport }) {
       title={`${completenessStatusLabel(report.status)} · ${report.valid_fields}/${report.total_fields} valid fields`}
     >
       <div className={styles.track}>
-        <span className={`${styles.fill} ${statusClass(report.status)}`} style={{ width: `${report.percent}%` }} />
+        <span
+          key={`${report.percent}-${report.valid_fields}-${report.total_fields}`}
+          className={`${styles.fill} ${statusClass(report.status)}`}
+          style={{ width: `${report.percent}%` }}
+        />
       </div>
       <strong>{report.percent}%</strong>
     </div>
