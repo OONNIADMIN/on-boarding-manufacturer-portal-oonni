@@ -27,6 +27,7 @@ export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operation
 export { productBulkCreate } from "./operations/product-bulk-create";
 export { productUpdate } from "./operations/product-update";
 export { productVariantBulkCreate } from "./operations/variant-bulk-create";
+export { productVariantUpdate } from "./operations/product-variant-update";
 export { productImageCreate } from "./operations/product-image-create";
 export { productVariantImageAssign } from "./operations/variant-image-assign";
 export { productImageBulkDelete } from "./operations/product-image-bulk-delete";

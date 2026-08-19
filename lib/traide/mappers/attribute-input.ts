@@ -19,7 +19,7 @@ export type TraideAttributeInput = {
   values?: string[];
   plainText?: string;
   boolean?: boolean;
-  amount?: string;
+  amount?: string | number;
   richText?: string;
   unit?: string;
   currency?: string;
@@ -216,4 +216,13 @@ export function attributesFromInventorySource(
   return rows
     .map((attr) => toTraideAttributeInput(attr, catalog))
     .filter((attr): attr is TraideAttributeInput => Boolean(attr));
+}
+
+/** Nautical productVariantUpdate persists NUMERIC only with float amounts. */
+export function attributesForVariantUpdate(attributes: TraideAttributeInput[]): TraideAttributeInput[] {
+  return attributes.map((attr) => {
+    if (attr.amount == null || attr.amount === "") return attr;
+    const num = Number(attr.amount);
+    return { ...attr, amount: Number.isFinite(num) ? num : 0 };
+  });
 }

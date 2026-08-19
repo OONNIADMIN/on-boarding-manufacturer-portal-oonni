@@ -1,5 +1,6 @@
 import { asOptionalText, asRecord, asText, decimalString } from "./json";
 import {
+  attributesForVariantUpdate,
   attributesFromInventorySource,
   type TraideAttributeCatalogItem,
   type TraideAttributeInput,
@@ -105,4 +106,38 @@ export function toVariantBulkCreateInput(
     ...(dimensionsInput(variant.dimensions) ? { dimensions: dimensionsInput(variant.dimensions) } : {}),
   };
   return { input };
+}
+
+/** Fields accepted by Traide `ProductVariantInput` (productVariantUpdate). Bulk-create-only keys are omitted. */
+export type TraideProductVariantUpdateInput = {
+  name: string;
+  sku: string;
+  attributes: TraideAttributeInput[];
+  seoDescription?: string;
+  dimensions?: { length: string; width: string; height: string };
+};
+
+export function toVariantUpdateInput(
+  variant: InventoryVariantLike,
+  options: {
+    sellerId: string;
+    catalog: TraideAttributeCatalogItem[];
+  }
+): { id: string; input: TraideProductVariantUpdateInput } | { error: string } {
+  if (isLocalTraideId(variant.nautical_id) || !asText(variant.nautical_id)) {
+    return { error: `Variant ${variant.id} has no Traide id to update` };
+  }
+  const mapped = toVariantBulkCreateInput(variant, options);
+  if ("error" in mapped) return mapped;
+  const { input } = mapped;
+  const update: TraideProductVariantUpdateInput = {
+    name: input.name,
+    sku: input.sku,
+    attributes: attributesForVariantUpdate(input.attributes),
+    ...(asOptionalText(variant.seo_description)
+      ? { seoDescription: asOptionalText(variant.seo_description) as string }
+      : {}),
+    ...(input.dimensions ? { dimensions: input.dimensions } : {}),
+  };
+  return { id: variant.nautical_id, input: update };
 }

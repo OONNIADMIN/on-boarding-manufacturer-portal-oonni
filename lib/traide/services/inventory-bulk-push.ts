@@ -11,12 +11,14 @@ import {
   type InventoryProductLike,
 } from "@/lib/traide/mappers/product-input";
 import type { TraideProductVariantBulkCreateInput } from "@/lib/traide/mappers/variant-input";
-import { toVariantBulkCreateInput, type InventoryVariantLike } from "@/lib/traide/mappers/variant-input";
+import { toVariantBulkCreateInput, toVariantUpdateInput, type InventoryVariantLike } from "@/lib/traide/mappers/variant-input";
+import { attributesForVariantUpdate } from "@/lib/traide/mappers/attribute-input";
 import { productBulkCreate } from "@/lib/traide/operations/product-bulk-create";
 import { productUpdate } from "@/lib/traide/operations/product-update";
 import { fetchAllNauticalProductTypes } from "@/lib/traide/operations/product-types";
 import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
 import { productVariantBulkCreate } from "@/lib/traide/operations/variant-bulk-create";
+import { productVariantUpdate } from "@/lib/traide/operations/product-variant-update";
 import { pushVariantImagesForIds } from "@/lib/traide/services/variant-images-push";
 
 export type TraidePushResult = {
@@ -238,12 +240,37 @@ export async function pushInventoryVariantsToTraide(
     >();
 
     for (const variant of rows) {
-      if (!isLocalTraideId(variant.nautical_id) && variant.nautical_id) {
-        synced += 1;
-        continue;
-      }
       const typeId = resolveProductTypeId(variant.product, productTypes);
       const catalog = productTypes.find((item) => item.id === typeId)?.variantAttributes ?? [];
+
+      if (!isLocalTraideId(variant.nautical_id) && variant.nautical_id) {
+        const result = toVariantUpdateInput(variant, { sellerId, catalog });
+        if ("error" in result) {
+          errors.push(result.error);
+          continue;
+        }
+        try {
+          const response = await productVariantUpdate(result.id, result.input);
+          errors.push(...response.errors.map((message) => `Variant ${variant.id}: ${message}`));
+          if (response.productVariant?.id && !response.errors.length) {
+            synced += 1;
+            await prisma.inventoryVariant.update({
+              where: { id: variant.id },
+              data: {
+                nautical_id: response.productVariant.id,
+                payload: mergePayload(variant.payload, {
+                  id: response.productVariant.id,
+                  sku: result.input.sku,
+                }),
+              },
+            });
+          }
+        } catch (e) {
+          errors.push(`Variant ${variant.id}: ${e instanceof Error ? e.message : "failed to update Traide"}`);
+        }
+        continue;
+      }
+
       const result = toVariantBulkCreateInput(variant, { sellerId, catalog });
       if ("error" in result) {
         errors.push(result.error);
@@ -288,6 +315,21 @@ export async function pushInventoryVariantsToTraide(
           errors.push(
             `Variant ${item.row.id}: ${e instanceof Error ? e.message : "failed to save Traide id"}`
           );
+        }
+        if (item.input.attributes.length) {
+          try {
+            const attrUpdate = await productVariantUpdate(created.id, {
+              name: item.input.name,
+              sku: item.input.sku,
+              attributes: attributesForVariantUpdate(item.input.attributes),
+              ...(item.input.dimensions ? { dimensions: item.input.dimensions } : {}),
+            });
+            errors.push(...attrUpdate.errors.map((message) => `Variant ${item.row.id}: ${message}`));
+          } catch (e) {
+            errors.push(
+              `Variant ${item.row.id}: ${e instanceof Error ? e.message : "failed to update Traide attributes"}`
+            );
+          }
         }
       }
       }

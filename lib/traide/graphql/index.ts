@@ -13,6 +13,7 @@ export {
   type ProductBulkCreatePayload,
   type ProductUpdatePayload,
   type ProductVariantBulkCreatePayload,
+  type ProductVariantUpdatePayload,
   type TraideBulkProductError,
   type TraideMutationName,
   type TraideQueryName,

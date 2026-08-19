@@ -13,6 +13,10 @@ import {
   type ProductVariantBulkCreatePayload,
 } from "./product-variant-bulk-create";
 import {
+  PRODUCT_VARIANT_UPDATE_MUTATION,
+  type ProductVariantUpdatePayload,
+} from "./product-variant-update";
+import {
   PRODUCT_IMAGE_CREATE_MUTATION,
   type ProductImageCreatePayload,
 } from "./product-image-create";
@@ -29,12 +33,14 @@ export {
   PRODUCT_BULK_CREATE_MUTATION,
   PRODUCT_UPDATE_MUTATION,
   PRODUCT_VARIANT_BULK_CREATE_MUTATION,
+  PRODUCT_VARIANT_UPDATE_MUTATION,
   PRODUCT_IMAGE_CREATE_MUTATION,
   PRODUCT_VARIANT_IMAGE_ASSIGN_MUTATION,
   PRODUCT_IMAGE_BULK_DELETE_MUTATION,
   type ProductBulkCreatePayload,
   type ProductUpdatePayload,
   type ProductVariantBulkCreatePayload,
+  type ProductVariantUpdatePayload,
   type ProductImageCreatePayload,
   type ProductVariantImageAssignPayload,
   type ProductImageBulkDeletePayload,
@@ -46,6 +52,7 @@ export const TRAIDE_MUTATIONS = {
   productBulkCreate: PRODUCT_BULK_CREATE_MUTATION,
   productUpdate: PRODUCT_UPDATE_MUTATION,
   productVariantBulkCreate: PRODUCT_VARIANT_BULK_CREATE_MUTATION,
+  productVariantUpdate: PRODUCT_VARIANT_UPDATE_MUTATION,
   productImageCreate: PRODUCT_IMAGE_CREATE_MUTATION,
   productVariantImageAssign: PRODUCT_VARIANT_IMAGE_ASSIGN_MUTATION,
   productImageBulkDelete: PRODUCT_IMAGE_BULK_DELETE_MUTATION,
