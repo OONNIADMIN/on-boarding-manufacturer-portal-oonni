@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { created, err } from "@/lib/api-response";
 import { LOCAL_INVENTORY_PREFIX, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseProductInput } from "@/lib/inventory-crud";
+import { pushInventoryProductsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
 
@@ -42,5 +43,15 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return created({ ...product, variant_count: 0 });
+  const traide = await pushInventoryProductsToTraide(auth.manufacturerId, [product.id]);
+  const refreshed = await prisma.inventoryProduct.findFirst({
+    where: { id: product.id, manufacturer_id: auth.manufacturerId, deleted_at: null },
+  });
+
+  return created({
+    ...(refreshed ?? product),
+    variant_count: 0,
+    traide_synced: traide.traide_synced,
+    traide_errors: traide.traide_errors,
+  });
 }

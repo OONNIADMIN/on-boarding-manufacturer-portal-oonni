@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseVariantInput } from "@/lib/inventory-crud";
+import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return err("Invalid JSON body");
   }
 
-  const parsed = parseVariantInput(body, { requireName: true, fallbackName: existing.name });
+  const parsed = parseVariantInput(body, {
+    requireName: true,
+    fallbackName: existing.name,
+    existingAttributes: existing.attributes,
+  });
   if ("error" in parsed) return err(parsed.error);
 
   const variant = await prisma.inventoryVariant.update({
@@ -53,7 +58,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   });
 
-  return ok({ variant });
+  const traide = await pushInventoryVariantsToTraide(auth.manufacturerId, [variant.id]);
+  const refreshed =
+    (await prisma.inventoryVariant.findFirst({ where: { id: variant.id } })) ?? variant;
+
+  return ok({
+    variant: refreshed,
+    traide_synced: traide.traide_synced,
+    traide_errors: traide.traide_errors,
+  });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {

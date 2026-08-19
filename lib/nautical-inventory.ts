@@ -6,127 +6,12 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { LOCAL_INVENTORY_PREFIX } from "@/lib/inventory-access";
-import { mapInventoryAttributes } from "@/lib/inventory-attributes";
+import { persistInventoryAttributes } from "@/lib/inventory-attributes";
 import { normalizeInventoryImages } from "@/lib/inventory-crud";
-import { nauticalGraphql } from "@/lib/nautical-client";
+import { executeTraideQuery } from "@/lib/traide/graphql/client";
+import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
 
-export const INVENTORY_PRODUCTS_QUERY = `
-query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
-  products(first: $first, after: $after, filter: { seller: $seller, isStaff: true }) {
-    pageInfo {
-      endCursor
-      hasNextPage
-      hasPreviousPage
-      startCursor
-    }
-    edges {
-      node {
-        slug
-        id
-        name
-        images {
-           id
-          url
-        }
-        descriptionHtml
-        description
-        currency
-        seoTitle
-        seoDescription
-        externalId
-        isDigital
-        isShippingRequired
-        isBundle
-        allowSellerVariants
-        availableForPurchase
-        status
-        isPublished
-        dimensions {
-          length
-          width
-          height
-          unit
-        }
-        warnings {
-          code
-          message
-        }
-        hasWarnings
-        hasVariantOptions
-        category {
-          id
-          slug
-          name
-        }
-        productType {
-          id
-          slug
-          name
-        }
-        attributes {
-          attribute {
-            id
-            name
-            inputType
-          }
-          values {
-            slug
-            name
-            value
-          }
-        }
-        variants {
-          id
-          name
-          sku
-          seoDescription
-          seoTitle
-          dimensions {
-            width
-            height
-            length
-            unit
-          }
-          images {
-            id
-            url
-          }
-          attributes {
-            attribute {
-              id
-              name
-              inputType
-            }
-            values {
-              slug
-              name
-              value
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`;
-
-export const APPROVED_SELLERS_QUERY = `
-query ApprovedSellers($search: String!) {
-  sellers(first: 100, filter: { search: $search, status: APPROVED }) {
-    edges {
-      node {
-        companyName
-        id
-      }
-    }
-  }
-}
-`;
-
-/** Same Authorization: Bearer header as InventoryProducts. */
-function nauticalQuery<T>(query: string, variables?: Record<string, unknown>) {
-  return nauticalGraphql<T>(query, variables);
-}
+export { INVENTORY_PRODUCTS_QUERY, APPROVED_SELLERS_QUERY } from "@/lib/traide/graphql/documents";
 
 type AttributeValue = {
   slug?: string | null;
@@ -137,6 +22,7 @@ type AttributeValue = {
 type NamedAttribute = {
   attribute?: {
     id?: string | null;
+    slug?: string | null;
     name?: string | null;
     inputType?: string | null;
     values?: AttributeValue[] | null;
@@ -181,6 +67,7 @@ export type NauticalInventoryProductNode = {
     seoDescription?: string | null;
     images?: Array<{ id?: string | null; url?: string | null }> | null;
     media?: Array<{ id?: string | null; url?: string | null }> | null;
+    externalId?: string | null;
     dimensions?: {
       length?: number | null;
       width?: number | null;
@@ -221,72 +108,12 @@ async function persistVariantImages(variantRowId: number, images: unknown) {
   );
 }
 
-type ApprovedSellerNode = {
-  id: string;
-  companyName?: string | null;
-};
-
-function pickApprovedSeller(nodes: ApprovedSellerNode[], search: string): string | null {
-  const needle = search.trim().toLowerCase();
-  if (!needle) return null;
-  const sellers = nodes.filter((node) => node.id);
-  const exact = sellers.find((node) => (node.companyName ?? "").trim().toLowerCase() === needle);
-  if (exact?.id) return exact.id;
-  const partial = sellers.find((node) => {
-    const company = (node.companyName ?? "").trim().toLowerCase();
-    return company.includes(needle) || needle.includes(company);
-  });
-  if (partial?.id) return partial.id;
-  if (sellers.length === 1) return sellers[0].id;
-  return null;
-}
-
-async function searchApprovedSellerId(search: string): Promise<string | null> {
-  const query = search.trim();
-  if (!query) return null;
-  const data = await nauticalQuery<{
-    sellers: { edges: Array<{ node: ApprovedSellerNode }> };
-  }>(APPROVED_SELLERS_QUERY, { search: query });
-  return pickApprovedSeller(
-    data.sellers.edges.map((edge) => edge.node),
-    query
-  );
-}
-
-async function resolveSellerId(manufacturer: {
-  id: number;
-  name: string;
-  slug: string;
-  nautical_seller_id: string | null;
-}): Promise<string> {
-  const companyName = manufacturer.name.trim();
-  if (!companyName) {
-    throw new Error("Company name is missing. Set it on the manufacturer profile before syncing inventory.");
-  }
-
-  try {
-    const sellerId = await searchApprovedSellerId(companyName);
-    if (sellerId) return sellerId;
-  } catch (e) {
-    throw e instanceof Error
-      ? e
-      : new Error(`Nautical seller lookup failed for Company "${companyName}".`);
-  }
-
-  const cached = manufacturer.nautical_seller_id?.trim();
-  if (cached) return cached;
-
-  throw new Error(
-    `No approved Nautical seller matched Company "${companyName}".`
-  );
-}
-
 export async function fetchNauticalInventoryProducts(sellerId: string): Promise<NauticalInventoryProductNode[]> {
   const nodes: NauticalInventoryProductNode[] = [];
   let after: string | null = null;
 
   for (;;) {
-    const data = await nauticalQuery<ProductsConnection>(INVENTORY_PRODUCTS_QUERY, {
+    const data: ProductsConnection = await executeTraideQuery<ProductsConnection>("inventoryProducts", {
       first: 100,
       after,
       seller: sellerId,
@@ -315,7 +142,7 @@ export async function syncManufacturerInventory(manufacturerId: number): Promise
     throw new Error("Manufacturer not found");
   }
 
-  const sellerId = await resolveSellerId(manufacturer);
+  const sellerId = await resolveManufacturerSellerId(manufacturer);
   if (manufacturer.nautical_seller_id !== sellerId) {
     await prisma.manufacturer.update({
       where: { id: manufacturerId },
@@ -331,7 +158,7 @@ export async function syncManufacturerInventory(manufacturerId: number): Promise
   for (const node of nodes) {
     if (!node.id) continue;
     seenIds.add(node.id);
-    const attributes = mapInventoryAttributes(node.attributes);
+    const attributes = persistInventoryAttributes(node.attributes);
     const variants = node.variants ?? [];
 
     const product = await prisma.inventoryProduct.upsert({
@@ -413,7 +240,7 @@ export async function syncManufacturerInventory(manufacturerId: number): Promise
     for (const variant of variants) {
       if (!variant.id) continue;
       variantsSynced += 1;
-      const variantAttributes = mapInventoryAttributes(variant.attributes);
+      const variantAttributes = persistInventoryAttributes(variant.attributes);
       const variantImages = collectVariantImages(variant);
       const saved = await prisma.inventoryVariant.upsert({
         where: {

@@ -6,6 +6,7 @@ import { LOCAL_INVENTORY_PREFIX, parsePositiveInt, requireInventoryManufacturer 
 import { parseVariantInput, resolveVariantImages, normalizeInventoryImages } from "@/lib/inventory-crud";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 import { evaluateVariantCompleteness } from "@/lib/inventory-completeness";
+import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
 
@@ -95,5 +96,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   });
 
-  return created({ variant });
+  const traide = await pushInventoryVariantsToTraide(auth.manufacturerId, [variant.id]);
+  const refreshed = (await prisma.inventoryVariant.findFirst({ where: { id: variant.id } })) ?? variant;
+
+  return created({
+    variant: refreshed,
+    traide_synced: traide.traide_synced,
+    traide_errors: traide.traide_errors,
+  });
 }

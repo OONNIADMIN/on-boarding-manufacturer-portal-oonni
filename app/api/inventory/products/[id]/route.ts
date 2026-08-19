@@ -4,6 +4,7 @@ import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseProductInput, resolveVariantImages } from "@/lib/inventory-crud";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { pushInventoryProductsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return err("Invalid JSON body");
   }
 
-  const parsed = parseProductInput(body, { requireName: true, fallbackName: existing.name });
+  const parsed = parseProductInput(body, {
+    requireName: true,
+    fallbackName: existing.name,
+    existingAttributes: existing.attributes,
+  });
   if ("error" in parsed) return err(parsed.error);
 
   const product = await prisma.inventoryProduct.update({
@@ -82,11 +87,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   });
 
+  const traide = await pushInventoryProductsToTraide(auth.manufacturerId, [product.id]);
+  const refreshed = (await findOwnedProduct(auth.manufacturerId, product.id)) ?? product;
   const variantCount = await prisma.inventoryVariant.count({
     where: { inventory_product_id: product.id },
   });
 
-  return ok({ ...product, variant_count: variantCount });
+  return ok({
+    ...refreshed,
+    variant_count: variantCount,
+    traide_synced: traide.traide_synced,
+    traide_errors: traide.traide_errors,
+  });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {

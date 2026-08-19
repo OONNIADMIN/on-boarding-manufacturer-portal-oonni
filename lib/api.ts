@@ -1697,7 +1697,9 @@ export const productAPI = {
 }
 
 export type InventoryAttribute = {
+  id?: string | null
   name: string
+  slug?: string | null
   value?: string | null
   inputType?: string | null
   values?: Array<{ slug?: string | null; name?: string | null; value?: string | null }>
@@ -1740,6 +1742,8 @@ export type InventoryProductRow = {
   variant_count?: number
   completeness?: ProductCompleteness
   synced_at: string
+  traide_synced?: number
+  traide_errors?: string[]
 }
 
 export type InventoryProductInput = {
@@ -1858,7 +1862,11 @@ export const inventoryAPI = {
     return inventoryRequest(`/inventory/products/${productId}`, { method: 'DELETE' })
   },
 
-  async createVariant(productId: number, payload: InventoryVariantInput): Promise<{ variant: InventoryVariantRow }> {
+  async createVariant(productId: number, payload: InventoryVariantInput): Promise<{
+    variant: InventoryVariantRow
+    traide_synced?: number
+    traide_errors?: string[]
+  }> {
     return inventoryRequest(`/inventory/products/${productId}/variants`, { method: 'POST', body: payload })
   },
 
@@ -1866,7 +1874,11 @@ export const inventoryAPI = {
     productId: number,
     variantId: number,
     payload: InventoryVariantInput
-  ): Promise<{ variant: InventoryVariantRow }> {
+  ): Promise<{
+    variant: InventoryVariantRow
+    traide_synced?: number
+    traide_errors?: string[]
+  }> {
     return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
       method: 'PATCH',
       body: payload,
@@ -1913,6 +1925,8 @@ export const inventoryAPI = {
     updated: number
     skipped: number
     errors: string[]
+    traide_synced: number
+    traide_errors: string[]
   }> {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')

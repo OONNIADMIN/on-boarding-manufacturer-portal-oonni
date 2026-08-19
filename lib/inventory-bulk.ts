@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { mergeInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
 import {
   completenessIssueColumn,
   evaluateProductCompleteness,
@@ -15,12 +15,15 @@ import {
   type CompletenessStatus,
 } from "@/lib/inventory-completeness";
 import {
-  attributesToJson,
   normalizeInventoryImages,
   resolveVariantImages,
   type InventoryImage,
 } from "@/lib/inventory-crud";
 import { slugify } from "@/lib/api-response";
+import {
+  pushInventoryProductsToTraide,
+  pushInventoryVariantsToTraide,
+} from "@/lib/traide/services/inventory-bulk-push";
 
 export const BULK_KIND_PRODUCTS = "products";
 export const BULK_KIND_VARIANTS = "variants";
@@ -79,6 +82,8 @@ export type InventoryBulkImportResult = {
   updated: number;
   skipped: number;
   errors: string[];
+  traide_synced: number;
+  traide_errors: string[];
 };
 
 type ProductRow = Awaited<ReturnType<typeof prisma.inventoryProduct.findMany>>[number];
@@ -457,20 +462,28 @@ function mergeAttributes(
   const current = resolveInventoryAttributes({ attributes: existing }).map((attr) => ({
     name: attr.name,
     value: attr.value,
-    inputType: attr.inputType,
     id: attr.id,
+    slug: attr.slug,
+    inputType: attr.inputType,
   }));
-  const byName = new Map(current.map((attr) => [attr.name, attr]));
   headers.forEach((header, index) => {
     if (!header || core.has(header) || IMPORT_SKIP_HEADERS.has(header)) return;
-    const next = values[index] ?? "";
-    const prev = byName.get(header);
-    if (prev) prev.value = next;
-    else byName.set(header, { name: header, value: next, inputType: null, id: null });
+    const nextValue = values[index] ?? "";
+    const prev = current.find((attr) => attr.name === header);
+    if (prev) prev.value = nextValue;
+    else current.push({ name: header, value: nextValue, id: null, slug: null, inputType: null });
   });
-  return attributesToJson(
-    [...byName.values()].map((attr) => ({ name: attr.name, value: attr.value }))
-  );
+  return asJson(mergeInventoryAttributes(existing, current));
+}
+
+function mergeNamedEntity(existing: unknown, name: string): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  if (!name.trim()) return Prisma.JsonNull;
+  const prev =
+    existing && typeof existing === "object" ? (existing as Record<string, unknown>) : null;
+  if (prev && String(prev.name ?? "").trim().toLowerCase() === name.trim().toLowerCase()) {
+    return asJson(prev);
+  }
+  return asJson({ ...(prev ?? {}), name: name.trim() });
 }
 
 function dimensionsFromRow(
@@ -535,6 +548,7 @@ async function applyProductRows(
   let updated = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const updatedIds: number[] = [];
 
   for (let i = 0; i < rows.length; i += 1) {
     const values = rows[i];
@@ -578,14 +592,10 @@ async function applyProductRows(
             ? parseBool(col(values, headers, "Available for purchase"), existing.available_for_purchase)
             : existing.available_for_purchase,
           category: hasCol(headers, "Category")
-            ? col(values, headers, "Category")
-              ? asJson({ name: col(values, headers, "Category") })
-              : Prisma.JsonNull
+            ? mergeNamedEntity(existing.category, col(values, headers, "Category"))
             : undefined,
           product_type: hasCol(headers, "Type")
-            ? col(values, headers, "Type")
-              ? asJson({ name: col(values, headers, "Type") })
-              : Prisma.JsonNull
+            ? mergeNamedEntity(existing.product_type, col(values, headers, "Type"))
             : undefined,
           description: optionalText(headers, values, "Description", existing.description),
           seo_title: optionalText(headers, values, "SEO title", existing.seo_title),
@@ -598,13 +608,22 @@ async function applyProductRows(
         },
       });
       updated += 1;
+      updatedIds.push(existing.id);
     } catch (e) {
       skipped += 1;
       errors.push(`Row ${line}: ${e instanceof Error ? e.message : "failed to update product"}`);
     }
   }
 
-  return { kind: BULK_KIND_PRODUCTS, updated, skipped, errors: errors.slice(0, 50) };
+  const traide = await pushInventoryProductsToTraide(manufacturerId, updatedIds);
+  return {
+    kind: BULK_KIND_PRODUCTS,
+    updated,
+    skipped,
+    errors: [...errors, ...traide.traide_errors].slice(0, 50),
+    traide_synced: traide.traide_synced,
+    traide_errors: traide.traide_errors,
+  };
 }
 
 async function applyVariantRows(
@@ -623,6 +642,7 @@ async function applyVariantRows(
   let updated = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const updatedIds: number[] = [];
 
   for (let i = 0; i < rows.length; i += 1) {
     const values = rows[i];
@@ -684,13 +704,22 @@ async function applyVariantRows(
         );
       }
       updated += 1;
+      updatedIds.push(existing.id);
     } catch (e) {
       skipped += 1;
       errors.push(`Row ${line}: ${e instanceof Error ? e.message : "failed to update variant"}`);
     }
   }
 
-  return { kind: BULK_KIND_VARIANTS, updated, skipped, errors: errors.slice(0, 50) };
+  const traide = await pushInventoryVariantsToTraide(manufacturerId, updatedIds);
+  return {
+    kind: BULK_KIND_VARIANTS,
+    updated,
+    skipped,
+    errors: [...errors, ...traide.traide_errors].slice(0, 50),
+    traide_synced: traide.traide_synced,
+    traide_errors: traide.traide_errors,
+  };
 }
 
 export function parseCompletenessQuery(searchParams: URLSearchParams): CompletenessFilter & { search?: string } {

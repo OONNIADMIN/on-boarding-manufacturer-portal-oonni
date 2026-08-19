@@ -81,6 +81,14 @@ function ImageGallery({
   )
 }
 
+function traideSaveNotice(
+  kind: 'product' | 'variant',
+  result: { traide_synced?: number; traide_errors?: string[] }
+) {
+  const extra = result.traide_errors?.length ? ` ${result.traide_errors.slice(0, 2).join(' ')}` : ''
+  return `Saved ${kind} locally. Synced ${result.traide_synced ?? 0} to Traide.${extra}`
+}
+
 function attributeRows(attrs: InventoryProductRow['attributes']): Array<{ name: string; value: string }> {
   return mapInventoryAttributes(attrs).map((attr) => ({
     name: attr.name,
@@ -391,9 +399,11 @@ export default function InventoryPage() {
     if (!productDialog || productDialog.mode === 'view') return
     setIsSaving(true)
     setError(null)
+    setNotice(null)
     try {
       if (productDialog.mode === 'create') {
-        await inventoryAPI.createProduct(payload)
+        const created = await inventoryAPI.createProduct(payload)
+        setNotice(traideSaveNotice('product', created))
         setProductDialog(null)
         if (pagination.pageIndex !== 0) {
           setPagination((prev) => ({ ...prev, pageIndex: 0 }))
@@ -402,9 +412,12 @@ export default function InventoryPage() {
         }
         return
       }
-      await inventoryAPI.updateProduct(productDialog.product.id, payload)
+      const updated = await inventoryAPI.updateProduct(productDialog.product.id, payload)
+      setNotice(traideSaveNotice('product', updated))
       setProductDialog(null)
       await refreshList()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save product')
     } finally {
       setIsSaving(false)
     }
@@ -414,16 +427,19 @@ export default function InventoryPage() {
     if (!variantDialog || variantDialog.mode === 'view') return
     setIsSaving(true)
     setError(null)
+    setNotice(null)
     try {
-      if (variantDialog.mode === 'create') {
-        await inventoryAPI.createVariant(variantDialog.productId, payload)
-      } else {
-        await inventoryAPI.updateVariant(variantDialog.productId, variantDialog.variant.id, payload)
-      }
+      const result =
+        variantDialog.mode === 'create'
+          ? await inventoryAPI.createVariant(variantDialog.productId, payload)
+          : await inventoryAPI.updateVariant(variantDialog.productId, variantDialog.variant.id, payload)
+      setNotice(traideSaveNotice('variant', result))
       const productId = variantDialog.productId
       setVariantDialog(null)
       await loadVariants(productId)
       await refreshList()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save variant')
     } finally {
       setIsSaving(false)
     }
@@ -492,7 +508,9 @@ export default function InventoryPage() {
     try {
       const result = await inventoryAPI.uploadBulk(file)
       const extra = result.errors.length ? ` ${result.errors.slice(0, 3).join(' ')}` : ''
-      setNotice(`Updated ${result.updated} ${result.kind}. Skipped ${result.skipped}.${extra}`)
+      setNotice(
+        `Updated ${result.updated} ${result.kind} locally. Synced ${result.traide_synced ?? 0} to Traide. Skipped ${result.skipped}.${extra}`
+      )
       setVariantsByProduct({})
       setExpanded({})
       await refreshList()
