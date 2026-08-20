@@ -17,6 +17,7 @@ export {
 
 export {
   fetchCategoriesForTemplateSearch,
+  fetchAllNauticalCategories,
   flattenNauticalCategoryTree,
   type NauticalCategoryNode,
 } from "@/lib/traide/operations/categories";

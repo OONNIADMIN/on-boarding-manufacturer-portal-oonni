@@ -18,8 +18,10 @@ export {
 
 export {
   fetchCategoriesForTemplateSearch,
+  fetchAllNauticalCategories,
   flattenNauticalCategoryTree,
   type NauticalCategoryNode,
+  type NauticalCategoryRecord,
 } from "./operations/categories";
 
 export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operations/sellers";
@@ -31,6 +33,12 @@ export { productVariantUpdate } from "./operations/product-variant-update";
 export { productImageCreate } from "./operations/product-image-create";
 export { productVariantImageAssign } from "./operations/variant-image-assign";
 export { productImageBulkDelete } from "./operations/product-image-bulk-delete";
+
+export {
+  syncTraideCategories,
+  listStoredCategoryTree,
+  type CategorySyncResult,
+} from "./services/category-sync";
 
 export {
   pushInventoryProductsToTraide,

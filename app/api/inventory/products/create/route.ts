@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { created, err } from "@/lib/api-response";
 import { LOCAL_INVENTORY_PREFIX, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseProductInput } from "@/lib/inventory-crud";
+import { resolveCategoryJson } from "@/lib/inventory-categories";
 import { pushInventoryProductsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,11 @@ export async function POST(req: NextRequest) {
   const parsed = parseProductInput(body, { requireName: true });
   if ("error" in parsed) return err(parsed.error);
 
+  const category = await resolveCategoryJson({
+    categoryId: parsed.category_id,
+    categoryName: parsed.category_name,
+  });
+
   const product = await prisma.inventoryProduct.create({
     data: {
       manufacturer_id: auth.manufacturerId,
@@ -35,7 +41,7 @@ export async function POST(req: NextRequest) {
       available_for_purchase: parsed.available_for_purchase,
       status: "DRAFT",
       is_published: false,
-      category: parsed.category,
+      category,
       product_type: parsed.product_type,
       attributes: parsed.attributes,
       images: [],

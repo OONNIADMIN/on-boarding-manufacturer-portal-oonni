@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 /** Bump when Prisma schema fields change so the Next.js singleton is recreated. */
-const PRISMA_CLIENT_GENERATION = 2;
+const PRISMA_CLIENT_GENERATION = 4;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -25,8 +25,11 @@ function getPrisma(): PrismaClient {
   return client;
 }
 
+/** Forward Prisma getters with the real client as `this` so model delegates stay defined. */
 export const prisma = new Proxy({} as PrismaClient, {
-  get(_, prop) {
-    return getPrisma()[prop as keyof PrismaClient];
+  get(_target, prop) {
+    const client = getPrisma();
+    const value = Reflect.get(client, prop, client);
+    return typeof value === "function" ? value.bind(client) : value;
   },
 });

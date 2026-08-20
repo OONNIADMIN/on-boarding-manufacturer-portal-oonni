@@ -21,7 +21,8 @@ export type ProductWriteInput = {
   description: string | null;
   seo_title: string | null;
   seo_description: string | null;
-  category: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+  category_id: string | null;
+  category_name: string | null;
   product_type: Prisma.InputJsonValue | typeof Prisma.JsonNull;
   attributes: Prisma.InputJsonValue;
 };
@@ -156,7 +157,6 @@ export function parseProductInput(
     requireName: boolean;
     fallbackName?: string;
     existingAttributes?: unknown;
-    existingCategory?: unknown;
     existingProductType?: unknown;
   }
 ): ProductWriteInput | { error: string } {
@@ -184,7 +184,8 @@ export function parseProductInput(
     description: asOptionalString(data.description),
     seo_title: asOptionalString(data.seo_title),
     seo_description: asOptionalString(data.seo_description),
-    category: mergeNamedJson(options.existingCategory, asOptionalString(data.category_name)),
+    category_id: asOptionalString(data.category_id),
+    category_name: asOptionalString(data.category_name),
     product_type: mergeNamedJson(options.existingProductType, asOptionalString(data.product_type_name)),
     attributes: attributesToJson(attributes, options.existingAttributes),
   };

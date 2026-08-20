@@ -4,6 +4,7 @@ import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseProductInput, resolveVariantImages } from "@/lib/inventory-crud";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { resolveCategoryJson } from "@/lib/inventory-categories";
 import { pushInventoryProductsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
@@ -68,10 +69,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     requireName: true,
     fallbackName: existing.name,
     existingAttributes: existing.attributes,
-    existingCategory: existing.category,
     existingProductType: existing.product_type,
   });
   if ("error" in parsed) return err(parsed.error);
+
+  const category = await resolveCategoryJson({
+    categoryId: parsed.category_id,
+    categoryName: parsed.category_name,
+    existing: existing.category,
+  });
 
   const product = await prisma.inventoryProduct.update({
     where: { id: existing.id },
@@ -83,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       seo_description: parsed.seo_description,
       external_id: parsed.external_id,
       available_for_purchase: parsed.available_for_purchase,
-      category: parsed.category,
+      category,
       product_type: parsed.product_type,
       attributes: parsed.attributes,
     },

@@ -22,6 +22,11 @@ import {
 import { slugify } from "@/lib/api-response";
 import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import {
+  categoryJsonFromOption,
+  matchCategoryOption,
+} from "@/lib/inventory-categories";
+import { listStoredCategoryTree } from "@/lib/traide/services/category-sync";
+import {
   pushInventoryProductsToTraide,
   pushInventoryVariantsToTraide,
 } from "@/lib/traide/services/inventory-bulk-push";
@@ -103,6 +108,11 @@ function namedValue(value: unknown): string {
     return String((value as { name?: unknown }).name ?? "").trim();
   }
   return String(value ?? "").trim();
+}
+
+function namedId(value: unknown): string {
+  if (value == null || typeof value !== "object" || !("id" in value)) return "";
+  return String((value as { id?: unknown }).id ?? "").trim();
 }
 
 function dimensionValue(dimensions: unknown, key: "length" | "width" | "height" | "unit"): string {
@@ -188,15 +198,15 @@ function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
     [
       "Relationship",
       kind === BULK_KIND_VARIANTS
-        ? "Keep variant_id, product_id, and traide_id unchanged. Each variant stays grouped under its parent product."
-        : "Keep product_id and traide_id unchanged. Variants stay linked through product_id even if you edit variants in a separate file.",
+        ? "Leave the ID columns unchanged. Each variant stays grouped under its parent product."
+        : "Leave the product ID column unchanged. Variants stay linked even if you edit them in a separate file.",
     ],
-    ["Gray columns", "Locked. Do not edit product_id, variant_id, traide_id, Status, or Published."],
+    ["Gray columns", "Locked. Do not edit ID, Status, or Published columns."],
     ["Orange headers", "This column has completeness issues (empty, N/A, zero, or short text) in at least one row."],
-    ["Yellow cells", "This value needs review, matching the completeness report in inventory."],
+    ["Yellow cells", "This value needs review, matching the completeness report in your catalog."],
     ["Attributes", "Each attribute name is its own column header."],
     ["Images", "Separate multiple URLs with |"],
-    ["Upload", "Use Bulk upload on the inventory page. Do not rename the Data sheet or header row."],
+    ["Upload", "Use Upload edits on your catalog page. Do not rename the Data sheet or header row."],
   ];
   sheet.addRow(["Bulk edit", kind === BULK_KIND_VARIANTS ? "Variants" : "Products"]).font = { bold: true };
   sheet.addRow([]);
@@ -215,7 +225,7 @@ function styleHeaderRow(row: ExcelJS.Row, headers: string[], locked: Set<string>
     const header = headers[colNumber - 1] ?? "";
     if (locked.has(header)) {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LOCKED_FILL } };
-      cell.note = "Locked. Do not change. Required to keep the product/variant relationship.";
+      cell.note = "Locked. Do not change. Required to keep products and variants linked.";
       return;
     }
     if (reviewColumns.has(header)) {
@@ -325,6 +335,8 @@ async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
   const attrNames = uniqueAttributeNames(loaded.products);
   const headers = [...PRODUCT_LOCKED, ...PRODUCT_CORE, ...attrNames];
   const reviewColumns = new Set<string>();
+  const categoryOptions = await listStoredCategoryTree();
+  const categoryPathById = new Map(categoryOptions.map((row) => [row.id, row.path]));
   const wb = new ExcelJS.Workbook();
   wb.creator = "OONNI inventory";
   wb.created = new Date();
@@ -346,7 +358,7 @@ async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
       product.name ?? "",
       product.slug ?? "",
       product.available_for_purchase ? "TRUE" : "FALSE",
-      namedValue(product.category),
+      categoryPathById.get(namedId(product.category)) || namedValue(product.category),
       namedValue(product.product_type),
       product.description ?? "",
       product.seo_title ?? "",
@@ -549,6 +561,7 @@ async function applyProductRows(
   let skipped = 0;
   const errors: string[] = [];
   const updatedIds: number[] = [];
+  const categoryOptions = await listStoredCategoryTree();
 
   for (let i = 0; i < rows.length; i += 1) {
     const values = rows[i];
@@ -585,7 +598,12 @@ async function applyProductRows(
             ? parseBool(col(values, headers, "Available for purchase"), existing.available_for_purchase)
             : existing.available_for_purchase,
           category: hasCol(headers, "Category")
-            ? mergeNamedEntity(existing.category, col(values, headers, "Category"))
+            ? (() => {
+                const text = col(values, headers, "Category");
+                if (!text.trim()) return undefined;
+                const match = matchCategoryOption(categoryOptions, text);
+                return match ? categoryJsonFromOption(match) : mergeNamedEntity(existing.category, text);
+              })()
             : undefined,
           product_type: hasCol(headers, "Type")
             ? mergeNamedEntity(existing.product_type, col(values, headers, "Type"))
