@@ -50,9 +50,31 @@
   justify-content: flex-end;
 }
 
+.manufacturerFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: $font-size-sm;
+  color: $gray-700;
+
+  span {
+    font-weight: $font-weight-medium;
+    white-space: nowrap;
+  }
+
+  select {
+    min-width: 12rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid $gray-300;
+    border-radius: $radius-sm;
+    background: $white;
+  }
+}
+
 .addButton {
   @include button-secondary;
   white-space: nowrap;
+  gap: 0.4rem;
 }
 
 .nestedBlock {

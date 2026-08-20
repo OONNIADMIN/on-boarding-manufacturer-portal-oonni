@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ColumnDef, ExpandedState, OnChangeFn, PaginationState, SortingState } from '@tanstack/react-table'
-import { ChevronDown, ChevronRight, Download, Plus, Upload } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, FolderTree, Plus, Upload } from 'lucide-react'
 import {
   Header,
   DataTable,
@@ -18,12 +18,14 @@ import {
 import {
   authAPI,
   inventoryAPI,
+  manufacturerAPI,
+  type InventoryCategoryOption,
   type InventoryProductInput,
   type InventoryProductRow,
   type InventoryVariantInput,
   type InventoryVariantRow,
 } from '@/lib/api'
-import { User } from '@/types'
+import { ManufacturerListItem, User } from '@/types'
 import { mapInventoryAttributes } from '@/lib/inventory-attributes'
 import {
   evaluateProductCompleteness,
@@ -33,6 +35,8 @@ import {
   type CompletenessStatus,
 } from '@/lib/inventory-completeness'
 import styles from './page.module.scss'
+
+const MANUFACTURER_STORAGE_KEY = 'oonni.inventory.manufacturerId'
 
 const COMPLETENESS_ISSUE_OPTIONS: Array<{ id: CompletenessIssueKind; label: string }> = [
   { id: 'empty', label: 'Empty' },
@@ -82,14 +86,16 @@ function ImageGallery({
   )
 }
 
-function traideSaveNotice(
+function catalogSaveNotice(
   kind: 'product' | 'variant',
   result: { traide_synced?: number; traide_errors?: string[] }
 ) {
   if (!result.traide_errors?.length) {
-    return `Saved ${kind} locally. Synced ${result.traide_synced ?? 0} to Traide.`
+    return kind === 'product' ? 'Product saved to your catalog.' : 'Variant saved to your catalog.'
   }
-  return `Saved ${kind} locally. Could not sync to Traide.`
+  return kind === 'product'
+    ? 'Product saved. Some details could not be published yet.'
+    : 'Variant saved. Some details could not be published yet.'
 }
 
 function attributeRows(attrs: InventoryProductRow['attributes']): Array<{ name: string; value: string }> {
@@ -267,6 +273,10 @@ export default function InventoryPage() {
   const [loadingVariantsId, setLoadingVariantsId] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isBulkBusy, setIsBulkBusy] = useState(false)
+  const [isFetchingCategories, setIsFetchingCategories] = useState(false)
+  const [categories, setCategories] = useState<InventoryCategoryOption[]>([])
+  const [manufacturers, setManufacturers] = useState<ManufacturerListItem[]>([])
+  const [selectedManufacturerId, setSelectedManufacturerId] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const bulkFileRef = useRef<HTMLInputElement>(null)
   const [productDialog, setProductDialog] = useState<{ mode: 'create' } | { mode: 'edit' | 'view'; product: InventoryProductRow } | null>(null)
@@ -281,10 +291,19 @@ export default function InventoryPage() {
     | null
   >(null)
   const didBootstrapSync = useRef(false)
+  const isAdmin = Boolean(user && authAPI.isAdmin(user))
+  const manufacturerId = isAdmin
+    ? selectedManufacturerId
+    : (user?.manufacturer_id ?? user?.manufacturer?.id ?? null)
 
   const loadProducts = useCallback(
     async (nextPage: number, nextLimit: number, nextSearch: string, nextSorting: SortingState) => {
       setError(null)
+      if (isAdmin && !manufacturerId) {
+        setProducts([])
+        setTotal(0)
+        return { products: [], total: 0, page: 1, limit: nextLimit, total_pages: 1 }
+      }
       const sort = nextSorting[0]
       const response = await inventoryAPI.listProducts(nextPage, nextLimit, {
         search: nextSearch,
@@ -292,12 +311,13 @@ export default function InventoryPage() {
         order: sort?.desc ? 'desc' : 'asc',
         completeness: completenessStatus || undefined,
         issues: issueFilters,
+        manufacturerId,
       })
       setProducts(response.products ?? [])
       setTotal(response.total ?? 0)
       return response
     },
-    [completenessStatus, issueFilters]
+    [completenessStatus, issueFilters, isAdmin, manufacturerId]
   )
 
   useEffect(() => {
@@ -307,11 +327,21 @@ export default function InventoryPage() {
       router.push('/login')
       return
     }
-    if (authAPI.isAdmin(storedUser)) {
-      router.push('/dashboard')
-      return
-    }
     setUser(storedUser)
+    if (!authAPI.isAdmin(storedUser)) return
+    const storedManufacturerId = Number.parseInt(
+      window.sessionStorage.getItem(MANUFACTURER_STORAGE_KEY) ?? '',
+      10
+    )
+    if (Number.isFinite(storedManufacturerId) && storedManufacturerId > 0) {
+      setSelectedManufacturerId(storedManufacturerId)
+    }
+    void manufacturerAPI
+      .getManufacturers(token)
+      .then(setManufacturers)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Failed to load manufacturers')
+      })
   }, [router])
 
   useEffect(() => {
@@ -336,6 +366,8 @@ export default function InventoryPage() {
           sorting
         )
         if (
+          isAdmin &&
+          manufacturerId &&
           !cancelled &&
           !didBootstrapSync.current &&
           !search &&
@@ -344,7 +376,7 @@ export default function InventoryPage() {
         ) {
           didBootstrapSync.current = true
           setIsSyncing(true)
-          await inventoryAPI.sync()
+          await inventoryAPI.sync(manufacturerId)
           if (!cancelled) {
             await loadProducts(pagination.pageIndex + 1, pagination.pageSize, search, sorting)
           }
@@ -352,7 +384,7 @@ export default function InventoryPage() {
           didBootstrapSync.current = true
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load inventory')
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load your catalog')
       } finally {
         if (!cancelled) {
           setIsLoading(false)
@@ -363,12 +395,28 @@ export default function InventoryPage() {
     return () => {
       cancelled = true
     }
-  }, [user, pagination.pageIndex, pagination.pageSize, search, sorting, loadProducts])
+  }, [user, isAdmin, manufacturerId, pagination.pageIndex, pagination.pageSize, search, sorting, loadProducts])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    void inventoryAPI
+      .listCategories()
+      .then((response) => {
+        if (!cancelled) setCategories(response.categories ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const loadVariants = useCallback(async (productId: number) => {
     setLoadingVariantsId(productId)
     try {
-      const response = await inventoryAPI.listVariants(productId)
+      const response = await inventoryAPI.listVariants(productId, manufacturerId)
       const variants = response.variants ?? []
       setVariantsByProduct((prev) => ({ ...prev, [productId]: variants }))
       return variants
@@ -378,7 +426,7 @@ export default function InventoryPage() {
     } finally {
       setLoadingVariantsId(null)
     }
-  }, [])
+  }, [manufacturerId])
 
   const refreshList = useCallback(async () => {
     await loadProducts(pagination.pageIndex + 1, pagination.pageSize, search, sorting)
@@ -408,8 +456,8 @@ export default function InventoryPage() {
     setNotice(null)
     try {
       if (productDialog.mode === 'create') {
-        const created = await inventoryAPI.createProduct(payload)
-        setNotice(traideSaveNotice('product', created))
+        const created = await inventoryAPI.createProduct(payload, manufacturerId)
+        setNotice(catalogSaveNotice('product', created))
         setProductDialog(null)
         if (pagination.pageIndex !== 0) {
           setPagination((prev) => ({ ...prev, pageIndex: 0 }))
@@ -418,8 +466,8 @@ export default function InventoryPage() {
         }
         return
       }
-      const updated = await inventoryAPI.updateProduct(productDialog.product.id, payload)
-      setNotice(traideSaveNotice('product', updated))
+      const updated = await inventoryAPI.updateProduct(productDialog.product.id, payload, manufacturerId)
+      setNotice(catalogSaveNotice('product', updated))
       const productId = productDialog.product.id
       const loaded = variantsByProduct[productId]
       setProducts((prev) =>
@@ -450,9 +498,14 @@ export default function InventoryPage() {
     try {
       const result =
         variantDialog.mode === 'create'
-          ? await inventoryAPI.createVariant(variantDialog.productId, payload)
-          : await inventoryAPI.updateVariant(variantDialog.productId, variantDialog.variant.id, payload)
-      setNotice(traideSaveNotice('variant', result))
+          ? await inventoryAPI.createVariant(variantDialog.productId, payload, manufacturerId)
+          : await inventoryAPI.updateVariant(
+              variantDialog.productId,
+              variantDialog.variant.id,
+              payload,
+              manufacturerId
+            )
+      setNotice(catalogSaveNotice('variant', result))
       const productId = variantDialog.productId
       setVariantDialog(null)
       const variants = await loadVariants(productId)
@@ -477,7 +530,7 @@ export default function InventoryPage() {
     setError(null)
     try {
       if (deleteDialog.kind === 'product') {
-        await inventoryAPI.deleteProduct(deleteDialog.product.id)
+        await inventoryAPI.deleteProduct(deleteDialog.product.id, manufacturerId)
         setVariantsByProduct((prev) => {
           const next = { ...prev }
           delete next[deleteDialog.product.id]
@@ -491,7 +544,7 @@ export default function InventoryPage() {
         })
         await refreshList()
       } else {
-        await inventoryAPI.deleteVariant(deleteDialog.productId, deleteDialog.variant.id)
+        await inventoryAPI.deleteVariant(deleteDialog.productId, deleteDialog.variant.id, manufacturerId)
         await loadVariants(deleteDialog.productId)
         await refreshList()
       }
@@ -514,14 +567,14 @@ export default function InventoryPage() {
     setError(null)
     setNotice(null)
     try {
-      await inventoryAPI.downloadBulk(kind, bulkFilter)
+      await inventoryAPI.downloadBulk(kind, { ...bulkFilter, manufacturerId })
       setNotice(
         kind === 'variants'
-          ? 'Variants spreadsheet downloaded. Keep variant_id and product_id unchanged so each variant stays with its product.'
-          : 'Products spreadsheet downloaded. Keep product_id unchanged so variants stay linked.'
+          ? 'Variants spreadsheet downloaded. Leave the ID columns unchanged so each variant stays with its product.'
+          : 'Products spreadsheet downloaded. Leave the product ID column unchanged so variants stay linked.'
       )
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to download inventory')
+      setError(e instanceof Error ? e.message : 'Could not download your catalog file')
     } finally {
       setIsBulkBusy(false)
     }
@@ -532,18 +585,36 @@ export default function InventoryPage() {
     setError(null)
     setNotice(null)
     try {
-      const result = await inventoryAPI.uploadBulk(file)
+      const result = await inventoryAPI.uploadBulk(file, undefined, manufacturerId)
       const extra = result.errors.length ? ` ${result.errors.slice(0, 3).join(' ')}` : ''
+      const publishedNote = result.traide_errors.length
+        ? ' Some items could not be published yet.'
+        : ''
       setNotice(
-        `Updated ${result.updated} ${result.kind} locally. Synced ${result.traide_synced ?? 0} to Traide. Skipped ${result.skipped}.${extra}`
+        `Updated ${result.updated} ${result.kind} in your catalog. Skipped ${result.skipped}.${publishedNote}${extra}`
       )
       setVariantsByProduct({})
       setExpanded({})
       await refreshList()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to import inventory')
+      setError(e instanceof Error ? e.message : 'Could not upload your catalog file')
     } finally {
       setIsBulkBusy(false)
+    }
+  }
+
+  const handleFetchCategories = async () => {
+    setIsFetchingCategories(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await inventoryAPI.syncCategories()
+      setCategories(result.categories ?? [])
+      setNotice(`Fetched ${result.synced} categories from Traide.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch categories')
+    } finally {
+      setIsFetchingCategories(false)
     }
   }
 
@@ -551,7 +622,7 @@ export default function InventoryPage() {
     setIsSyncing(true)
     setError(null)
     try {
-      await inventoryAPI.sync()
+      await inventoryAPI.sync(manufacturerId)
       setVariantsByProduct({})
       setExpanded({})
       await loadProducts(1, pagination.pageSize, search, sorting)
@@ -688,7 +759,7 @@ export default function InventoryPage() {
     <main className={styles.main}>
       <div className={styles.container}>
         <Header
-          subtitle="Traide products and variants"
+          subtitle={isAdmin ? 'Manufacturer products and variants' : 'Your company catalog'}
           user={user}
           showNavigation={true}
           currentPage="inventory"
@@ -697,26 +768,69 @@ export default function InventoryPage() {
         <section className={styles.content}>
           <div className={styles.toolbar}>
             <div>
-              <h2 className={styles.title}>Manage all inventory</h2>
+              <h2 className={styles.title}>{isAdmin ? 'Items Management' : 'Your catalog'}</h2>
               <p className={styles.subtitle}>
-                Search, sort and paginate products. Completeness flags N/A, zeros, short text, and empty fields.
-                Download products or variants separately to bulk-edit; gray ID columns keep the product–variant link.
+                {isAdmin
+                  ? 'Search, sort and paginate products. Completeness flags N/A, zeros, short text, and empty fields. Download products or variants separately to bulk-edit; gray ID columns keep the product–variant link. Select a manufacturer, fetch categories, then assign them when you edit a product.'
+                  : 'Review your company’s products, complete missing details, and download a spreadsheet when you need to update many items at once. Assign a category when you edit a product.'}
               </p>
             </div>
             <div className={styles.toolbarActions}>
+              {isAdmin ? (
+                <label className={styles.manufacturerFilter}>
+                  <span>Manufacturer</span>
+                  <select
+                    value={selectedManufacturerId ?? ''}
+                    onChange={(event) => {
+                      const next = event.target.value ? Number.parseInt(event.target.value, 10) : null
+                      const manufacturer = Number.isFinite(next) && next && next > 0 ? next : null
+                      setSelectedManufacturerId(manufacturer)
+                      if (manufacturer) {
+                        window.sessionStorage.setItem(MANUFACTURER_STORAGE_KEY, String(manufacturer))
+                      } else {
+                        window.sessionStorage.removeItem(MANUFACTURER_STORAGE_KEY)
+                      }
+                      setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
+                      setExpanded({})
+                      setVariantsByProduct({})
+                      didBootstrapSync.current = false
+                    }}
+                    aria-label="Select manufacturer"
+                  >
+                    <option value="">Select manufacturer</option>
+                    {manufacturers.map((manufacturer) => (
+                      <option key={manufacturer.id} value={manufacturer.id}>
+                        {manufacturer.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <button
                 type="button"
                 className={styles.addButton}
                 onClick={() => setProductDialog({ mode: 'create' })}
+                disabled={!manufacturerId}
               >
                 <Plus size={16} />
                 Add product
               </button>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className={styles.addButton}
+                  onClick={() => void handleFetchCategories()}
+                  disabled={isFetchingCategories || isSyncing || isBulkBusy}
+                >
+                  <FolderTree size={16} />
+                  {isFetchingCategories ? 'Fetching…' : 'Fetch categories'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={styles.addButton}
                 onClick={() => void handleDownloadBulk('products')}
-                disabled={isBulkBusy || isSyncing}
+                disabled={!manufacturerId || isBulkBusy || isSyncing || isFetchingCategories}
               >
                 <Download size={16} />
                 {isBulkBusy ? 'Working…' : 'Download products'}
@@ -725,7 +839,7 @@ export default function InventoryPage() {
                 type="button"
                 className={styles.addButton}
                 onClick={() => void handleDownloadBulk('variants')}
-                disabled={isBulkBusy || isSyncing}
+                disabled={!manufacturerId || isBulkBusy || isSyncing || isFetchingCategories}
               >
                 <Download size={16} />
                 {isBulkBusy ? 'Working…' : 'Download variants'}
@@ -734,7 +848,7 @@ export default function InventoryPage() {
                 type="button"
                 className={styles.addButton}
                 onClick={() => bulkFileRef.current?.click()}
-                disabled={isBulkBusy || isSyncing}
+                disabled={!manufacturerId || isBulkBusy || isSyncing || isFetchingCategories}
               >
                 <Upload size={16} />
                 Upload edits
@@ -750,9 +864,16 @@ export default function InventoryPage() {
                   if (file) void handleUploadBulk(file)
                 }}
               />
-              <button type="button" className={styles.syncButton} onClick={() => void handleSync()} disabled={isSyncing || isBulkBusy}>
-                {isSyncing ? 'Syncing…' : 'Refresh from Traide'}
-              </button>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className={styles.syncButton}
+                  onClick={() => void handleSync()}
+                  disabled={!manufacturerId || isSyncing || isBulkBusy || isFetchingCategories}
+                >
+                  {isSyncing ? 'Syncing…' : 'Refresh from Traide'}
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -777,9 +898,13 @@ export default function InventoryPage() {
                 onSearchChange={setSearchInput}
                 onPaginationChange={setPagination}
                 onSortingChange={handleSortingChange}
-                searchPlaceholder="Search products, SKUs or variants…"
+                searchPlaceholder="Search your products, SKUs or variants…"
                 isLoading={isLoading}
-                emptyMessage="No inventory products match this search."
+                emptyMessage={
+                  isAdmin && !manufacturerId
+                    ? 'Select a manufacturer to view inventory.'
+                    : 'No products in your catalog match this search.'
+                }
                 toolbarExtra={
                   <div className={styles.completenessFilters}>
                     <label>
@@ -876,6 +1001,7 @@ export default function InventoryPage() {
         isOpen={Boolean(productDialog)}
         mode={productDialog?.mode ?? 'create'}
         product={productDialog && productDialog.mode !== 'create' ? productDialog.product : null}
+        categories={categories}
         isSaving={isSaving}
         onClose={() => setProductDialog(null)}
         onSubmit={handleSaveProduct}
@@ -884,7 +1010,7 @@ export default function InventoryPage() {
         isOpen={Boolean(variantDialog)}
         mode={variantDialog?.mode ?? 'create'}
         variant={variantDialog && variantDialog.mode !== 'create' ? variantDialog.variant : null}
-        manufacturerId={user?.manufacturer_id}
+        manufacturerId={manufacturerId}
         isSaving={isSaving}
         onClose={() => setVariantDialog(null)}
         onSubmit={handleSaveVariant}
@@ -895,7 +1021,7 @@ export default function InventoryPage() {
         message={
           deleteDialog?.kind === 'variant'
             ? `Delete “${deleteDialog.variant.name}”? This cannot be undone.`
-            : `Delete “${deleteDialog?.kind === 'product' ? deleteDialog.product.name : 'this product'}”? It will be removed from inventory.`
+            : `Delete “${deleteDialog?.kind === 'product' ? deleteDialog.product.name : 'this product'}”? It will be removed from your catalog.`
         }
         isLoading={isSaving}
         onCancel={() => setDeleteDialog(null)}

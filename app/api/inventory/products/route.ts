@@ -8,8 +8,8 @@ import {
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
-import { err, forbidden, ok, unauthorized } from "@/lib/api-response";
+import { err, ok } from "@/lib/api-response";
+import { requireInventoryAdmin, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { getNauticalConfig } from "@/lib/nautical-client";
 import { syncManufacturerInventory } from "@/lib/nautical-inventory";
 import { persistInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
@@ -17,19 +17,10 @@ import { resolveVariantImages } from "@/lib/inventory-crud";
 
 export const dynamic = "force-dynamic";
 
-function isManufacturerUser(user: { role: { name: string } }): boolean {
-  return user.role.name.trim().toLowerCase() === "manufacturer";
-}
-
 export async function GET(req: NextRequest) {
-  const { user, error } = await requireAuth(req);
-  if (error || !user) return unauthorized(error ?? undefined);
-  if (isAdminUser(user) || !isManufacturerUser(user)) {
-    return forbidden("Only manufacturer users can view inventory.");
-  }
-
-  const manufacturerId = effectiveManufacturerId(user);
-  if (!manufacturerId) return err("Manufacturer ID is missing", 400);
+  const auth = await requireInventoryManufacturer(req);
+  if (!auth.ok) return auth.response;
+  const manufacturerId = auth.manufacturerId;
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
@@ -143,14 +134,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, error } = await requireAuth(req);
-  if (error || !user) return unauthorized(error ?? undefined);
-  if (isAdminUser(user) || !isManufacturerUser(user)) {
-    return forbidden("Only manufacturer users can sync inventory.");
-  }
-
-  const manufacturerId = effectiveManufacturerId(user);
-  if (!manufacturerId) return err("Manufacturer ID is missing", 400);
+  const auth = await requireInventoryAdmin(req);
+  if (!auth.ok) return auth.response;
+  const manufacturerId = auth.manufacturerId;
+  if (!manufacturerId) return err("Manufacturer ID is required", 400);
 
   if (!getNauticalConfig()) {
     return err("Traide integration is not configured.", 503);

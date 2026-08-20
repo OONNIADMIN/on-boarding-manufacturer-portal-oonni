@@ -1268,7 +1268,7 @@ export const nauticalAPI = {
     })
     if (!response.ok) {
       const error = (await response.json().catch(() => ({}))) as { detail?: string }
-      throw new Error(error.detail || 'Failed to load Nautical product types')
+      throw new Error(error.detail || 'Could not load product types')
     }
     const raw = (await response.json()) as Record<string, unknown>
     const list = raw.product_types
@@ -1295,8 +1295,7 @@ export const nauticalAPI = {
     const url = template?.url
     if (!url) {
       throw new Error(
-        `No template found in ImageKit for "${resolved.product_type.name}". ` +
-          'The file must exist in ImageKit with tag "template" and the same name as the product type.'
+        `No catalog template found for "${resolved.product_type.name}". Contact your Oonni administrator.`
       )
     }
     const filename = template.name?.trim() || `${resolved.product_type.name}.xlsx`
@@ -1731,6 +1730,15 @@ export type InventoryVariantRow = {
   completeness?: EntityCompleteness
 }
 
+export type InventoryCategoryOption = {
+  id: string
+  name: string
+  slug: string
+  path: string
+  level: number
+  parent_id: string | null
+}
+
 export type InventoryProductRow = {
   id: number
   nautical_id: string
@@ -1765,6 +1773,7 @@ export type InventoryProductInput = {
   description?: string | null
   seo_title?: string | null
   seo_description?: string | null
+  category_id?: string | null
   category_name?: string | null
   product_type_name?: string | null
   attributes?: Array<{ name: string; value: string }>
@@ -1782,21 +1791,30 @@ export type InventoryVariantInput = {
   images?: Array<{ id?: string | null; url?: string | null }>
 }
 
-async function inventoryRequest<T>(path: string, options?: { method?: string; body?: unknown }): Promise<T> {
+function withManufacturerId(path: string, manufacturerId?: number | null): string {
+  if (!manufacturerId || manufacturerId < 1) return path
+  const join = path.includes('?') ? '&' : '?'
+  return `${path}${join}manufacturer_id=${manufacturerId}`
+}
+
+async function inventoryRequest<T>(
+  path: string,
+  options?: { method?: string; body?: unknown; manufacturerId?: number | null }
+): Promise<T> {
   const token = authAPI.getToken()
   if (!token) throw new Error('Authentication required')
 
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
   if (options?.body !== undefined) headers['Content-Type'] = 'application/json'
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${API_URL}${withManufacturerId(path, options?.manufacturerId)}`, {
     method: options?.method ?? 'GET',
     headers,
     body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.detail || 'Inventory request failed')
+    throw new Error(error.detail || 'Could not save this catalog change')
   }
   return response.json()
 }
@@ -1811,6 +1829,7 @@ export const inventoryAPI = {
       order?: 'asc' | 'desc'
       completeness?: string
       issues?: string[]
+      manufacturerId?: number | null
     }
   ): Promise<{
     products: InventoryProductRow[]
@@ -1831,6 +1850,9 @@ export const inventoryAPI = {
     if (options?.order) params.set('order', options.order)
     if (options?.completeness?.trim()) params.set('completeness', options.completeness.trim())
     if (options?.issues?.length) params.set('issues', options.issues.join(','))
+    if (options?.manufacturerId && options.manufacturerId > 0) {
+      params.set('manufacturer_id', String(options.manufacturerId))
+    }
 
     const response = await fetch(`${API_URL}/inventory/products?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -1838,16 +1860,21 @@ export const inventoryAPI = {
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
-      throw new Error(error.detail || 'Failed to load inventory')
+      throw new Error(error.detail || 'Could not load your catalog')
     }
     return response.json()
   },
 
-  async listVariants(productId: number): Promise<{ variants: InventoryVariantRow[] }> {
+  async listVariants(
+    productId: number,
+    manufacturerId?: number | null
+  ): Promise<{ variants: InventoryVariantRow[] }> {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}/inventory/products/${productId}/variants`, {
+    const response = await fetch(
+      `${API_URL}${withManufacturerId(`/inventory/products/${productId}/variants`, manufacturerId)}`,
+      {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
@@ -1858,34 +1885,57 @@ export const inventoryAPI = {
     return response.json()
   },
 
-  async getProduct(productId: number): Promise<InventoryProductRow> {
-    return inventoryRequest(`/inventory/products/${productId}`)
+  async getProduct(productId: number, manufacturerId?: number | null): Promise<InventoryProductRow> {
+    return inventoryRequest(`/inventory/products/${productId}`, { manufacturerId })
   },
 
-  async createProduct(payload: InventoryProductInput): Promise<InventoryProductRow> {
-    return inventoryRequest('/inventory/products/create', { method: 'POST', body: payload })
+  async createProduct(
+    payload: InventoryProductInput,
+    manufacturerId?: number | null
+  ): Promise<InventoryProductRow> {
+    return inventoryRequest('/inventory/products/create', { method: 'POST', body: payload, manufacturerId })
   },
 
-  async updateProduct(productId: number, payload: InventoryProductInput): Promise<InventoryProductRow> {
-    return inventoryRequest(`/inventory/products/${productId}`, { method: 'PATCH', body: payload })
+  async updateProduct(
+    productId: number,
+    payload: InventoryProductInput,
+    manufacturerId?: number | null
+  ): Promise<InventoryProductRow> {
+    return inventoryRequest(`/inventory/products/${productId}`, {
+      method: 'PATCH',
+      body: payload,
+      manufacturerId,
+    })
   },
 
-  async deleteProduct(productId: number): Promise<{ deleted: boolean; id: number }> {
-    return inventoryRequest(`/inventory/products/${productId}`, { method: 'DELETE' })
+  async deleteProduct(
+    productId: number,
+    manufacturerId?: number | null
+  ): Promise<{ deleted: boolean; id: number }> {
+    return inventoryRequest(`/inventory/products/${productId}`, { method: 'DELETE', manufacturerId })
   },
 
-  async createVariant(productId: number, payload: InventoryVariantInput): Promise<{
+  async createVariant(
+    productId: number,
+    payload: InventoryVariantInput,
+    manufacturerId?: number | null
+  ): Promise<{
     variant: InventoryVariantRow
     traide_synced?: number
     traide_errors?: string[]
   }> {
-    return inventoryRequest(`/inventory/products/${productId}/variants`, { method: 'POST', body: payload })
+    return inventoryRequest(`/inventory/products/${productId}/variants`, {
+      method: 'POST',
+      body: payload,
+      manufacturerId,
+    })
   },
 
   async updateVariant(
     productId: number,
     variantId: number,
-    payload: InventoryVariantInput
+    payload: InventoryVariantInput,
+    manufacturerId?: number | null
   ): Promise<{
     variant: InventoryVariantRow
     traide_synced?: number
@@ -1894,17 +1944,26 @@ export const inventoryAPI = {
     return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
       method: 'PATCH',
       body: payload,
+      manufacturerId,
     })
   },
 
-  async deleteVariant(productId: number, variantId: number): Promise<{ deleted: boolean; id: number }> {
-    return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, { method: 'DELETE' })
+  async deleteVariant(
+    productId: number,
+    variantId: number,
+    manufacturerId?: number | null
+  ): Promise<{ deleted: boolean; id: number }> {
+    return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
+      method: 'DELETE',
+      manufacturerId,
+    })
   },
 
   async downloadBulk(kind: 'products' | 'variants', options?: {
     search?: string
     completeness?: string
     issues?: string[]
+    manufacturerId?: number | null
   }): Promise<void> {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
@@ -1912,12 +1971,15 @@ export const inventoryAPI = {
     if (options?.search?.trim()) params.set('search', options.search.trim())
     if (options?.completeness?.trim()) params.set('completeness', options.completeness.trim())
     if (options?.issues?.length) params.set('issues', options.issues.join(','))
+    if (options?.manufacturerId && options.manufacturerId > 0) {
+      params.set('manufacturer_id', String(options.manufacturerId))
+    }
     const response = await fetch(`${API_URL}/inventory/export?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
-      throw new Error(error.detail || 'Failed to download inventory')
+      throw new Error(error.detail || 'Could not download your catalog file')
     }
     const blob = await response.blob()
     const cd = response.headers.get('Content-Disposition')
@@ -1932,7 +1994,11 @@ export const inventoryAPI = {
     URL.revokeObjectURL(url)
   },
 
-  async uploadBulk(file: File, kind?: 'products' | 'variants'): Promise<{
+  async uploadBulk(
+    file: File,
+    kind?: 'products' | 'variants',
+    manufacturerId?: number | null
+  ): Promise<{
     kind: 'products' | 'variants'
     updated: number
     skipped: number
@@ -1945,23 +2011,27 @@ export const inventoryAPI = {
     const formData = new FormData()
     formData.append('file', file)
     if (kind) formData.append('kind', kind)
-    const response = await fetch(`${API_URL}/inventory/import`, {
+    const response = await fetch(`${API_URL}${withManufacturerId('/inventory/import', manufacturerId)}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
-      throw new Error(error.detail || 'Failed to import inventory')
+      throw new Error(error.detail || 'Could not upload your catalog file')
     }
     return response.json()
   },
 
-  async sync(): Promise<{ seller_id: string; products_synced: number; variants_synced: number }> {
+  async sync(manufacturerId?: number | null): Promise<{
+    seller_id: string
+    products_synced: number
+    variants_synced: number
+  }> {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}/inventory/products`, {
+    const response = await fetch(`${API_URL}${withManufacturerId('/inventory/products', manufacturerId)}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -1970,6 +2040,19 @@ export const inventoryAPI = {
       throw new Error(error.detail || 'Failed to sync inventory')
     }
     return response.json()
+  },
+
+  async listCategories(): Promise<{ categories: InventoryCategoryOption[]; total: number }> {
+    return inventoryRequest('/inventory/categories')
+  },
+
+  async syncCategories(): Promise<{
+    synced: number
+    removed: number
+    total: number
+    categories: InventoryCategoryOption[]
+  }> {
+    return inventoryRequest('/inventory/categories/sync', { method: 'POST' })
   },
 }
 

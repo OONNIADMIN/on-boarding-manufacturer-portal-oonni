@@ -167,6 +167,69 @@
   color: $gray-600;
 }
 
+.categorySelected {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  background: $gray-50;
+  color: $gray-900;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.categoryResults {
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  background: $white;
+}
+
+.categoryResult {
+  @include button-base;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0;
+  background: $white;
+  color: $gray-800;
+  text-align: left;
+  border-bottom: 1px solid $gray-100;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover:not(:disabled) {
+    background: $gray-50;
+  }
+}
+
+.categoryResultActive {
+  background: rgba($oonni-green, 0.08);
+  color: $gray-900;
+}
+
+.categoryResultName {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.categoryResultPath {
+  font-size: $font-size-sm;
+  color: $gray-500;
+}
+
+.categoryEmpty {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: $font-size-sm;
+  color: $gray-600;
+}
+
 .attrList {
   @include flex-column;
   gap: 0.5rem;

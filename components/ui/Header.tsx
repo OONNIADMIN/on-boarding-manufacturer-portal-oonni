@@ -240,6 +240,17 @@ export default function Header({
                     </svg>
                     Catalog columns
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavigation('inventory')}
+                    className={`${styles.navLink} ${currentPage === 'inventory' ? styles.active : ''}`}
+                  >
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                    </svg>
+                    Items Management
+                  </button>
                 </>
               )}
               
@@ -284,7 +295,7 @@ export default function Header({
                   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
                   </svg>
-                  Manage all Products
+                  Your catalog
                 </button>
               </>
               )}

@@ -1,7 +1,7 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
-import type { InventoryAttribute, InventoryProductInput, InventoryProductRow } from '@/lib/api'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import type { InventoryAttribute, InventoryCategoryOption, InventoryProductInput, InventoryProductRow } from '@/lib/api'
 import { mapInventoryAttributes } from '@/lib/inventory-attributes'
 import styles from './InventoryFormModal.module.scss'
 
@@ -11,12 +11,44 @@ type InventoryProductModalProps = {
   isOpen: boolean
   mode: Mode
   product?: InventoryProductRow | null
+  categories?: InventoryCategoryOption[]
   isSaving?: boolean
   onClose: () => void
   onSubmit: (payload: InventoryProductInput) => Promise<void> | void
 }
 
 type AttrRow = { name: string; value: string }
+
+type ProductCategory = InventoryProductRow['category']
+
+function categoryField(category: ProductCategory, key: 'id' | 'slug' | 'name'): string {
+  if (!category) return ''
+  return String(category[key] ?? '').trim()
+}
+
+function matchProductCategory(
+  options: InventoryCategoryOption[],
+  category: ProductCategory,
+  fallbackId = '',
+  fallbackName = ''
+): InventoryCategoryOption | null {
+  const id = categoryField(category, 'id') || fallbackId.trim()
+  if (id) {
+    const byId = options.find((row) => row.id === id)
+    if (byId) return byId
+  }
+  const slug = categoryField(category, 'slug').toLowerCase()
+  if (slug) {
+    const bySlug = options.find((row) => row.slug.toLowerCase() === slug)
+    if (bySlug) return bySlug
+  }
+  const name = (categoryField(category, 'name') || fallbackName).trim().toLowerCase()
+  if (!name) return null
+  const byPath = options.find((row) => row.path.toLowerCase() === name)
+  if (byPath) return byPath
+  const byName = options.filter((row) => row.name.toLowerCase() === name)
+  return byName[0] ?? null
+}
 
 function attributeRows(attrs: InventoryAttribute[] | undefined): AttrRow[] {
   const mapped = mapInventoryAttributes(attrs)
@@ -34,6 +66,7 @@ const emptyForm = {
   description: '',
   seo_title: '',
   seo_description: '',
+  category_id: '',
   category_name: '',
   product_type_name: '',
 }
@@ -42,6 +75,7 @@ export default function InventoryProductModal({
   isOpen,
   mode,
   product,
+  categories = [],
   isSaving = false,
   onClose,
   onSubmit,
@@ -50,6 +84,7 @@ export default function InventoryProductModal({
   const [error, setError] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [attributes, setAttributes] = useState<AttrRow[]>([{ name: '', value: '' }])
+  const [categoryQuery, setCategoryQuery] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -65,23 +100,60 @@ export default function InventoryProductModal({
         description: product.description ?? '',
         seo_title: product.seo_title ?? '',
         seo_description: product.seo_description ?? '',
-        category_name: product.category?.name ?? '',
+        category_id: categoryField(product.category, 'id'),
+        category_name: categoryField(product.category, 'name'),
         product_type_name: product.product_type?.name ?? '',
       })
       setAttributes(attributeRows(product.attributes))
+      setCategoryQuery('')
       return
     }
     setForm(emptyForm)
     setAttributes([{ name: '', value: '' }])
+    setCategoryQuery('')
   }, [isOpen, mode, product])
+
+  useEffect(() => {
+    if (!isOpen || mode === 'create' || !categories.length) return
+    setForm((prev) => {
+      const matched = matchProductCategory(categories, product?.category, prev.category_id, prev.category_name)
+      if (!matched || prev.category_id === matched.id) return prev
+      if (prev.category_id && categories.some((row) => row.id === prev.category_id)) return prev
+      return { ...prev, category_id: matched.id, category_name: matched.name }
+    })
+  }, [isOpen, mode, product, categories])
+
+  const selectedCategory = useMemo(
+    () => matchProductCategory(categories, product?.category, form.category_id, form.category_name),
+    [categories, product, form.category_id, form.category_name]
+  )
+  const selectedCategoryValue = selectedCategory?.id || form.category_id
+  const selectedCategoryLabel =
+    selectedCategory?.path || form.category_name || (selectedCategoryValue ? 'Current category' : '')
+
+  const filteredCategories = useMemo(() => {
+    const needle = categoryQuery.trim().toLowerCase()
+    if (!needle) return categories
+    return categories.filter((row) => {
+      return (
+        row.name.toLowerCase().includes(needle) ||
+        row.path.toLowerCase().includes(needle) ||
+        row.slug.toLowerCase().includes(needle)
+      )
+    })
+  }, [categories, categoryQuery])
+
+  const visibleCategories = filteredCategories.slice(0, 80)
 
   if (!isOpen) return null
 
   const title = mode === 'create' ? 'Add product' : mode === 'edit' ? 'Edit product' : 'View product'
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (readOnly) return
+    if (readOnly || isSaving) return
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active.dataset.categorySearch === 'true') return
     setError('')
     try {
       await onSubmit({
@@ -152,17 +224,79 @@ export default function InventoryProductModal({
                 <option value="PUBLISHED">Published</option>
                 <option value="HIDDEN">Hidden</option>
               </select>
-              <p className={styles.hint}>Status comes from Traide and cannot be edited here.</p>
+              <p className={styles.hint}>Publication status is set automatically and cannot be changed here.</p>
             </label>
-            <label className={styles.formGroup}>
+            <div className={`${styles.formGroup} ${styles.full}`}>
               <span className={styles.label}>Category</span>
-              <input
-                className={styles.input}
-                value={form.category_name}
-                onChange={(event) => setField('category_name', event.target.value)}
-                readOnly={readOnly}
-              />
-            </label>
+              {readOnly ? (
+                <input className={styles.input} value={selectedCategoryLabel} readOnly />
+              ) : (
+                <>
+                  <div className={styles.categorySelected} aria-live="polite">
+                    {selectedCategoryLabel || 'No category assigned'}
+                  </div>
+                  <input
+                    className={styles.input}
+                    type="search"
+                    data-category-search="true"
+                    value={categoryQuery}
+                    onChange={(event) => setCategoryQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.preventDefault()
+                    }}
+                    placeholder={categories.length ? 'Type to find a category' : 'Categories will appear here when they are available'}
+                    disabled={!categories.length}
+                    autoComplete="off"
+                    enterKeyHint="search"
+                  />
+                  {categories.length ? (
+                    <div className={styles.categoryResults} role="listbox" aria-label="Matching categories">
+                      {visibleCategories.length ? (
+                        visibleCategories.map((row) => {
+                          const isSelected = row.id === selectedCategoryValue
+                          return (
+                            <button
+                              key={row.id}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              className={`${styles.categoryResult} ${isSelected ? styles.categoryResultActive : ''}`}
+                              onClick={() => {
+                                setForm((prev) => ({
+                                  ...prev,
+                                  category_id: row.id,
+                                  category_name: row.name,
+                                }))
+                                setCategoryQuery('')
+                              }}
+                            >
+                              <span className={styles.categoryResultName} style={{ paddingLeft: `${Math.max(0, row.level - 1) * 0.75}rem` }}>
+                                {row.name}
+                              </span>
+                              <span className={styles.categoryResultPath}>{row.path}</span>
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <p className={styles.categoryEmpty}>No categories match “{categoryQuery.trim()}”.</p>
+                      )}
+                      {filteredCategories.length > visibleCategories.length ? (
+                        <p className={styles.categoryEmpty}>
+                          Showing {visibleCategories.length} of {filteredCategories.length}. Type more to narrow the list.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className={styles.hint}>Your current category is kept. Search the list to choose a different one.</p>
+                  )}
+                  <p className={styles.hint}>
+                    {selectedCategoryLabel
+                      ? `Selected: ${selectedCategoryLabel}`
+                      : 'Search and click a category to assign it.'}
+                  </p>
+                </>
+              )}
+            </div>
             <label className={styles.formGroup}>
               <span className={styles.label}>Type</span>
               <input
