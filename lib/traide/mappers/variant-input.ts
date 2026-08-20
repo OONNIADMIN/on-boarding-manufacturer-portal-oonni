@@ -74,12 +74,12 @@ export function toVariantBulkCreateInput(
   }
   if (isLocalTraideId(variant.product.nautical_id)) {
     return {
-      error: `Variant ${variant.id} parent product ${variant.product.id} is not in Traide yet. Upload products first.`,
+      error: `Variant ${variant.id} parent product is not in your catalog yet. Save the product first.`,
     };
   }
   const externalId = variantExternalId(variant);
   if (!externalId) {
-    return { error: `Variant ${variant.id} has no External ID, so Traide cannot upsert it` };
+    return { error: `Variant ${variant.id} needs an External ID before it can be published` };
   }
   const payload = asRecord(variant.payload);
   const productPayload = asRecord(variant.product.payload);
@@ -124,7 +124,7 @@ export function toVariantUpdateInput(
   }
 ): { id: string; input: TraideProductVariantUpdateInput } | { error: string } {
   if (isLocalTraideId(variant.nautical_id) || !asText(variant.nautical_id)) {
-    return { error: `Variant ${variant.id} has no Traide id to update` };
+    return { error: `Variant ${variant.id} is not published in your catalog yet` };
   }
   const mapped = toVariantBulkCreateInput(variant, options);
   if ("error" in mapped) return mapped;

@@ -17,6 +17,7 @@ import { productBulkCreate } from "@/lib/traide/operations/product-bulk-create";
 import { productUpdate } from "@/lib/traide/operations/product-update";
 import { fetchAllNauticalProductTypes } from "@/lib/traide/operations/product-types";
 import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
+import { loadCategoryLookup } from "@/lib/inventory-categories";
 import { productVariantBulkCreate } from "@/lib/traide/operations/variant-bulk-create";
 import { productVariantUpdate } from "@/lib/traide/operations/product-variant-update";
 import { pushVariantImagesForIds } from "@/lib/traide/services/variant-images-push";
@@ -105,12 +106,13 @@ export async function pushInventoryProductsToTraide(
       select: PRODUCT_SELECT,
     });
     const productTypes = await fetchAllNauticalProductTypes();
+    const categories = await loadCategoryLookup();
     const toCreate: Array<{ row: InventoryProductLike; input: TraideProductBulkCreateInput }> = [];
     let synced = 0;
 
     for (const product of products) {
       if (!isLocalTraideId(product.nautical_id) && product.nautical_id) {
-        const result = toProductUpdateInput(product, { sellerId, productTypes });
+        const result = toProductUpdateInput(product, { sellerId, productTypes, categories });
         if ("error" in result) {
           errors.push(result.error);
           continue;
@@ -133,12 +135,12 @@ export async function pushInventoryProductsToTraide(
             });
           }
         } catch (e) {
-          errors.push(`Product ${product.id}: ${e instanceof Error ? e.message : "failed to update Traide"}`);
+          errors.push(`Product ${product.id}: ${e instanceof Error ? e.message : "could not be published"}`);
         }
         continue;
       }
 
-      const result = toProductBulkCreateInput(product, { sellerId, productTypes });
+      const result = toProductBulkCreateInput(product, { sellerId, productTypes, categories });
       if ("error" in result) {
         errors.push(result.error);
         continue;
@@ -178,7 +180,7 @@ export async function pushInventoryProductsToTraide(
           });
         } catch (e) {
           errors.push(
-            `Product ${item.row.id}: ${e instanceof Error ? e.message : "failed to save Traide id"}`
+            `Product ${item.row.id}: ${e instanceof Error ? e.message : "could not be published"}`
           );
         }
       }
@@ -189,7 +191,7 @@ export async function pushInventoryProductsToTraide(
       traide_errors: errors.slice(0, 50),
     };
   } catch (e) {
-    errors.push(e instanceof Error ? e.message : "Failed to push products to Traide");
+    errors.push(e instanceof Error ? e.message : "Could not publish products to your catalog");
     return { traide_synced: 0, traide_errors: errors.slice(0, 50) };
   }
 }
@@ -266,7 +268,7 @@ export async function pushInventoryVariantsToTraide(
             });
           }
         } catch (e) {
-          errors.push(`Variant ${variant.id}: ${e instanceof Error ? e.message : "failed to update Traide"}`);
+          errors.push(`Variant ${variant.id}: ${e instanceof Error ? e.message : "could not be published"}`);
         }
         continue;
       }
@@ -313,7 +315,7 @@ export async function pushInventoryVariantsToTraide(
           });
         } catch (e) {
           errors.push(
-            `Variant ${item.row.id}: ${e instanceof Error ? e.message : "failed to save Traide id"}`
+            `Variant ${item.row.id}: ${e instanceof Error ? e.message : "could not be published"}`
           );
         }
         if (item.input.attributes.length) {
@@ -330,7 +332,7 @@ export async function pushInventoryVariantsToTraide(
             errors.push(...attrUpdate.errors.map((message) => `Variant ${item.row.id}: ${message}`));
           } catch (e) {
             errors.push(
-              `Variant ${item.row.id}: ${e instanceof Error ? e.message : "failed to update Traide attributes"}`
+              `Variant ${item.row.id}: ${e instanceof Error ? e.message : "could not update attributes"}`
             );
           }
         }
@@ -346,7 +348,7 @@ export async function pushInventoryVariantsToTraide(
 
     return { traide_synced: synced, traide_errors: errors.slice(0, 50) };
   } catch (e) {
-    errors.push(e instanceof Error ? e.message : "Failed to push variants to Traide");
+    errors.push(e instanceof Error ? e.message : "Could not publish variants to your catalog");
     return { traide_synced: synced, traide_errors: errors.slice(0, 50) };
   }
 }

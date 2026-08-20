@@ -396,12 +396,12 @@ export default function CatalogsPage() {
               <div className={styles.welcomeDivider} aria-hidden="true"></div>
               <div className={styles.welcomeDescriptionPanel}>
                 <p className={styles.welcomeDescription}>
-                  Upload your excel or CSV file using the{' '}
+                  Upload your Excel or CSV file using the{' '}
                   <span className={styles.welcomeHighlight}>catalog template</span> column names: a{' '}
                   <span className={styles.welcomeHighlight}>sku</span> column for products and an{' '}
                   <span className={styles.welcomeHighlight}>images</span> column for public image URLs.
-                  After upload we create products and import those URLs into the DAM automatically. Download
-                  templates from <span className={styles.welcomeHighlight}>catalog template</span> in the
+                  After upload we add the products to your Oonni catalog and import those photos automatically.
+                  Download templates from <span className={styles.welcomeHighlight}>catalog template</span> in the
                   navigation (one file per product line if needed).
                 </p>
               </div>
@@ -464,10 +464,10 @@ export default function CatalogsPage() {
                               <div className={styles.imageKitProgressHeader}>
                                 <span className={styles.imageKitProgressLabel}>
                                   {catalogProcessingPhase === 'products'
-                                    ? 'Creating products from catalog…'
+                                    ? 'Adding products to your catalog…'
                                     : imageIngestProgress?.phase === 'finalizing'
-                                      ? 'Finalizing catalog in ImageKit…'
-                                      : 'Uploading images to ImageKit…'}
+                                      ? 'Finishing your catalog…'
+                                      : 'Uploading product photos…'}
                                 </span>
                                 {imageIngestProgress && catalogProcessingPhase === 'images' ? (
                                   <span className={styles.imageKitProgressPct}>
@@ -488,7 +488,7 @@ export default function CatalogsPage() {
                               </div>
                               {imageIngestProgress && catalogProcessingPhase === 'images' ? (
                                 <p className={styles.imageKitProgressMeta}>
-                                  {imageIngestProgress.uploaded} uploaded to ImageKit
+                                  {imageIngestProgress.uploaded} photos uploaded
                                   {imageIngestProgress.total > 0
                                     ? ` · ${imageIngestProgress.processed} of ${imageIngestProgress.total} source URL(s)`
                                     : ''}
@@ -526,7 +526,7 @@ export default function CatalogsPage() {
                   Your Upload Images
                 </h2>
                 <p className={styles.mediaLibraryIntro}>
-                  Same library as in the admin Images view: files linked to your manufacturer (including images imported from your catalog URLs).
+                  Photos imported from your catalog file, linked to your company.
                 </p>
                 <hr className={styles.mediaLibraryDivider} />
               </div>

@@ -124,7 +124,7 @@ export default function InventoryVariantModal({
     event.target.value = ''
     if (!files.length) return
     if (!manufacturerId) {
-      setError('Manufacturer ID is required to upload images to ImageKit.')
+      setError('A manufacturer is required to upload product photos.')
       return
     }
     setError('')
@@ -133,11 +133,11 @@ export default function InventoryVariantModal({
       for (const file of files) {
         const uploaded = await imageAPI.uploadImage(file, manufacturerId)
         const url = (uploaded.imagekit_url || uploaded.s3_url || '').trim()
-        if (!url) throw new Error(`ImageKit did not return a public URL for ${file.name}`)
+        if (!url) throw new Error(`Could not upload ${file.name}`)
         setImages((prev) => (prev.some((image) => image.url === url) ? prev : [...prev, { url }]))
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to upload image to ImageKit')
+      setError(e instanceof Error ? e.message : 'Could not upload this photo')
     } finally {
       setIsUploading(false)
     }
@@ -208,7 +208,7 @@ export default function InventoryVariantModal({
             {readOnly ? null : (
               <>
                 <p className={styles.hint}>
-                  Upload files to ImageKit (DAM). Traide receives the public ImageKit URL. External URLs are imported to ImageKit on save.
+                  Upload photos from your computer, or paste an image URL from your files.
                 </p>
                 <div className={styles.imageAddRow}>
                   <input
@@ -225,12 +225,12 @@ export default function InventoryVariantModal({
                     disabled={isUploading || isSaving}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    {isUploading ? 'Uploading…' : 'Upload to ImageKit'}
+                    {isUploading ? 'Uploading…' : 'Upload photos'}
                   </button>
                   <input
                     className={styles.input}
                     value={imageUrl}
-                    placeholder="Or paste a URL (imported to ImageKit on save)"
+                    placeholder="Or paste an image URL"
                     disabled={isUploading || isSaving}
                     onChange={(event) => setImageUrl(event.target.value)}
                     onKeyDown={(event) => {

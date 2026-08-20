@@ -4,7 +4,7 @@ import type { TraideProductVariantUpdateInput } from "@/lib/traide/mappers/varia
 
 function formatVariantError(error: TraideProductError): string {
   const parts = [error.field, error.code, error.message].filter(Boolean);
-  return parts.join(": ") || "Unknown Traide variant update error";
+  return parts.join(": ") || "This variant could not be updated";
 }
 
 export async function productVariantUpdate(

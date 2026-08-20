@@ -100,7 +100,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     images: parsed.images,
   });
   if (dam.errors.length && !dam.images.length) {
-    return err(dam.errors[0] ?? "Failed to upload images to ImageKit");
+    return err(dam.errors[0] ?? "Could not upload product photos");
   }
 
   const variant = await prisma.inventoryVariant.create({

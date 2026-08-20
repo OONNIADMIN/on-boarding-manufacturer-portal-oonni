@@ -27,17 +27,18 @@ export function nauticalNotConfiguredMessage(): string {
   return "Nautical integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN (or NAUTICAL_KEY_BEARER) on the server.";
 }
 
-/** Short user-facing Traide error. Raw GraphQL/HTTP payloads stay in server logs. */
+/** Short user-facing catalog error. Raw GraphQL/HTTP payloads stay in server logs. */
 export function formatTraideUserError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error ?? "");
+  const fallback = "This change could not be saved to your catalog.";
   if (/Field '[^']+' is not defined/i.test(raw) || /got invalid value/i.test(raw)) {
-    return "Traide rejected the update.";
+    return "This update could not be published to your catalog.";
   }
-  if (/Nautical HTTP \d+/i.test(raw) || /"errors"\s*:/.test(raw)) {
-    return "Traide could not save this change.";
+  if (/Nautical HTTP \d+/i.test(raw) || /"errors"\s*:/.test(raw) || /traide|nautical/i.test(raw)) {
+    return fallback;
   }
-  const firstLine = raw.split(/\r?\n/)[0]?.trim() || "Traide could not save this change.";
-  return firstLine.length > 160 ? "Traide could not save this change." : firstLine;
+  const firstLine = raw.split(/\r?\n/)[0]?.trim() || fallback;
+  return firstLine.length > 160 ? fallback : firstLine;
 }
 
 export async function nauticalGraphql<T>(
@@ -75,7 +76,7 @@ export async function nauticalGraphql<T>(
     throw new Error(formatTraideUserError(body.errors.map((e) => e.message).join("; ")));
   }
   if (body.data == null) {
-    throw new Error("Traide returned no data");
+    throw new Error(formatTraideUserError("This change could not be saved to your catalog."));
   }
   return body.data;
 }

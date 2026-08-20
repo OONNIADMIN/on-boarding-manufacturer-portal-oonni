@@ -10,7 +10,7 @@ function formatBulkError(error: TraideBulkProductError): string {
     error.code,
     error.message,
   ].filter(Boolean);
-  return parts.join(": ") || "Unknown Traide product error";
+  return parts.join(": ") || "This product could not be published";
 }
 
 export async function productBulkCreate(

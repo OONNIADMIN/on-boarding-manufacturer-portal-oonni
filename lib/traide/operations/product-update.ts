@@ -4,7 +4,7 @@ import type { TraideProductUpdateInput } from "@/lib/traide/mappers/product-inpu
 
 function formatProductError(error: TraideProductError): string {
   const parts = [error.field, error.code, error.message].filter(Boolean);
-  return parts.join(": ") || "Unknown Traide product update error";
+  return parts.join(": ") || "This product could not be updated";
 }
 
 export async function productUpdate(

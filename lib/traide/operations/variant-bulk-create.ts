@@ -14,7 +14,7 @@ function formatBulkError(error: TraideBulkProductError, productId: string): stri
     error.code,
     error.message,
   ].filter(Boolean);
-  return parts.join(": ") || `Unknown Traide variant error for product ${productId}`;
+  return parts.join(": ") || `This variant could not be published for product ${productId}`;
 }
 
 export async function productVariantBulkCreate(

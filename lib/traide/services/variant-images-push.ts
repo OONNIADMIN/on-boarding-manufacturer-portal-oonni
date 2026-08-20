@@ -88,10 +88,10 @@ export async function pushVariantImagesToTraide(
   const productId = variant.product.nautical_id;
   const traideVariantId = variant.nautical_id;
   if (!productId || isLocalId(productId)) {
-    return { errors: [`Variant ${variant.id} parent product is not in Traide yet. Upload the product first.`] };
+    return { errors: [`Variant ${variant.id} parent product is not in your catalog yet. Save the product first.`] };
   }
   if (!traideVariantId || isLocalId(traideVariantId)) {
-    return { errors: [`Variant ${variant.id} is not in Traide yet. Upload the variant first.`] };
+    return { errors: [`Variant ${variant.id} is not in your catalog yet. Save the variant first.`] };
   }
 
   const known = [
@@ -121,7 +121,7 @@ export async function pushVariantImagesToTraide(
       });
       if (result.errors.length || !result.imageId) {
         errors.push(
-          `Variant ${variant.id} image ${image.url}: ${result.errors.join("; ") || "Traide did not return an image id"}`
+          `Variant ${variant.id} image ${image.url}: ${result.errors.join("; ") || "this photo could not be published"}`
         );
         persisted.push({ ...image, id: null });
         continue;

@@ -4,7 +4,6 @@ import { err, forbidden, ok, unauthorized } from "@/lib/api-response";
 import {
   fetchAllNauticalProductTypes,
   getNauticalConfig,
-  nauticalNotConfiguredMessage,
 } from "@/lib/nautical-client";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +17,11 @@ export async function GET(req: NextRequest) {
   if (error || !user) return unauthorized(error ?? undefined);
 
   if (isAdminUser(user) || !isManufacturerUser(user)) {
-    return forbidden("Only manufacturer users can access Nautical catalog templates.");
+    return forbidden("Only manufacturer users can download catalog templates.");
   }
 
   if (!getNauticalConfig()) {
-    return err(nauticalNotConfiguredMessage(), 503);
+    return err("Catalog templates are not available right now. Contact your Oonni administrator.", 503);
   }
 
   try {
@@ -35,7 +34,7 @@ export async function GET(req: NextRequest) {
     return ok({ product_types });
   } catch (e) {
     console.error("nautical product-types:", e);
-    const msg = e instanceof Error ? e.message : "Failed to load product types from Nautical";
-    return err(msg, 502);
+    const msg = e instanceof Error ? e.message : "Could not load catalog templates";
+    return err(/traide|nautical/i.test(msg) ? "Could not load catalog templates" : msg, 502);
   }
 }

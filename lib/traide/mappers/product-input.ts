@@ -138,11 +138,24 @@ export function resolveProductTypeId(
   return match?.id ?? null;
 }
 
-function resolveCategoryId(product: InventoryProductLike): string | undefined {
+function resolveCategoryId(
+  product: InventoryProductLike,
+  catalog: Array<{ id: string; slug: string; name: string }> = []
+): string | undefined {
   const payload = asRecord(product.payload);
   const stored = product.category ?? payload?.category;
   const id = namedField(stored, "id");
-  return isCategoryGlobalId(id) ? id ?? undefined : undefined;
+  if (isCategoryGlobalId(id)) return id ?? undefined;
+  if (id) {
+    const byId = catalog.find((item) => item.id === id);
+    if (byId) return byId.id;
+  }
+  const needle = (namedField(stored, "name") || namedField(stored, "slug") || "").toLowerCase();
+  if (!needle) return undefined;
+  const match = catalog.find(
+    (item) => item.name.toLowerCase() === needle || item.slug.toLowerCase() === needle
+  );
+  return match?.id;
 }
 
 function dimensionsInput(value: unknown): TraideProductBulkCreateInput["dimensions"] | undefined {
@@ -161,21 +174,22 @@ export function toProductBulkCreateInput(
   options: {
     sellerId: string;
     productTypes: ProductTypeLookup[];
+    categories?: Array<{ id: string; slug: string; name: string }>;
   }
 ): { input: TraideProductBulkCreateInput; productType: ProductTypeLookup | null } | { error: string } {
   const productTypeId = resolveProductTypeId(product, options.productTypes);
   if (!productTypeId) {
-    return { error: `Product ${product.id} is missing a Traide product type id` };
+    return { error: `Product ${product.id} is missing a product type` };
   }
   const externalId = resolveProductExternalId(product);
   if (!externalId) {
     return {
-      error: `Product ${product.id} ("${product.name}") has no External ID, so Traide cannot upsert it`,
+      error: `Product ${product.id} ("${product.name}") needs an External ID before it can be published`,
     };
   }
   const productType = options.productTypes.find((item) => item.id === productTypeId) ?? null;
   const payload = asRecord(product.payload);
-  const category = resolveCategoryId(product);
+  const category = resolveCategoryId(product, options.categories ?? []);
   const input: TraideProductBulkCreateInput = {
     name: product.name,
     slug: product.slug,
@@ -217,10 +231,11 @@ export function toProductUpdateInput(
   options: {
     sellerId: string;
     productTypes: ProductTypeLookup[];
+    categories?: Array<{ id: string; slug: string; name: string }>;
   }
 ): { id: string; input: TraideProductUpdateInput } | { error: string } {
   if (isLocalTraideId(product.nautical_id) || !asText(product.nautical_id)) {
-    return { error: `Product ${product.id} has no Traide id to update` };
+    return { error: `Product ${product.id} is not published in your catalog yet` };
   }
   const mapped = toProductBulkCreateInput(product, options);
   if ("error" in mapped) return mapped;
