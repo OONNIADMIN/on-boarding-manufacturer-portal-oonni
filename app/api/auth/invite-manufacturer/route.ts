@@ -4,6 +4,7 @@ import { requireAdmin, generateInvitationToken, getInvitationTokenExpiry } from 
 import { sendManufacturerInvitation } from "@/lib/email";
 import { created, err, unauthorized } from "@/lib/api-response";
 import { slugify } from "@/lib/api-response";
+import { ensureManufacturerImageKitFolders } from "@/lib/imagekit";
 
 export async function POST(req: NextRequest) {
   const { error } = await requireAdmin(req);
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
       const mfr = await prisma.manufacturer.findUnique({ where: { id: manufacturer_id } });
       if (!mfr) return err("Manufacturer not found", 404);
       mfrId = mfr.id;
+      await ensureManufacturerImageKitFolders(mfr);
     } else {
       let slug = slugify(name);
       const base = slug;
@@ -34,6 +36,7 @@ export async function POST(req: NextRequest) {
       while (await prisma.manufacturer.findUnique({ where: { slug } })) slug = `${base}-${i++}`;
       const mfr = await prisma.manufacturer.create({ data: { name: name.trim(), slug } });
       mfrId = mfr.id;
+      await ensureManufacturerImageKitFolders(mfr);
     }
 
     const token = generateInvitationToken();

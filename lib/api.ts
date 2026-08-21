@@ -14,6 +14,7 @@ import {
 import { mimeToListFileType } from '@/lib/image-list-json'
 import type { CatalogColumnRuleRecord } from '@/lib/catalog-column-validation'
 import type { CatalogImageIngestProgress } from '@/lib/catalog-image-ingest'
+import type { EntityCompleteness, ProductCompleteness } from '@/lib/inventory-completeness'
 
 export type { CatalogImageIngestProgress }
 
@@ -56,16 +57,17 @@ export interface FilesListResponse {
 }
 
 export interface ImageUploadResponse {
-  message: string
+  message?: string
   original_filename: string
   s3_key: string
   s3_url: string
-  file_size_bytes: number
-  optimized_size_bytes: number
+  imagekit_url?: string
+  file_size_bytes?: number
+  optimized_size_bytes?: number
   manufacturer_id?: number
-  user_id: number
-  uploaded_at: string
-  optimization_info: {
+  user_id?: number
+  uploaded_at?: string
+  optimization_info?: {
     format: string
     saved: number
     reason: string
@@ -233,8 +235,17 @@ export const authAPI = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Login failed')
+      const text = await response.text()
+      let detail = 'Login failed'
+      try {
+        const error = JSON.parse(text) as { detail?: string }
+        if (error.detail) detail = error.detail
+      } catch {
+        if (response.status === 500) {
+          detail = 'Login failed (server error). Check DATABASE_URL and that Postgres is running.'
+        }
+      }
+      throw new Error(detail)
     }
 
     const data = await response.json()
@@ -283,6 +294,41 @@ export const authAPI = {
       return userStr ? JSON.parse(userStr) : null
     }
     return null
+  },
+
+  persistUser(user: User): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user', JSON.stringify(user))
+    }
+  },
+
+  async getMe(token: string): Promise<User> {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to load profile')
+    }
+    return response.json()
+  },
+
+  async updateProfile(token: string, data: { name: string }): Promise<User> {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to update profile')
+    }
+    const user = await response.json()
+    this.persistUser(user)
+    return user
   },
 
   /**
@@ -444,6 +490,27 @@ export const authAPI = {
     }
 
     return response.json()
+  },
+
+  /**
+   * Activate a manufacturer user and set their password (admin only)
+   */
+  async activateUser(token: string, userId: number, password: string): Promise<User> {
+    const response = await fetch(`${API_URL}/auth/users/${userId}/activate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to activate user')
+    }
+
+    return response.json()
   }
 }
 
@@ -481,8 +548,16 @@ export const catalogAPI = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Upload failed')
+      const text = await response.text()
+      try {
+        const error = JSON.parse(text) as { detail?: string }
+        throw new Error(error.detail || 'Upload failed')
+      } catch (e) {
+        if (e instanceof Error && e.message !== 'Upload failed' && !e.message.startsWith('Unexpected')) {
+          throw e
+        }
+        throw new Error('Upload failed. Check ImageKit keys and that the catalog API is running.')
+      }
     }
 
     return response.json()
@@ -643,7 +718,7 @@ export const catalogAPI = {
   async ingestImagesFromSpreadsheetUrls(
     catalogId: number,
     skuColumn: string,
-    imageColumn: string,
+    imageColumns: string | string[],
     manufacturerId: number,
     options?: {
       onProgress?: (progress: CatalogImageIngestProgress) => void
@@ -664,6 +739,10 @@ export const catalogAPI = {
     }
 
     const useMultipart = Boolean(options?.catalogFile?.size)
+    const imageColumnList = (Array.isArray(imageColumns) ? imageColumns : [imageColumns])
+      .map((name) => String(name ?? '').trim())
+      .filter(Boolean)
+    const imageColumn = imageColumnList[0] ?? ''
 
     const response = await fetch(`${API_URL}/catalogs/${catalogId}/ingest-url-images`, {
       method: 'POST',
@@ -678,7 +757,8 @@ export const catalogAPI = {
             const formData = new FormData()
             formData.append('file', options!.catalogFile!)
             formData.append('sku_column', skuColumn)
-            formData.append('image_column', imageColumn)
+            if (imageColumn) formData.append('image_column', imageColumn)
+            formData.append('image_columns', JSON.stringify(imageColumnList))
             formData.append('manufacturer_id', String(manufacturerId))
             formData.append('stream', 'true')
             return formData
@@ -686,6 +766,7 @@ export const catalogAPI = {
         : JSON.stringify({
             sku_column: skuColumn,
             image_column: imageColumn,
+            image_columns: imageColumnList,
             manufacturer_id: manufacturerId,
             stream: true,
           }),
@@ -1187,7 +1268,7 @@ export const nauticalAPI = {
     })
     if (!response.ok) {
       const error = (await response.json().catch(() => ({}))) as { detail?: string }
-      throw new Error(error.detail || 'Failed to load Nautical product types')
+      throw new Error(error.detail || 'Could not load product types')
     }
     const raw = (await response.json()) as Record<string, unknown>
     const list = raw.product_types
@@ -1214,8 +1295,7 @@ export const nauticalAPI = {
     const url = template?.url
     if (!url) {
       throw new Error(
-        `No template found in ImageKit for "${resolved.product_type.name}". ` +
-          'The file must exist in ImageKit with tag "template" and the same name as the product type.'
+        `No catalog template found for "${resolved.product_type.name}". Contact your Oonni administrator.`
       )
     }
     const filename = template.name?.trim() || `${resolved.product_type.name}.xlsx`
@@ -1373,6 +1453,28 @@ export const manufacturerAPI = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.detail || 'Failed to create manufacturer')
+    }
+
+    return response.json()
+  },
+
+  async updateManufacturer(
+    token: string,
+    manufacturerId: number,
+    data: { name?: string; thumbnail?: string }
+  ): Promise<Manufacturer> {
+    const response = await fetch(`${API_URL}/manufacturers/${manufacturerId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to update manufacturer')
     }
 
     return response.json()
@@ -1592,5 +1694,375 @@ export const productAPI = {
 
     return response.json()
   }
+}
+
+export type InventoryAttribute = {
+  id?: string | null
+  name: string
+  slug?: string | null
+  value?: string | null
+  inputType?: string | null
+  valueRequired?: boolean | null
+  values?: Array<{
+    slug?: string | null
+    name?: string | null
+    plainText?: string | null
+    richText?: string | null
+    boolean?: boolean | null
+    amount?: string | number | null
+    value?: string | null
+  }>
+}
+
+export type InventoryVariantRow = {
+  id: number
+  nautical_id: string
+  name: string
+  sku?: string | null
+  seo_description?: string | null
+  dimensions?: {
+    length?: number | null
+    width?: number | null
+    height?: number | null
+    unit?: string | null
+  } | null
+  attributes: InventoryAttribute[]
+  images: Array<{ id?: string | null; url?: string | null }>
+  completeness?: EntityCompleteness
+}
+
+export type InventoryCategoryOption = {
+  id: string
+  name: string
+  slug: string
+  path: string
+  level: number
+  parent_id: string | null
+}
+
+export type InventoryProductRow = {
+  id: number
+  nautical_id: string
+  slug: string
+  name: string
+  description?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  external_id: string | null
+  status: string | null
+  is_published: boolean
+  available_for_purchase: boolean
+  images: Array<{ url?: string | null }>
+  category: { id?: string | null; slug?: string | null; name?: string | null } | null
+  product_type: { id?: string | null; slug?: string | null; name?: string | null } | null
+  attributes: InventoryAttribute[]
+  variants?: InventoryVariantRow[]
+  variant_count?: number
+  completeness?: ProductCompleteness
+  synced_at: string
+  traide_synced?: number
+  traide_errors?: string[]
+}
+
+export type InventoryAttributeWrite = {
+  name: string
+  value: string
+  id?: string | null
+  slug?: string | null
+  inputType?: string | null
+  valueRequired?: boolean | null
+}
+
+export type InventoryProductInput = {
+  name: string
+  slug?: string
+  external_id?: string | null
+  status?: string | null
+  is_published?: boolean
+  available_for_purchase?: boolean
+  description?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  category_id?: string | null
+  category_name?: string | null
+  product_type_name?: string | null
+  attributes?: InventoryAttributeWrite[]
+}
+
+export type InventoryVariantInput = {
+  name: string
+  sku?: string | null
+  seo_description?: string | null
+  length?: number | null
+  width?: number | null
+  height?: number | null
+  unit?: string | null
+  attributes?: InventoryAttributeWrite[]
+  images?: Array<{ id?: string | null; url?: string | null }>
+}
+
+function withManufacturerId(path: string, manufacturerId?: number | null): string {
+  if (!manufacturerId || manufacturerId < 1) return path
+  const join = path.includes('?') ? '&' : '?'
+  return `${path}${join}manufacturer_id=${manufacturerId}`
+}
+
+async function inventoryRequest<T>(
+  path: string,
+  options?: { method?: string; body?: unknown; manufacturerId?: number | null }
+): Promise<T> {
+  const token = authAPI.getToken()
+  if (!token) throw new Error('Authentication required')
+
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
+  if (options?.body !== undefined) headers['Content-Type'] = 'application/json'
+
+  const response = await fetch(`${API_URL}${withManufacturerId(path, options?.manufacturerId)}`, {
+    method: options?.method ?? 'GET',
+    headers,
+    body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Could not save this catalog change')
+  }
+  return response.json()
+}
+
+export const inventoryAPI = {
+  async listProducts(
+    page = 1,
+    limit = 10,
+    options?: {
+      search?: string
+      sort?: string
+      order?: 'asc' | 'desc'
+      completeness?: string
+      issues?: string[]
+      manufacturerId?: number | null
+    }
+  ): Promise<{
+    products: InventoryProductRow[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    })
+    if (options?.search?.trim()) params.set('search', options.search.trim())
+    if (options?.sort) params.set('sort', options.sort)
+    if (options?.order) params.set('order', options.order)
+    if (options?.completeness?.trim()) params.set('completeness', options.completeness.trim())
+    if (options?.issues?.length) params.set('issues', options.issues.join(','))
+    if (options?.manufacturerId && options.manufacturerId > 0) {
+      params.set('manufacturer_id', String(options.manufacturerId))
+    }
+
+    const response = await fetch(`${API_URL}/inventory/products?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Could not load your catalog')
+    }
+    return response.json()
+  },
+
+  async listVariants(
+    productId: number,
+    manufacturerId?: number | null
+  ): Promise<{ variants: InventoryVariantRow[] }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(
+      `${API_URL}${withManufacturerId(`/inventory/products/${productId}/variants`, manufacturerId)}`,
+      {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to load variants')
+    }
+    return response.json()
+  },
+
+  async getProduct(productId: number, manufacturerId?: number | null): Promise<InventoryProductRow> {
+    return inventoryRequest(`/inventory/products/${productId}`, { manufacturerId })
+  },
+
+  async createProduct(
+    payload: InventoryProductInput,
+    manufacturerId?: number | null
+  ): Promise<InventoryProductRow> {
+    return inventoryRequest('/inventory/products/create', { method: 'POST', body: payload, manufacturerId })
+  },
+
+  async updateProduct(
+    productId: number,
+    payload: InventoryProductInput,
+    manufacturerId?: number | null
+  ): Promise<InventoryProductRow> {
+    return inventoryRequest(`/inventory/products/${productId}`, {
+      method: 'PATCH',
+      body: payload,
+      manufacturerId,
+    })
+  },
+
+  async deleteProduct(
+    productId: number,
+    manufacturerId?: number | null
+  ): Promise<{ deleted: boolean; id: number }> {
+    return inventoryRequest(`/inventory/products/${productId}`, { method: 'DELETE', manufacturerId })
+  },
+
+  async createVariant(
+    productId: number,
+    payload: InventoryVariantInput,
+    manufacturerId?: number | null
+  ): Promise<{
+    variant: InventoryVariantRow
+    traide_synced?: number
+    traide_errors?: string[]
+  }> {
+    return inventoryRequest(`/inventory/products/${productId}/variants`, {
+      method: 'POST',
+      body: payload,
+      manufacturerId,
+    })
+  },
+
+  async updateVariant(
+    productId: number,
+    variantId: number,
+    payload: InventoryVariantInput,
+    manufacturerId?: number | null
+  ): Promise<{
+    variant: InventoryVariantRow
+    traide_synced?: number
+    traide_errors?: string[]
+  }> {
+    return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
+      method: 'PATCH',
+      body: payload,
+      manufacturerId,
+    })
+  },
+
+  async deleteVariant(
+    productId: number,
+    variantId: number,
+    manufacturerId?: number | null
+  ): Promise<{ deleted: boolean; id: number }> {
+    return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
+      method: 'DELETE',
+      manufacturerId,
+    })
+  },
+
+  async downloadBulk(kind: 'products' | 'variants', options?: {
+    search?: string
+    completeness?: string
+    issues?: string[]
+    manufacturerId?: number | null
+  }): Promise<void> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const params = new URLSearchParams({ kind })
+    if (options?.search?.trim()) params.set('search', options.search.trim())
+    if (options?.completeness?.trim()) params.set('completeness', options.completeness.trim())
+    if (options?.issues?.length) params.set('issues', options.issues.join(','))
+    if (options?.manufacturerId && options.manufacturerId > 0) {
+      params.set('manufacturer_id', String(options.manufacturerId))
+    }
+    const response = await fetch(`${API_URL}/inventory/export?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Could not download your catalog file')
+    }
+    const blob = await response.blob()
+    const cd = response.headers.get('Content-Disposition')
+    let filename = `inventory-${kind}.xlsx`
+    const quoted = cd?.match(/filename="([^"]+)"/)
+    if (quoted?.[1]) filename = quoted[1]
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  async uploadBulk(
+    file: File,
+    kind?: 'products' | 'variants',
+    manufacturerId?: number | null
+  ): Promise<{
+    kind: 'products' | 'variants'
+    updated: number
+    skipped: number
+    errors: string[]
+    traide_synced: number
+    traide_errors: string[]
+  }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const formData = new FormData()
+    formData.append('file', file)
+    if (kind) formData.append('kind', kind)
+    const response = await fetch(`${API_URL}${withManufacturerId('/inventory/import', manufacturerId)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Could not upload your catalog file')
+    }
+    return response.json()
+  },
+
+  async sync(manufacturerId?: number | null): Promise<{
+    seller_id: string
+    products_synced: number
+    variants_synced: number
+  }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+
+    const response = await fetch(`${API_URL}${withManufacturerId('/inventory/products', manufacturerId)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to sync inventory')
+    }
+    return response.json()
+  },
+
+  async listCategories(): Promise<{ categories: InventoryCategoryOption[]; total: number }> {
+    return inventoryRequest('/inventory/categories')
+  },
+
+  async syncCategories(): Promise<{
+    synced: number
+    removed: number
+    total: number
+    categories: InventoryCategoryOption[]
+  }> {
+    return inventoryRequest('/inventory/categories/sync', { method: 'POST' })
+  },
 }
 

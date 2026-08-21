@@ -185,7 +185,7 @@ export default function ImageList({ onImagesLoaded }: ImageListProps) {
           <h3>No images uploaded yet</h3>
           <p>Upload your first product image to get started.</p>
           <p className={styles.emptyHint}>
-            This list combines your database records and files in your ImageKit images folder. If you still see nothing, confirm the manufacturer slug (or ImageKit media root) in admin matches the folder where your files live, then use Refresh.
+            This list shows photos linked to your company catalog. If you just uploaded a file, wait a moment and use Refresh.
           </p>
         </div>
       </div>

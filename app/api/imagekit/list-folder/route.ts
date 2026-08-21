@@ -6,7 +6,11 @@ import {
   manufacturerImageKitCatalogsFolder,
   manufacturerImageKitImagesFolder,
 } from "@/lib/manufacturer-media-path";
-import { imageKitUploadFailureMessage, listImageKitFilesInFolder } from "@/lib/imagekit";
+import {
+  ensureManufacturerImageKitFolders,
+  imageKitUploadFailureMessage,
+  listImageKitFilesInFolder,
+} from "@/lib/imagekit";
 
 /**
  * Lists files in the manufacturer’s ImageKit folder (GET /v1/files with path + type=file).
@@ -45,6 +49,8 @@ export async function GET(req: NextRequest) {
     where: { id: manufacturerId, deleted_at: null },
   });
   if (!manufacturer) return notFound("Manufacturer not found");
+
+  await ensureManufacturerImageKitFolders(manufacturer);
 
   const folderPath =
     scope === "catalogs"

@@ -13,13 +13,42 @@ import {
 type IngestRequestBody = {
   sku_column?: string;
   image_column?: string;
+  image_columns?: string[] | string;
   manufacturer_id?: number;
   stream?: boolean;
 };
 
+function parseImageColumnNames(raw: unknown, fallbackSingle = ""): string[] {
+  const names: string[] = [];
+  const push = (value: unknown) => {
+    const name = String(value ?? "").trim();
+    if (name) names.push(name);
+  };
+
+  if (Array.isArray(raw)) {
+    raw.forEach(push);
+  } else if (typeof raw === "string" && raw.trim()) {
+    const text = raw.trim();
+    if (text.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(text) as unknown;
+        if (Array.isArray(parsed)) parsed.forEach(push);
+        else push(text);
+      } catch {
+        text.split(",").forEach(push);
+      }
+    } else {
+      text.split(",").forEach(push);
+    }
+  }
+
+  if (!names.length && fallbackSingle.trim()) names.push(fallbackSingle.trim());
+  return [...new Set(names)];
+}
+
 async function parseIngestRequest(req: NextRequest): Promise<{
   sku_column: string;
-  image_column: string;
+  image_columns: string[];
   manufacturer_id: number;
   stream: boolean;
   spreadsheetBuffer: Buffer | null;
@@ -29,7 +58,10 @@ async function parseIngestRequest(req: NextRequest): Promise<{
   if (contentType.includes("multipart/form-data")) {
     const formData = await req.formData();
     const sku_column = String(formData.get("sku_column") ?? "").trim();
-    const image_column = String(formData.get("image_column") ?? "").trim();
+    const image_columns = parseImageColumnNames(
+      formData.get("image_columns") ?? formData.getAll("image_columns"),
+      String(formData.get("image_column") ?? "")
+    );
     const manufacturer_id = parseInt(String(formData.get("manufacturer_id") ?? ""), 10);
     const stream = String(formData.get("stream") ?? "").toLowerCase() === "true";
     const file = formData.get("file");
@@ -39,13 +71,13 @@ async function parseIngestRequest(req: NextRequest): Promise<{
       spreadsheetBuffer = Buffer.from(await file.arrayBuffer());
     }
 
-    return { sku_column, image_column, manufacturer_id, stream, spreadsheetBuffer };
+    return { sku_column, image_columns, manufacturer_id, stream, spreadsheetBuffer };
   }
 
   const body = (await req.json()) as IngestRequestBody;
   return {
     sku_column: String(body.sku_column ?? "").trim(),
-    image_column: String(body.image_column ?? "").trim(),
+    image_columns: parseImageColumnNames(body.image_columns, String(body.image_column ?? "")),
     manufacturer_id: parseInt(String(body.manufacturer_id ?? ""), 10),
     stream: Boolean(body.stream),
     spreadsheetBuffer: null,
@@ -59,11 +91,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const catalogId = parseInt(id, 10);
-    const { sku_column, image_column, manufacturer_id, stream, spreadsheetBuffer } =
+    const { sku_column, image_columns, manufacturer_id, stream, spreadsheetBuffer } =
       await parseIngestRequest(req);
 
-    if (!catalogId || !sku_column || !image_column || !manufacturer_id) {
-      return err("catalog id, sku_column, image_column and manufacturer_id are required");
+    if (!catalogId || !sku_column || !manufacturer_id) {
+      return err("catalog id, sku_column and manufacturer_id are required");
     }
 
     const catalog = await prisma.catalog.findUnique({
@@ -93,7 +125,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         manufacturerId: manufacturer_id,
         userId: user.id,
         skuColumn: sku_column,
-        imageColumn: image_column,
+        imageColumns: image_columns,
         catalogFileUrl: catalog.catalog_file!,
         headerRowIndex,
         spreadsheetBuffer: buffer,

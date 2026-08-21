@@ -27,10 +27,14 @@ model Manufacturer {
   updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz
   deleted_at DateTime? @db.Timestamptz
 
-  users    User[]
-  catalogs Catalog[]
-  images   Image[]
-  products Product[]
+  /// Nautical GraphQL seller id (e.g. base64 "Seller:1")
+  nautical_seller_id String? @db.VarChar(255)
+
+  users              User[]
+  catalogs           Catalog[]
+  images             Image[]
+  products           Product[]
+  inventory_products InventoryProduct[]
 
   @@map("manufacturers")
 }
@@ -116,6 +120,70 @@ model Product {
   @@map("products")
 }
 
+/// Marketplace (Nautical) inventory product. Attributes/category/images stay JSON so the shape can change with GraphQL.
+model InventoryProduct {
+  id                     Int       @id @default(autoincrement())
+  manufacturer_id        Int
+  nautical_id            String    @db.VarChar(255)
+  slug                   String    @db.VarChar(255)
+  name                   String    @db.VarChar(500)
+  description            String?   @db.Text
+  description_html       String?   @db.Text
+  currency               String?   @db.VarChar(20)
+  seo_title              String?   @db.VarChar(500)
+  seo_description        String?   @db.Text
+  external_id            String?   @db.VarChar(255)
+  is_digital             Boolean   @default(false)
+  is_shipping_required   Boolean   @default(true)
+  is_bundle              Boolean   @default(false)
+  allow_seller_variants  Boolean   @default(false)
+  available_for_purchase Boolean   @default(true)
+  status                 String?   @db.VarChar(80)
+  is_published           Boolean   @default(false)
+  has_warnings           Boolean   @default(false)
+  has_variant_options    Boolean   @default(false)
+  images                 Json      @default("[]")
+  dimensions             Json?
+  warnings               Json?
+  category               Json?
+  product_type           Json?
+  attributes             Json      @default("[]")
+  payload                Json?
+  synced_at              DateTime  @db.Timestamptz
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at             DateTime? @db.Timestamptz
+
+  manufacturer Manufacturer       @relation(fields: [manufacturer_id], references: [id], onDelete: Cascade)
+  variants     InventoryVariant[]
+
+  @@unique([manufacturer_id, nautical_id])
+  @@index([manufacturer_id, deleted_at])
+  @@map("inventory_products")
+}
+
+/// One product has N variants. Variant attributes are JSON for dynamic marketplace fields.
+model InventoryVariant {
+  id                   Int      @id @default(autoincrement())
+  inventory_product_id Int
+  nautical_id          String   @db.VarChar(255)
+  name                 String   @db.VarChar(500)
+  sku                  String?  @db.VarChar(255)
+  seo_description      String?  @db.Text
+  images               Json     @default("[]")
+  dimensions           Json?
+  attributes           Json     @default("[]")
+  payload              Json?
+  created_at           DateTime @default(now()) @db.Timestamptz
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  product InventoryProduct @relation(fields: [inventory_product_id], references: [id], onDelete: Cascade)
+
+  @@unique([inventory_product_id, nautical_id])
+  @@index([inventory_product_id])
+  @@map("inventory_variants")
+}
+
 model CatalogColumnRule {
   id         Int      @id @default(autoincrement())
   label      String   @db.VarChar(120)
@@ -126,4 +194,29 @@ model CatalogColumnRule {
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz
 
   @@map("catalog_column_rules")
+}
+
+/// Traide/Nautical category tree. parent_id is a self-relation so children nest under their parent.
+model TraideCategory {
+  id                 Int       @id @default(autoincrement())
+  nautical_id        String    @unique @db.VarChar(255)
+  parent_id          Int?
+  parent_nautical_id String?   @db.VarChar(255)
+  name               String    @db.VarChar(500)
+  slug               String    @db.VarChar(255)
+  metadata           Json?
+  custom_fields      Json?
+  payload            Json?
+  synced_at          DateTime  @db.Timestamptz
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at         DateTime? @db.Timestamptz
+
+  parent   TraideCategory?  @relation("CategoryTree", fields: [parent_id], references: [id], onDelete: SetNull)
+  children TraideCategory[] @relation("CategoryTree")
+
+  @@index([parent_id])
+  @@index([slug])
+  @@index([deleted_at])
+  @@map("traide_categories")
 }

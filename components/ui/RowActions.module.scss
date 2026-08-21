@@ -1,0 +1,66 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $gray-600;
+  cursor: pointer;
+
+  &:hover,
+  &[aria-expanded='true'] {
+    background: $gray-100;
+    color: $gray-900;
+  }
+}
+
+.menu {
+  position: fixed;
+  z-index: $z-index-dropdown;
+  min-width: 10rem;
+  padding: 0.35rem;
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  box-shadow: $shadow-lg;
+  display: flex;
+  flex-direction: column;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    border: 0;
+    border-radius: $radius-sm;
+    background: none;
+    color: $gray-800;
+    font-size: $font-size-sm;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: $gray-100;
+    }
+  }
+}
+
+.danger {
+  color: $error !important;
+
+  &:hover {
+    background: #fef2f2 !important;
+  }
+}

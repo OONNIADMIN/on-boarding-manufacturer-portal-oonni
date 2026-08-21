@@ -15,7 +15,16 @@ import {
   normalizeMimeType,
   MAX_REMOTE_IMAGE_BYTES,
 } from "@/lib/remote-image-import";
-import { extractColumnNamesFromRows, parseSpreadsheetRows } from "@/lib/catalog-file-headers";
+import {
+  extractHeaderRowCells,
+  findHeaderColumnIndex,
+  parseSpreadsheetRows,
+} from "@/lib/catalog-file-headers";
+import {
+  detectImageUrlColumns,
+  detectSkuColumn,
+  IMAGE_COLUMN_SAMPLE_ROWS,
+} from "@/lib/catalog-column-detection";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -64,14 +73,16 @@ type IngestContext = {
 function countUniqueImageUrls(
   aoa: string[][],
   headerRowIndex: number,
-  imgIdx: number
+  imgIdxs: number[]
 ): number {
   const urls = new Set<string>();
   for (let r = headerRowIndex + 1; r < aoa.length; r++) {
     const row = aoa[r];
     if (!row) continue;
-    for (const src of splitUrlsInCell(row[imgIdx])) {
-      urls.add(src);
+    for (const imgIdx of imgIdxs) {
+      for (const src of splitUrlsInCell(row[imgIdx])) {
+        urls.add(src);
+      }
     }
   }
   return urls.size;
@@ -115,7 +126,7 @@ async function processSpreadsheetRows(
   aoa: string[][],
   headerRowIndex: number,
   skuIdx: number,
-  imgIdx: number,
+  imgIdxs: number[],
   ctx: IngestContext
 ): Promise<CatalogImageIngestResult> {
   const urlMap = new Map<string, CachedUpload>();
@@ -123,7 +134,7 @@ async function processSpreadsheetRows(
   let uploadFailures = 0;
   let rowsSkippedNoProduct = 0;
 
-  const totalUnique = countUniqueImageUrls(aoa, headerRowIndex, imgIdx);
+  const totalUnique = countUniqueImageUrls(aoa, headerRowIndex, imgIdxs);
   let processedUnique = 0;
   let uploadedUnique = 0;
 
@@ -204,14 +215,12 @@ async function processSpreadsheetRows(
     }
   }
 
+  const maxIdx = Math.max(skuIdx, ...imgIdxs);
   for (let r = headerRowIndex + 1; r < aoa.length; r++) {
     const row = aoa[r];
     if (!row) continue;
-    while (row.length <= Math.max(skuIdx, imgIdx)) row.push("");
+    while (row.length <= maxIdx) row.push("");
     const sku = String(row[skuIdx] ?? "").trim();
-    const imageCellOriginal = row[imgIdx];
-    const urls = splitUrlsInCell(imageCellOriginal);
-    if (urls.length === 0) continue;
 
     const product =
       sku.length > 0
@@ -225,37 +234,43 @@ async function processSpreadsheetRows(
           })
         : null;
 
-    const replacements: string[] = [];
-    for (const src of urls) {
-      const uploaded = await ensureUploaded(src);
-      if (!uploaded) {
-        replacements.push(src);
-        continue;
+    for (const imgIdx of imgIdxs) {
+      const imageCellOriginal = row[imgIdx];
+      const urls = splitUrlsInCell(imageCellOriginal);
+      if (urls.length === 0) continue;
+
+      const replacements: string[] = [];
+      for (const src of urls) {
+        const uploaded = await ensureUploaded(src);
+        if (!uploaded) {
+          replacements.push(src);
+          continue;
+        }
+        replacements.push(uploaded.url);
+        if (product) {
+          await prisma.image.create({
+            data: {
+              manufacturer_id: ctx.manufacturerId,
+              user_id: ctx.userId,
+              product_id: product.id,
+              original_filename: uploaded.originalFilename,
+              s3_key: uploaded.filePath,
+              s3_url: uploaded.url,
+              imagekit_file_id: uploaded.fileId,
+              file_size: uploaded.fileSize,
+              mime_type: uploaded.mimeType,
+              width: uploaded.width ?? null,
+              height: uploaded.height ?? null,
+              optimized: 1,
+            },
+          });
+          imagesCreated++;
+        } else {
+          rowsSkippedNoProduct++;
+        }
       }
-      replacements.push(uploaded.url);
-      if (product) {
-        await prisma.image.create({
-          data: {
-            manufacturer_id: ctx.manufacturerId,
-            user_id: ctx.userId,
-            product_id: product.id,
-            original_filename: uploaded.originalFilename,
-            s3_key: uploaded.filePath,
-            s3_url: uploaded.url,
-            imagekit_file_id: uploaded.fileId,
-            file_size: uploaded.fileSize,
-            mime_type: uploaded.mimeType,
-            width: uploaded.width ?? null,
-            height: uploaded.height ?? null,
-            optimized: 1,
-          },
-        });
-        imagesCreated++;
-      } else {
-        rowsSkippedNoProduct++;
-      }
+      row[imgIdx] = joinUrlsInCell(replacements, imageCellOriginal);
     }
-    row[imgIdx] = joinUrlsInCell(replacements, imageCellOriginal);
   }
 
   emitProgress("finalizing");
@@ -276,7 +291,8 @@ export async function ingestCatalogImagesFromSpreadsheet(params: {
   manufacturerId: number;
   userId: number;
   skuColumn: string;
-  imageColumn: string;
+  imageColumn?: string;
+  imageColumns?: string[];
   catalogFileUrl: string;
   headerRowIndex: number;
   spreadsheetBuffer: Buffer;
@@ -296,12 +312,42 @@ export async function ingestCatalogImagesFromSpreadsheet(params: {
 
   if (!aoa.length) throw new Error("Spreadsheet is empty");
 
-  const header = extractColumnNamesFromRows(aoa, params.headerRowIndex);
-  const skuIdx = header.indexOf(params.skuColumn);
-  const imgIdx = header.indexOf(params.imageColumn);
-  if (skuIdx < 0 || imgIdx < 0) {
+  const header = extractHeaderRowCells(aoa, params.headerRowIndex);
+  const namedColumns = header.filter(Boolean);
+  let skuColumn = params.skuColumn;
+  let skuIdx = findHeaderColumnIndex(header, skuColumn);
+
+  if (skuIdx < 0) {
+    const detectedSku = detectSkuColumn(namedColumns);
+    if (detectedSku) {
+      skuColumn = detectedSku;
+      skuIdx = findHeaderColumnIndex(header, skuColumn);
+    }
+  }
+
+  const requestedImageColumns = [
+    ...(params.imageColumns ?? []),
+    ...(params.imageColumn ? [params.imageColumn] : []),
+  ]
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  const detectedImageColumns = detectImageUrlColumns(
+    header,
+    skuColumn || null,
+    undefined,
+    aoa.slice(params.headerRowIndex + 1, params.headerRowIndex + 1 + IMAGE_COLUMN_SAMPLE_ROWS)
+  );
+
+  const imageColumns = (detectedImageColumns.length ? detectedImageColumns : requestedImageColumns)
+    .filter((name) => findHeaderColumnIndex(header, name) >= 0);
+
+  const imgIdxs = [...new Set(imageColumns.map((name) => findHeaderColumnIndex(header, name)))]
+    .filter((idx) => idx >= 0);
+
+  if (skuIdx < 0 || !imgIdxs.length) {
     throw new Error(
-      `Columns not found. Available: ${header.filter(Boolean).join(", ")}`
+      `Columns not found. Available: ${namedColumns.join(", ")}`
     );
   }
 
@@ -319,7 +365,7 @@ export async function ingestCatalogImagesFromSpreadsheet(params: {
     aoa,
     params.headerRowIndex,
     skuIdx,
-    imgIdx,
+    imgIdxs,
     ctx
   );
 

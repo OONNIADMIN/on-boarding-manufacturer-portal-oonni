@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   extractColumnNamesFromRows,
+  extractHeaderRowCells,
   MAX_HEADER_PREVIEW_ROWS,
 } from '@/lib/catalog-file-headers'
 import {
@@ -10,6 +11,11 @@ import {
   scoreCatalogColumnMatches,
   type CatalogColumnRuleRecord,
 } from '@/lib/catalog-column-validation'
+import {
+  detectImageUrlColumns,
+  detectSkuColumn,
+  IMAGE_COLUMN_SAMPLE_ROWS,
+} from '@/lib/catalog-column-detection'
 import styles from './CatalogHeaderRowModal.module.scss'
 
 export type CatalogFileSelection = {
@@ -18,6 +24,12 @@ export type CatalogFileSelection = {
   columnNames: string[]
   /** Rule label (lowercase) → matched spreadsheet header from validation */
   columnMappings: Record<string, string>
+  /** Every header that holds image URLs (Image 1, Image 2, images, …) */
+  imageColumns: string[]
+  /** Full header row (empty cells kept) so image-column indexes stay aligned */
+  headerCells: string[]
+  /** First data rows after the header, used to detect image URL columns */
+  sampleRows: string[][]
 }
 
 interface CatalogHeaderRowModalProps {
@@ -36,10 +48,16 @@ function suggestHeaderRowIndex(rows: string[][], rules: CatalogColumnRuleRecord[
 
   for (let index = 0; index < limit; index++) {
     const columns = extractColumnNamesFromRows(rows, index)
+    const headerCells = extractHeaderRowCells(rows, index)
+    const skuColumn = detectSkuColumn(columns, rules)
+    const imageHits = detectImageUrlColumns(
+      headerCells,
+      skuColumn,
+      rules,
+      rows.slice(index + 1, index + 1 + IMAGE_COLUMN_SAMPLE_ROWS)
+    ).length
     const score = columns.length
-      ? rules.length
-        ? scoreCatalogColumnMatches(columns, rules)
-        : columns.length
+      ? (rules.length ? scoreCatalogColumnMatches(columns, rules) : columns.length) + imageHits
       : 0
     if (score > bestScore) {
       bestScore = score
@@ -80,6 +98,23 @@ export default function CatalogHeaderRowModal({
     [columnNames, columnRules]
   )
 
+  const headerCells = useMemo(
+    () => extractHeaderRowCells(previewRows, headerRowIndex),
+    [previewRows, headerRowIndex]
+  )
+
+  const sampleRows = useMemo(
+    () => previewRows.slice(headerRowIndex + 1, headerRowIndex + 1 + IMAGE_COLUMN_SAMPLE_ROWS),
+    [previewRows, headerRowIndex]
+  )
+
+  const detectedImageColumns = useMemo(() => {
+    const skuColumn =
+      columnChecks.find((check) => check.label.trim().toLowerCase() === 'sku')?.matchedColumn ??
+      detectSkuColumn(columnNames, columnRules)
+    return detectImageUrlColumns(headerCells, skuColumn, columnRules, sampleRows)
+  }, [headerCells, sampleRows, columnNames, columnRules, columnChecks])
+
   const maxColumns = useMemo(
     () => Math.max(1, ...previewRows.map((row) => row.length)),
     [previewRows]
@@ -94,7 +129,18 @@ export default function CatalogHeaderRowModal({
         columnMappings[check.label.trim().toLowerCase()] = check.matchedColumn
       }
     }
-    onConfirm({ file, headerRowIndex, columnNames, columnMappings })
+    if (detectedImageColumns[0]) {
+      columnMappings.images = detectedImageColumns[0]
+    }
+    onConfirm({
+      file,
+      headerRowIndex,
+      columnNames,
+      columnMappings,
+      imageColumns: detectedImageColumns,
+      headerCells,
+      sampleRows,
+    })
   }
 
   return (
@@ -112,7 +158,8 @@ export default function CatalogHeaderRowModal({
               Select header row
             </h2>
             <p className={styles.subtitle}>
-              Choose the row that contains the column names used for catalog upload and image import.
+              Choose the row that contains the column names. Each column is checked
+              in the next 10 rows for image URLs (.jpg, .png, or an /image/ path).
             </p>
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
@@ -159,8 +206,8 @@ export default function CatalogHeaderRowModal({
           <div className={styles.validationPanel}>
             <h3 className={styles.validationTitle}>Expected columns (informational)</h3>
             <p className={styles.validationHint}>
-              These checks help you align with the catalog template. Missing columns will not block
-              upload.
+              Image columns are detected from URLs in the next 10 rows (.jpg, .png, or an /image/
+              path), not only from the header name. Missing columns will not block upload.
             </p>
             {!columnNames.length ? (
               <p className={styles.validationNote}>This row has no column headers.</p>
@@ -170,19 +217,29 @@ export default function CatalogHeaderRowModal({
               </p>
             ) : (
               <ul className={styles.validationList}>
-                {columnChecks.map((check) => (
-                  <li
-                    key={check.label}
-                    className={check.satisfied ? styles.checkOk : styles.checkMissing}
-                  >
-                    <span>{check.label}</span>
-                    {check.matchedColumn ? (
-                      <span className={styles.matchedColumn}>→ {check.matchedColumn}</span>
-                    ) : (
-                      <span className={styles.notFoundLabel}>Not found in this row</span>
-                    )}
-                  </li>
-                ))}
+                {columnChecks.map((check) => {
+                  const isImagesRule = check.label.trim().toLowerCase() === 'images'
+                  const matchedNames = isImagesRule
+                    ? detectedImageColumns
+                    : check.matchedColumn
+                      ? [check.matchedColumn]
+                      : []
+                  const satisfied = matchedNames.length > 0
+
+                  return (
+                    <li
+                      key={check.label}
+                      className={satisfied ? styles.checkOk : styles.checkMissing}
+                    >
+                      <span>{check.label}</span>
+                      {matchedNames.length ? (
+                        <span className={styles.matchedColumn}>→ {matchedNames.join(', ')}</span>
+                      ) : (
+                        <span className={styles.notFoundLabel}>Not found in this row</span>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

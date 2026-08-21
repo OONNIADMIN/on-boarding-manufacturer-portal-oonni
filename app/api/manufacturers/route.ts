@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ok, created, err, unauthorized } from "@/lib/api-response";
 import { slugify } from "@/lib/api-response";
+import { ensureManufacturerImageKitFolders } from "@/lib/imagekit";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth(req);
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     const mfr = await prisma.manufacturer.create({
       data: { name: name.trim(), slug, thumbnail: thumbnail ?? null },
     });
+    await ensureManufacturerImageKitFolders(mfr);
     return created(mfr);
   } catch (e) {
     console.error("Create manufacturer error:", e);

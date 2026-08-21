@@ -52,10 +52,26 @@ export function parseSpreadsheetRows(bytes: ArrayBuffer | Buffer, fileName: stri
   return [];
 }
 
-export function extractColumnNamesFromRows(rows: string[][], headerRowIndex: number): string[] {
+/** Full header row including empty cells, so column indexes stay aligned with data rows. */
+export function extractHeaderRowCells(rows: string[][], headerRowIndex: number): string[] {
   const headerRow = rows[headerRowIndex];
   if (!headerRow) return [];
-  return headerRow.map((cell) => normalizeCell(cell)).filter(Boolean);
+  return headerRow.map((cell) => normalizeCell(cell));
+}
+
+export function extractColumnNamesFromRows(rows: string[][], headerRowIndex: number): string[] {
+  return extractHeaderRowCells(rows, headerRowIndex).filter(Boolean);
+}
+
+function normalizeHeaderName(s: string): string {
+  return s.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
+}
+
+/** Find a header by name using the original column index (empty cells are kept). */
+export function findHeaderColumnIndex(headerRow: string[], columnName: string): number {
+  const target = normalizeHeaderName(columnName);
+  if (!target) return -1;
+  return headerRow.findIndex((cell) => normalizeHeaderName(cell) === target);
 }
 
 export function extractColumnNamesFromBytes(
@@ -68,8 +84,8 @@ export function extractColumnNamesFromBytes(
 }
 
 export function rowsToObjects(rows: string[][], headerRowIndex: number): Record<string, unknown>[] {
-  const headers = extractColumnNamesFromRows(rows, headerRowIndex);
-  if (!headers.length) return [];
+  const headerRow = extractHeaderRowCells(rows, headerRowIndex);
+  if (!headerRow.some(Boolean)) return [];
 
   const objects: Record<string, unknown>[] = [];
   for (let rowIndex = headerRowIndex + 1; rowIndex < rows.length; rowIndex++) {
@@ -77,8 +93,8 @@ export function rowsToObjects(rows: string[][], headerRowIndex: number): Record<
     const record: Record<string, unknown> = {};
     let hasValue = false;
 
-    for (let colIndex = 0; colIndex < headers.length; colIndex++) {
-      const header = headers[colIndex];
+    for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+      const header = headerRow[colIndex];
       if (!header) continue;
       const raw = row[colIndex] ?? "";
       const value = normalizeCell(raw);

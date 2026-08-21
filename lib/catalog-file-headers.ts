@@ -4,6 +4,8 @@ export {
   extractColumnNamesFromBytes,
   extractColumnNamesFromFile,
   extractColumnNamesFromRows,
+  extractHeaderRowCells,
+  findHeaderColumnIndex,
   parseSpreadsheetPreviewFromFile,
   parseSpreadsheetRows,
   rowsToObjects,

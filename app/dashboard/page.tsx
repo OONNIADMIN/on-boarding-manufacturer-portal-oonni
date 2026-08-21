@@ -214,6 +214,31 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            <div className={styles.dashboardCard}>
+              <div
+                className={styles.cardButton}
+                onClick={() => router.push('/inventory')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    router.push('/inventory')
+                  }
+                }}
+              >
+                <div className={styles.cardIcon}>
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                  </svg>
+                </div>
+                <h3 className={styles.cardTitle}>Manage Inventory</h3>
+                <p className={styles.cardDescription}>
+                  View manufacturer products, fetch Traide categories, and refresh inventory
+                </p>
+              </div>
+            </div>
+
             {/* 2. Statistics Card */}
             <div className={styles.dashboardCard}>
               <div 
@@ -324,7 +349,7 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className={styles.cardTitle}>Manage Manufacturers</h3>
+                <h3 className={styles.cardTitle}>Catalog management system</h3>
                 <p className={styles.cardDescription}>
                   View and manage all manufacturer accounts
                 </p>
