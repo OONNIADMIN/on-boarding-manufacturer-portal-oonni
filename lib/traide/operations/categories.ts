@@ -79,8 +79,11 @@ export async function fetchAllNauticalCategories(): Promise<NauticalCategoryReco
   let afterCursor: string | null = null;
 
   for (;;) {
-    const data = await executeTraideQuery<CategoriesConnection>("allCategories", { afterCursor });
-    const conn = data.categories;
+    const data: CategoriesConnection = await executeTraideQuery<CategoriesConnection>(
+      "allCategories",
+      { afterCursor }
+    );
+    const conn: CategoriesConnection["categories"] = data.categories;
     for (const edge of conn.edges) {
       const node = edge.node;
       const id = String(node.id ?? "").trim();

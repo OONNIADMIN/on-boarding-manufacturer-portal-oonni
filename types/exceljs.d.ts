@@ -1,4 +1,4 @@
-declare module "exceljs" {
+declare namespace ExcelJS {
   interface Font {
     bold?: boolean;
     color?: { argb?: string };
@@ -58,7 +58,7 @@ declare module "exceljs" {
     eachRow(cb: (row: Row, rowNumber: number) => void): void;
   }
 
-  interface Workbook {
+  class Workbook {
     creator: string;
     created: Date;
     worksheets: Worksheet[];
@@ -69,7 +69,8 @@ declare module "exceljs" {
       load(data: ArrayBuffer | Buffer | Uint8Array): Promise<Workbook>;
     };
   }
+}
 
-  const ExcelJS: { Workbook: new () => Workbook };
-  export default ExcelJS;
+declare module "exceljs" {
+  export = ExcelJS;
 }
