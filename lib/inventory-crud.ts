@@ -9,6 +9,7 @@ export type AttributeInput = {
   id?: string | null;
   slug?: string | null;
   inputType?: string | null;
+  valueRequired?: boolean | null;
 };
 
 export type ProductWriteInput = {
@@ -123,6 +124,7 @@ export function parseAttributes(value: unknown): AttributeInput[] {
     id: attr.id,
     slug: attr.slug,
     inputType: attr.inputType,
+    valueRequired: attr.valueRequired,
   }));
 }
 

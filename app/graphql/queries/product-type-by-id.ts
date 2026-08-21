@@ -7,12 +7,16 @@ query ($id: ID!) {
     productAttributes {
       id
       name
+      slug
       inputType
+      valueRequired
     }
     variantAttributes {
       id
       name
+      slug
       inputType
+      valueRequired
     }
   }
 }

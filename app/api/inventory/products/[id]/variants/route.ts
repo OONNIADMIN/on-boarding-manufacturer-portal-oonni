@@ -4,7 +4,12 @@ import { prisma } from "@/lib/db";
 import { created, err, notFound, ok } from "@/lib/api-response";
 import { LOCAL_INVENTORY_PREFIX, parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseVariantInput, resolveVariantImages, normalizeInventoryImages } from "@/lib/inventory-crud";
-import { persistInventoryAttributes } from "@/lib/inventory-attributes";
+import { attachRequiredCatalogAttributes } from "@/lib/inventory-attributes";
+import {
+  catalogForProductType,
+  loadProductTypeCatalogs,
+  resolveCatalogAttributes,
+} from "@/lib/inventory-attribute-catalog";
 import { evaluateVariantCompleteness } from "@/lib/inventory-completeness";
 import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
@@ -16,7 +21,7 @@ type Params = { params: Promise<{ id: string }> };
 async function findOwnedProduct(manufacturerId: number, id: number) {
   return prisma.inventoryProduct.findFirst({
     where: { id, manufacturer_id: manufacturerId, deleted_at: null },
-    select: { id: true, payload: true, images: true },
+    select: { id: true, payload: true, images: true, product_type: true, attributes: true },
   });
 }
 
@@ -52,6 +57,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     ])
   );
 
+  const types = await loadProductTypeCatalogs();
+  const variantCatalog = catalogForProductType(types, product.product_type, "variant");
+
   return ok({
     variants: variants.map((variant) => {
       const stored = storedById.get(variant.id);
@@ -61,7 +69,10 @@ export async function GET(req: NextRequest, { params }: Params) {
         product.images,
         { includeProductFallback: false }
       );
-      const attributes = persistInventoryAttributes(stored?.attributes ?? variant.attributes);
+      const attributes = resolveCatalogAttributes(
+        { attributes: stored?.attributes ?? variant.attributes, payload: variant.payload },
+        variantCatalog
+      );
       const scored = { ...variant, payload: null, images, attributes };
       return {
         ...variant,
@@ -91,7 +102,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     return err("Invalid JSON body");
   }
 
-  const parsed = parseVariantInput(body, { requireName: true });
+  const types = await loadProductTypeCatalogs();
+  const catalog = catalogForProductType(types, product.product_type, "variant");
+  const parsed = parseVariantInput(body, {
+    requireName: true,
+    existingAttributes: attachRequiredCatalogAttributes([], catalog),
+  });
   if ("error" in parsed) return err(parsed.error);
 
   const dam = await ensureVariantImagesInImageKit({

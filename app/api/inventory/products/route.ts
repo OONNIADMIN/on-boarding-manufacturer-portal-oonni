@@ -12,7 +12,12 @@ import { err, ok } from "@/lib/api-response";
 import { requireInventoryAdmin, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { getNauticalConfig } from "@/lib/nautical-client";
 import { syncManufacturerInventory } from "@/lib/nautical-inventory";
-import { persistInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { persistInventoryAttributes } from "@/lib/inventory-attributes";
+import {
+  catalogForProductType,
+  loadProductTypeCatalogs,
+  resolveCatalogAttributes,
+} from "@/lib/inventory-attribute-catalog";
 import { resolveVariantImages } from "@/lib/inventory-crud";
 
 export const dynamic = "force-dynamic";
@@ -98,21 +103,29 @@ export async function GET(req: NextRequest) {
     variantsByProduct.set(variant.inventory_product_id, list);
   }
 
+  const types = await loadProductTypeCatalogs();
+
   const scored = rows.map((row) => {
     const productVariants = variantsByProduct.get(row.id) ?? [];
+    const productCatalog = catalogForProductType(types, row.product_type, "product");
+    const variantCatalog = catalogForProductType(types, row.product_type, "variant");
+    const attributes = resolveCatalogAttributes(row, productCatalog);
     return {
       ...row,
-      attributes: resolveInventoryAttributes(row),
+      attributes,
       variant_count: productVariants.length,
       completeness: evaluateProductCompleteness(
-        { ...row, attributes: resolveInventoryAttributes(row) },
+        { ...row, attributes },
         productVariants.map((variant) => {
-          const storedAttrs = persistInventoryAttributes(variant.attributes);
+          const storedAttrs = resolveCatalogAttributes(
+            { attributes: persistInventoryAttributes(variant.attributes), payload: variant.payload },
+            variantCatalog
+          );
           return {
             ...variant,
             payload: null,
             images: resolveVariantImages(variant, row.payload, row.images),
-            attributes: storedAttrs.length ? storedAttrs : resolveInventoryAttributes(variant),
+            attributes: storedAttrs,
           };
         })
       ),

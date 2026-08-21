@@ -1702,6 +1702,7 @@ export type InventoryAttribute = {
   slug?: string | null
   value?: string | null
   inputType?: string | null
+  valueRequired?: boolean | null
   values?: Array<{
     slug?: string | null
     name?: string | null
@@ -1763,6 +1764,15 @@ export type InventoryProductRow = {
   traide_errors?: string[]
 }
 
+export type InventoryAttributeWrite = {
+  name: string
+  value: string
+  id?: string | null
+  slug?: string | null
+  inputType?: string | null
+  valueRequired?: boolean | null
+}
+
 export type InventoryProductInput = {
   name: string
   slug?: string
@@ -1776,7 +1786,7 @@ export type InventoryProductInput = {
   category_id?: string | null
   category_name?: string | null
   product_type_name?: string | null
-  attributes?: Array<{ name: string; value: string }>
+  attributes?: InventoryAttributeWrite[]
 }
 
 export type InventoryVariantInput = {
@@ -1787,7 +1797,7 @@ export type InventoryVariantInput = {
   width?: number | null
   height?: number | null
   unit?: string | null
-  attributes?: Array<{ name: string; value: string }>
+  attributes?: InventoryAttributeWrite[]
   images?: Array<{ id?: string | null; url?: string | null }>
 }
 

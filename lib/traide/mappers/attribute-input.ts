@@ -30,6 +30,7 @@ export type TraideAttributeCatalogItem = {
   name: string;
   slug?: string | null;
   inputType?: string | null;
+  valueRequired?: boolean | null;
 };
 
 const CANONICAL_TYPES = new Set([
@@ -203,6 +204,7 @@ export function attributesFromInventorySource(
         slug: item.slug ?? match?.slug ?? null,
         inputType: item.inputType ?? match?.inputType ?? null,
         value: match?.value ?? "",
+        valueRequired: Boolean(item.valueRequired || match?.valueRequired),
         values: match?.values,
       });
     }

@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseVariantInput } from "@/lib/inventory-crud";
+import {
+  catalogForProductType,
+  loadProductTypeCatalogs,
+  resolveCatalogAttributes,
+} from "@/lib/inventory-attribute-catalog";
 import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
@@ -13,13 +18,15 @@ type Params = { params: Promise<{ id: string; variantId: string }> };
 async function findOwnedVariant(manufacturerId: number, productId: number, variantId: number) {
   const product = await prisma.inventoryProduct.findFirst({
     where: { id: productId, manufacturer_id: manufacturerId, deleted_at: null },
-    select: { id: true },
+    select: { id: true, product_type: true },
   });
   if (!product) return null;
 
-  return prisma.inventoryVariant.findFirst({
+  const variant = await prisma.inventoryVariant.findFirst({
     where: { id: variantId, inventory_product_id: product.id },
   });
+  if (!variant) return null;
+  return { product, variant };
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -41,11 +48,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return err("Invalid JSON body");
   }
 
+  const types = await loadProductTypeCatalogs();
+  const catalog = catalogForProductType(types, existing.product.product_type, "variant");
   const parsed = parseVariantInput(body, {
     requireName: true,
-    fallbackName: existing.name,
-    existingAttributes: existing.attributes,
-    existingImages: existing.images,
+    fallbackName: existing.variant.name,
+    existingAttributes: resolveCatalogAttributes(existing.variant, catalog),
+    existingImages: existing.variant.images,
   });
   if ("error" in parsed) return err(parsed.error);
 
@@ -58,9 +67,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return err(dam.errors[0] ?? "Could not upload product photos");
   }
 
-  const previousImages = existing.images;
+  const previousImages = existing.variant.images;
   const variant = await prisma.inventoryVariant.update({
-    where: { id: existing.id },
+    where: { id: existing.variant.id },
     data: {
       name: parsed.name,
       sku: parsed.sku,
@@ -96,6 +105,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const existing = await findOwnedVariant(auth.manufacturerId, productId, parsedVariantId);
   if (!existing) return notFound("Variant not found");
 
-  await prisma.inventoryVariant.delete({ where: { id: existing.id } });
-  return ok({ deleted: true, id: existing.id });
+  await prisma.inventoryVariant.delete({ where: { id: existing.variant.id } });
+  return ok({ deleted: true, id: existing.variant.id });
 }

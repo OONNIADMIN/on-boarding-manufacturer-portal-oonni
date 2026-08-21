@@ -19,12 +19,14 @@ query ($afterCursor: String) {
           slug
           name
           inputType
+          valueRequired
         }
         variantAttributes {
           id
           slug
           name
           inputType
+          valueRequired
         }
       }
     }

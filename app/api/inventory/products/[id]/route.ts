@@ -3,7 +3,11 @@ import { prisma } from "@/lib/db";
 import { err, notFound, ok } from "@/lib/api-response";
 import { parsePositiveInt, requireInventoryManufacturer } from "@/lib/inventory-access";
 import { parseProductInput, resolveVariantImages } from "@/lib/inventory-crud";
-import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import {
+  catalogForProductType,
+  loadProductTypeCatalogs,
+  resolveCatalogAttributes,
+} from "@/lib/inventory-attribute-catalog";
 import { resolveCategoryJson } from "@/lib/inventory-categories";
 import { pushInventoryProductsToTraide } from "@/lib/traide/services/inventory-bulk-push";
 
@@ -33,15 +37,19 @@ export async function GET(req: NextRequest, { params }: Params) {
     orderBy: [{ sku: "asc" }, { name: "asc" }],
   });
 
+  const types = await loadProductTypeCatalogs();
+  const productCatalog = catalogForProductType(types, product.product_type, "product");
+  const variantCatalog = catalogForProductType(types, product.product_type, "variant");
+
   return ok({
     ...product,
-    attributes: resolveInventoryAttributes(product),
+    attributes: resolveCatalogAttributes(product, productCatalog),
     variants: variants.map((variant) => ({
       ...variant,
       images: resolveVariantImages(variant, product.payload, product.images, {
         includeProductFallback: false,
       }),
-      attributes: resolveInventoryAttributes(variant),
+      attributes: resolveCatalogAttributes(variant, variantCatalog),
     })),
     variant_count: variants.length,
   });
@@ -65,10 +73,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return err("Invalid JSON body");
   }
 
+  const types = await loadProductTypeCatalogs();
+  const productCatalog = catalogForProductType(types, existing.product_type, "product");
+  const existingAttributes = resolveCatalogAttributes(existing, productCatalog);
+
   const parsed = parseProductInput(body, {
     requireName: true,
     fallbackName: existing.name,
-    existingAttributes: existing.attributes,
+    existingAttributes,
     existingProductType: existing.product_type,
   });
   if ("error" in parsed) return err(parsed.error);
@@ -83,11 +95,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     where: { id: existing.id },
     data: {
       name: parsed.name,
-      slug: parsed.slug,
       description: parsed.description,
       seo_title: parsed.seo_title,
       seo_description: parsed.seo_description,
-      external_id: parsed.external_id,
       available_for_purchase: parsed.available_for_purchase,
       category,
       product_type: parsed.product_type,

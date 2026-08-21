@@ -28,6 +28,7 @@ type NamedAttribute = {
     slug?: string | null;
     name?: string | null;
     inputType?: string | null;
+    valueRequired?: boolean | null;
     values?: AttributeValue[] | null;
   } | null;
   values?: AttributeValue[] | null;

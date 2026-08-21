@@ -58,6 +58,7 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
             slug
             name
             inputType
+            valueRequired
           }
           values {
             slug
@@ -92,6 +93,7 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
               slug
               name
               inputType
+              valueRequired
             }
             values {
               slug

@@ -5,8 +5,20 @@ export type NauticalProductTypeNode = {
   slug: string;
   name: string;
   metadata?: Array<{ key: string; value: string }> | null;
-  productAttributes: Array<{ id: string; slug?: string; name: string; inputType?: string | null }>;
-  variantAttributes: Array<{ id: string; slug?: string; name: string; inputType?: string | null }>;
+  productAttributes: Array<{
+    id: string;
+    slug?: string;
+    name: string;
+    inputType?: string | null;
+    valueRequired?: boolean | null;
+  }>;
+  variantAttributes: Array<{
+    id: string;
+    slug?: string;
+    name: string;
+    inputType?: string | null;
+    valueRequired?: boolean | null;
+  }>;
 };
 
 type ProductTypesConnection = {
