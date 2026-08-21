@@ -1,5 +1,5 @@
 import { resolveVariantImages } from "@/lib/inventory-crud";
-import { persistInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import { persistInventoryAttributes, resolveInventoryAttributes, visibleAttributeText } from "@/lib/inventory-attributes";
 
 export const MIN_DESCRIPTION_LENGTH = 30;
 
@@ -69,17 +69,18 @@ function classify(raw: unknown, kind: SlotKind): CompletenessIssueKind | null {
 
   if (raw == null) return "empty";
   const text = String(raw).trim();
-  if (!text) return "empty";
-  if (NA_PATTERN.test(text)) return "na";
+  const visible = visibleAttributeText(text);
+  if (!text || !visible) return "empty";
+  if (NA_PATTERN.test(visible)) return "na";
 
   if (kind === "numeric") {
-    const num = Number(text);
+    const num = Number(visible);
     if (!Number.isFinite(num)) return "empty";
     if (num === 0) return "zero";
     return null;
   }
 
-  if (kind === "description" && text.length < MIN_DESCRIPTION_LENGTH) return "short";
+  if (kind === "description" && visible.length < MIN_DESCRIPTION_LENGTH) return "short";
   return null;
 }
 

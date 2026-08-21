@@ -1,7 +1,17 @@
 import ExcelJS from "exceljs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { mergeInventoryAttributes, resolveInventoryAttributes } from "@/lib/inventory-attributes";
+import {
+  mergeInventoryAttributes,
+  resolveInventoryAttributes,
+  isIncompleteAttributeValue,
+  isRequiredInventoryAttribute,
+} from "@/lib/inventory-attributes";
+import {
+  catalogForProductType,
+  loadProductTypeCatalogs,
+  resolveCatalogAttributes,
+} from "@/lib/inventory-attribute-catalog";
 import {
   completenessIssueColumn,
   evaluateProductCompleteness,
@@ -42,6 +52,7 @@ const LOCKED_FILL = "FFE5E7EB";
 const REVIEW_HEADER_FILL = "FFF59E0B";
 const REVIEW_CELL_FILL = "FFFFF3CD";
 const HEADER_FILL = "FFE8F4F1";
+const REQUIRED_MISSING_FILL = "FFF87171";
 
 const PRODUCT_LOCKED = ["product_id", "traide_id", "Status", "Published"] as const;
 const PRODUCT_CORE = [
@@ -72,6 +83,30 @@ const VARIANT_CORE = [
   "Unit",
 ] as const;
 
+const PRODUCT_CORE_REQUIRED = new Set([
+  "Name",
+  "Slug",
+  "Category",
+  "Type",
+  "Description",
+  "SEO title",
+  "SEO description",
+  "Images",
+  "Length",
+  "Width",
+  "Height",
+  "Unit",
+]);
+const VARIANT_CORE_REQUIRED = new Set([
+  "Name",
+  "SKU",
+  "SEO description",
+  "Images",
+  "Length",
+  "Width",
+  "Height",
+  "Unit",
+]);
 const PRODUCT_LOCKED_SET = new Set<string>(PRODUCT_LOCKED);
 const VARIANT_LOCKED_SET = new Set<string>(VARIANT_LOCKED);
 const IMPORT_SKIP_HEADERS = new Set([
@@ -161,11 +196,49 @@ function uniqueAttributeNames(items: Array<{ attributes?: unknown; payload?: unk
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 
-function attributeValue(
-  item: { attributes?: unknown; payload?: unknown },
-  name: string
-): string {
+function attributeValue(item: { attributes?: unknown; payload?: unknown }, name: string): string {
   return resolveInventoryAttributes(item).find((attr) => attr.name === name)?.value ?? "";
+}
+
+function requiredAttributeNames(items: Array<{ attributes?: unknown; payload?: unknown }>): Set<string> {
+  const names = new Set<string>();
+  for (const item of items) {
+    for (const attr of resolveInventoryAttributes(item)) {
+      if (isRequiredInventoryAttribute(attr) && attr.name) names.add(attr.name);
+    }
+  }
+  return names;
+}
+
+function requiredPaint(
+  item: { attributes?: unknown; payload?: unknown },
+  header: string,
+  requiredColumns: Set<string>,
+  issues?: Map<string, CompletenessIssue>
+): { missing: boolean; required: boolean } | undefined {
+  if (PRODUCT_CORE_REQUIRED.has(header) || VARIANT_CORE_REQUIRED.has(header)) {
+    return issues?.has(header) ? { missing: true, required: true } : undefined;
+  }
+  const attr = resolveInventoryAttributes(item).find((row) => row.name === header);
+  const required = requiredColumns.has(header) || Boolean(attr && isRequiredInventoryAttribute(attr));
+  if (!attr) {
+    return required ? { missing: true, required: true } : undefined;
+  }
+  const missing = isIncompleteAttributeValue(attr.value, attr.inputType);
+  if (!missing) return undefined;
+  return { missing: true, required };
+}
+
+async function enrichLoadedAttributes(loaded: LoadedInventory): Promise<void> {
+  const types = await loadProductTypeCatalogs();
+  for (const product of loaded.products) {
+    const productCatalog = catalogForProductType(types, product.product_type, "product");
+    const variantCatalog = catalogForProductType(types, product.product_type, "variant");
+    (product as { attributes: unknown }).attributes = resolveCatalogAttributes(product, productCatalog);
+    for (const variant of loaded.variantsByProduct.get(product.id) ?? []) {
+      (variant as { attributes: unknown }).attributes = resolveCatalogAttributes(variant, variantCatalog);
+    }
+  }
 }
 
 function issueMap(issues: CompletenessIssue[]): Map<string, CompletenessIssue> {
@@ -206,6 +279,10 @@ function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
     ["Yellow cells", "This value needs review, matching the completeness report in your catalog."],
     ["Attributes", "Each attribute name is its own column header."],
     ["Images", "Separate multiple URLs with |"],
+    [
+      "Required attributes",
+      "Red cells are empty, 0, or N/A. Required columns cannot be removed; optional columns with those values can still be deleted in the catalog.",
+    ],
     ["Upload", "Use Upload edits on your catalog page. Do not rename the Data sheet or header row."],
   ];
   sheet.addRow(["Bulk edit", kind === BULK_KIND_VARIANTS ? "Variants" : "Products"]).font = { bold: true };
@@ -218,7 +295,13 @@ function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
   }
 }
 
-function styleHeaderRow(row: ExcelJS.Row, headers: string[], locked: Set<string>, reviewColumns: Set<string>) {
+function styleHeaderRow(
+  row: ExcelJS.Row,
+  headers: string[],
+  locked: Set<string>,
+  reviewColumns: Set<string>,
+  requiredColumns: Set<string>
+) {
   row.font = { bold: true };
   row.height = 22;
   row.eachCell((cell, colNumber) => {
@@ -231,14 +314,30 @@ function styleHeaderRow(row: ExcelJS.Row, headers: string[], locked: Set<string>
     if (reviewColumns.has(header)) {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REVIEW_HEADER_FILL } };
       cell.font = { bold: true, color: { argb: "FF7C2D12" } };
-      cell.note = "Needs review: one or more rows have completeness issues in this column.";
+      cell.note = requiredColumns.has(header)
+        ? "Required attribute. One or more rows are empty, 0, or N/A."
+        : "Needs review: one or more rows have completeness issues in this column.";
       return;
     }
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+    if (requiredColumns.has(header)) {
+      cell.note = "Required attribute. Edit the value, but do not delete this column.";
+    }
   });
 }
 
-function paintReviewCell(cell: ExcelJS.Cell, issue: CompletenessIssue | undefined) {
+function paintReviewCell(
+  cell: ExcelJS.Cell,
+  issue: CompletenessIssue | undefined,
+  required?: { missing: boolean; required?: boolean }
+) {
+  if (required?.missing) {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REQUIRED_MISSING_FILL } };
+    cell.note =
+      issue?.message ||
+      (required.required ? "Required attribute is empty, 0, or N/A." : "Value is empty, 0, or N/A.");
+    return;
+  }
   if (!issue) return;
   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REVIEW_CELL_FILL } };
   cell.note = issue.message;
@@ -332,7 +431,12 @@ export async function exportInventoryWorkbook(
 }
 
 async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
+  await enrichLoadedAttributes(loaded);
   const attrNames = uniqueAttributeNames(loaded.products);
+  const requiredColumns = new Set([
+    ...requiredAttributeNames(loaded.products),
+    ...PRODUCT_CORE_REQUIRED,
+  ]);
   const headers = [...PRODUCT_LOCKED, ...PRODUCT_CORE, ...attrNames];
   const reviewColumns = new Set<string>();
   const categoryOptions = await listStoredCategoryTree();
@@ -371,14 +475,17 @@ async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
       ...attrNames.map((name) => attributeValue(product, name)),
     ];
     const row = data.addRow(values);
-    headers.forEach((header, index) => paintReviewCell(row.getCell(index + 1), issues.get(header)));
+    headers.forEach((header, index) =>
+      paintReviewCell(row.getCell(index + 1), issues.get(header), requiredPaint(product, header, requiredColumns, issues))
+    );
   }
 
-  styleHeaderRow(data.getRow(1), headers, PRODUCT_LOCKED_SET, reviewColumns);
+  styleHeaderRow(data.getRow(1), headers, PRODUCT_LOCKED_SET, reviewColumns, requiredColumns);
   return writeWorkbookBuffer(wb);
 }
 
 async function buildVariantWorkbook(loaded: LoadedInventory): Promise<Buffer> {
+  await enrichLoadedAttributes(loaded);
   const allVariants: Array<{ variant: VariantRow; product: ProductRow }> = [];
   for (const product of loaded.products) {
     for (const variant of loaded.variantsByProduct.get(product.id) ?? []) {
@@ -386,6 +493,10 @@ async function buildVariantWorkbook(loaded: LoadedInventory): Promise<Buffer> {
     }
   }
   const attrNames = uniqueAttributeNames(allVariants.map((row) => row.variant));
+  const requiredColumns = new Set([
+    ...requiredAttributeNames(allVariants.map((row) => row.variant)),
+    ...VARIANT_CORE_REQUIRED,
+  ]);
   const headers = [...VARIANT_LOCKED, ...VARIANT_CORE, ...attrNames];
   const reviewColumns = new Set<string>();
   const wb = new ExcelJS.Workbook();
@@ -417,10 +528,16 @@ async function buildVariantWorkbook(loaded: LoadedInventory): Promise<Buffer> {
       ...attrNames.map((name) => attributeValue(variant, name)),
     ];
     const row = data.addRow(values);
-    headers.forEach((header, index) => paintReviewCell(row.getCell(index + 1), issues.get(header)));
+    headers.forEach((header, index) =>
+      paintReviewCell(
+        row.getCell(index + 1),
+        issues.get(header),
+        requiredPaint(variant, header, requiredColumns, issues)
+      )
+    );
   }
 
-  styleHeaderRow(data.getRow(1), headers, VARIANT_LOCKED_SET, reviewColumns);
+  styleHeaderRow(data.getRow(1), headers, VARIANT_LOCKED_SET, reviewColumns, requiredColumns);
   return writeWorkbookBuffer(wb);
 }
 
@@ -476,13 +593,14 @@ function mergeAttributes(
     id: attr.id,
     slug: attr.slug,
     inputType: attr.inputType,
+    valueRequired: attr.valueRequired,
   }));
   headers.forEach((header, index) => {
     if (!header || core.has(header) || IMPORT_SKIP_HEADERS.has(header)) return;
     const nextValue = values[index] ?? "";
     const prev = current.find((attr) => attr.name === header);
     if (prev) prev.value = nextValue;
-    else current.push({ name: header, value: nextValue, id: null, slug: null, inputType: null });
+    else current.push({ name: header, value: nextValue, id: null, slug: null, inputType: null, valueRequired: false });
   });
   return asJson(mergeInventoryAttributes(existing, current));
 }
