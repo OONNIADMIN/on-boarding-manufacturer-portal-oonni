@@ -40,12 +40,6 @@ async function main() {
   const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (existing) {
     console.log(`  → Admin user already exists: ${adminEmail}`);
-    const passwordHash = await bcrypt.hash(adminPassword, 12);
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { password_hash: passwordHash, name: adminName },
-    });
-    console.log(`  ✓ Updated password for existing admin: ${adminEmail}`);
   } else {
     const passwordHash = await bcrypt.hash(adminPassword, 12);
     await prisma.user.create({

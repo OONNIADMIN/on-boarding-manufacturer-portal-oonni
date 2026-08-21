@@ -1,36 +1,19 @@
-# ============================================
-# OONNI On Boarding - Todo en Next.js
-# Levantar desde la carpeta frontend: docker compose up -d
-# ===========================================
-#
-# Variables en .env (en esta carpeta):
-#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-#   POSTGRES_PASSWORD_ENCODED (contraseña URL-encoded para DATABASE_URL)
-#   DATABASE_URL (host=db, puerto 5432, para uso dentro del contenedor)
-#   JWT_SECRET, INITIAL_ADMIN_*, IMAGEKIT_*, SMTP_*, NEXT_PUBLIC_APP_URL
-#   ImageKit uploads require IMAGEKIT_PRIVATE_KEY + IMAGEKIT_URL_ENDPOINT in the same file Compose uses (.env or --env-file .env.local).
-#
-# Uso:
-#   docker compose up -d
-#   docker compose up -d --build
-#
-# Compose solo carga .env para ${VARIABLES} en este archivo. Si usas .env.local:
-#   docker compose --env-file .env.local up -d
+# Production stack: PostgreSQL + Next.js portal.
+# 1. Copy env.production.example to .env and fill in secrets.
+# 2. docker compose up -d --build
+# App: http://localhost:${APP_PORT:-3000}
 
 services:
-  # --------------------------------------------
-  # Base de datos - PostgreSQL 15
-  # --------------------------------------------
   db:
-    image: postgres:15
-    container_name: oonni_postgres_onboarding
+    image: postgres:15-alpine
+    container_name: oonni_portal_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-oonni_onboarding}
     ports:
-      # En el host puedes usar 5433; dentro del contenedor Postgres siempre es 5432
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -39,52 +22,71 @@ services:
           "CMD-SHELL",
           "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-oonni_onboarding}",
         ]
-      interval: 15s
-      timeout: 10s
-      retries: 5
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # --------------------------------------------
-  # App - Next.js (frontend + API)
-  # --------------------------------------------
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: oonni-app:latest
-    container_name: oonni_app
-    working_dir: /app
+    image: oonni-portal:production
+    container_name: oonni_portal_app
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD_ENCODED:-${POSTGRES_PASSWORD:-postgres}}@db:5432/${POSTGRES_DB:-oonni_onboarding}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@oonni.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-Admin}
+      SEED_ON_START: ${SEED_ON_START:-true}
       IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY}
       IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY}
       IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT}
       NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT}
-      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
-      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-Admin}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@oonni.com}
+      IMAGEKIT_TEMPLATES_FOLDER: ${IMAGEKIT_TEMPLATES_FOLDER:-/Template-excel-oonni}
+      NAUTICAL_API_URL: ${NAUTICAL_API_URL}
+      NAUTICAL_BEARER_TOKEN: ${NAUTICAL_BEARER_TOKEN:-${NAUTICAL_KEY_BEARER}}
+      NAUTICAL_KEY_BEARER: ${NAUTICAL_KEY_BEARER}
+      BREVO_API_KEY: ${BREVO_API_KEY}
+      BREVO_API_URL: ${BREVO_API_URL:-https://api.brevo.com/v3/smtp/email}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-OONNI Platform}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       INVITATION_TOKEN_EXPIRE_HOURS: ${INVITATION_TOKEN_EXPIRE_HOURS:-72}
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:
