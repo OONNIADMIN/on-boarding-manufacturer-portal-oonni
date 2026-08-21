@@ -13,7 +13,7 @@
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
   @include flex-center;
-  z-index: 1000;
+  z-index: 5000;
   padding: $spacing-md;
   backdrop-filter: blur(4px);
   animation: fadeIn $transition-base;

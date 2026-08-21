@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const users = (await prisma.user.findMany({
-    where: { manufacturer_id: parseInt(id, 10) },
+    where: { manufacturer_id: parseInt(id, 10), deleted_at: null },
     include: { role: true, manufacturer: true },
     orderBy: { id: "asc" },
   })) as unknown as UserRow[];

@@ -47,7 +47,7 @@ export default function InviteManufacturerModal({ isOpen, onClose, onSuccess }: 
         throw new Error('No authentication token')
       }
       const data = await manufacturerAPI.getAllManufacturers(token)
-      setManufacturers(data)
+      setManufacturers(Array.isArray(data) ? data : [])
     } catch (err: any) {
       setError(err.message || 'Failed to load manufacturers')
     } finally {
@@ -57,9 +57,10 @@ export default function InviteManufacturerModal({ isOpen, onClose, onSuccess }: 
 
   // Filter manufacturers based on search query
   const filteredManufacturers = useMemo(() => {
-    if (!searchQuery.trim()) return manufacturers
-    const query = searchQuery.toLowerCase()
-    return manufacturers.filter(m => 
+  const list = Array.isArray(manufacturers) ? manufacturers : []
+  if (!searchQuery.trim()) return list
+  const query = searchQuery.toLowerCase()
+  return list.filter(m => 
       m.name.toLowerCase().includes(query) ||
       m.slug.toLowerCase().includes(query)
     )

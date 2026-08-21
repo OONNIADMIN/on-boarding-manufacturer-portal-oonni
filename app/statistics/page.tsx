@@ -144,7 +144,7 @@ export default function StatisticsPage() {
                   <div className={styles.metricContent}>
                     <h3 className={styles.metricTitle}>Manufacturers</h3>
                     <div className={styles.metricValue}>{stats.totalManufacturers}</div>
-                    {stats.recentActivity.newManufacturers > 0 && (
+                    {(stats.recentActivity?.newManufacturers ?? 0) > 0 && (
                       <div className={styles.metricChange}>
                         +{stats.recentActivity.newManufacturers} this week
                       </div>
@@ -161,7 +161,7 @@ export default function StatisticsPage() {
                   <div className={styles.metricContent}>
                     <h3 className={styles.metricTitle}>Total Users</h3>
                     <div className={styles.metricValue}>{stats.totalUsers}</div>
-                    {stats.recentActivity.newUsers > 0 && (
+                    {(stats.recentActivity?.newUsers ?? 0) > 0 && (
                       <div className={styles.metricChange}>
                         +{stats.recentActivity.newUsers} this week
                       </div>
@@ -178,7 +178,7 @@ export default function StatisticsPage() {
                   <div className={styles.metricContent}>
                     <h3 className={styles.metricTitle}>Catalogs</h3>
                     <div className={styles.metricValue}>{stats.totalCatalogs}</div>
-                    {stats.recentActivity.newCatalogs > 0 && (
+                    {(stats.recentActivity?.newCatalogs ?? 0) > 0 && (
                       <div className={styles.metricChange}>
                         +{stats.recentActivity.newCatalogs} this week
                       </div>
@@ -195,7 +195,7 @@ export default function StatisticsPage() {
                   <div className={styles.metricContent}>
                     <h3 className={styles.metricTitle}>Images</h3>
                     <div className={styles.metricValue}>{stats.totalImages}</div>
-                    {stats.recentActivity.newImages > 0 && (
+                    {(stats.recentActivity?.newImages ?? 0) > 0 && (
                       <div className={styles.metricChange}>
                         +{stats.recentActivity.newImages} this week
                       </div>
@@ -217,9 +217,11 @@ export default function StatisticsPage() {
                   </div>
                   <div className={styles.distributionContent}>
                     <h3 className={styles.distributionTitle}>Administrators</h3>
-                    <div className={styles.distributionValue}>{stats.userDistribution.admins}</div>
+                    <div className={styles.distributionValue}>{stats.userDistribution?.admins ?? 0}</div>
                     <div className={styles.distributionPercentage}>
-                      {((stats.userDistribution.admins / stats.totalUsers) * 100).toFixed(1)}%
+                      {stats.totalUsers
+                        ? (((stats.userDistribution?.admins ?? 0) / stats.totalUsers) * 100).toFixed(1)
+                        : "0.0"}%
                     </div>
                   </div>
                 </div>
@@ -232,9 +234,11 @@ export default function StatisticsPage() {
                   </div>
                   <div className={styles.distributionContent}>
                     <h3 className={styles.distributionTitle}>Manufacturers</h3>
-                    <div className={styles.distributionValue}>{stats.userDistribution.manufacturers}</div>
+                    <div className={styles.distributionValue}>{stats.userDistribution?.manufacturers ?? 0}</div>
                     <div className={styles.distributionPercentage}>
-                      {((stats.userDistribution.manufacturers / stats.totalUsers) * 100).toFixed(1)}%
+                      {stats.totalUsers
+                        ? (((stats.userDistribution?.manufacturers ?? 0) / stats.totalUsers) * 100).toFixed(1)
+                        : "0.0"}%
                     </div>
                   </div>
                 </div>
@@ -247,9 +251,11 @@ export default function StatisticsPage() {
                   </div>
                   <div className={styles.distributionContent}>
                     <h3 className={styles.distributionTitle}>Regular Users</h3>
-                    <div className={styles.distributionValue}>{stats.userDistribution.users}</div>
+                    <div className={styles.distributionValue}>{stats.userDistribution?.users ?? 0}</div>
                     <div className={styles.distributionPercentage}>
-                      {((stats.userDistribution.users / stats.totalUsers) * 100).toFixed(1)}%
+                      {stats.totalUsers
+                        ? (((stats.userDistribution?.users ?? 0) / stats.totalUsers) * 100).toFixed(1)
+                        : "0.0"}%
                     </div>
                   </div>
                 </div>
@@ -260,7 +266,10 @@ export default function StatisticsPage() {
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Top Manufacturers</h2>
               <div className={styles.topManufacturers}>
-                {stats.topManufacturers.map((manufacturer, index) => (
+                {(stats.topManufacturers ?? []).length === 0 ? (
+                  <p>No manufacturers yet</p>
+                ) : (
+                  stats.topManufacturers.map((manufacturer, index) => (
                   <div key={manufacturer.id} className={styles.manufacturerCard}>
                     <div className={styles.manufacturerRank}>#{index + 1}</div>
                     <div className={styles.manufacturerInfo}>
@@ -275,7 +284,8 @@ export default function StatisticsPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
           </div>

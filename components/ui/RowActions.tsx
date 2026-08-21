@@ -9,9 +9,9 @@ type RowActionsProps = {
   viewLabel?: string
   editLabel?: string
   deleteLabel?: string
-  onView: () => void
-  onEdit: () => void
-  onDelete: () => void
+  onView?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export default function RowActions({
@@ -81,40 +81,46 @@ export default function RowActions({
               style={{ top: pos.top, right: pos.right }}
               role="menu"
             >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  close()
-                  onView()
-                }}
-              >
-                <Eye size={14} />
-                {viewLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  close()
-                  onEdit()
-                }}
-              >
-                <Pencil size={14} />
-                {editLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.danger}
-                onClick={() => {
-                  close()
-                  onDelete()
-                }}
-              >
-                <Trash2 size={14} />
-                {deleteLabel}
-              </button>
+              {onView ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    close()
+                    onView()
+                  }}
+                >
+                  <Eye size={14} />
+                  {viewLabel}
+                </button>
+              ) : null}
+              {onEdit ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    close()
+                    onEdit()
+                  }}
+                >
+                  <Pencil size={14} />
+                  {editLabel}
+                </button>
+              ) : null}
+              {onDelete ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.danger}
+                  onClick={() => {
+                    close()
+                    onDelete()
+                  }}
+                >
+                  <Trash2 size={14} />
+                  {deleteLabel}
+                </button>
+              ) : null}
             </div>,
             document.body
           )

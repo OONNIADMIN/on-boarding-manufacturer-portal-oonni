@@ -8,6 +8,7 @@ import {
   ApiError,
   ManufacturerListItem,
   Manufacturer,
+  Catalog,
   Product,
   ProductListResponse
 } from '@/types'
@@ -566,13 +567,13 @@ export const catalogAPI = {
   /**
    * Get list of all catalogs (authenticated)
    */
-  async listCatalogs(): Promise<any[]> {
+  async listCatalogs(): Promise<Catalog[]> {
     const token = authAPI.getToken()
     if (!token) {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs`, {
+    const response = await fetch(`${API_URL}/catalogs?limit=500`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -582,7 +583,8 @@ export const catalogAPI = {
       throw new Error('Failed to fetch catalogs')
     }
 
-    return response.json()
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
   },
 
   /**
