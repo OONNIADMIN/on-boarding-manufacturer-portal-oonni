@@ -2,6 +2,7 @@ import {
   evaluateProductCompleteness,
   hasCompletenessFilter,
   matchesCompletenessFilter,
+  type CompletenessFilter,
   type CompletenessIssueKind,
   type CompletenessStatus,
 } from "@/lib/inventory-completeness";
@@ -34,17 +35,21 @@ export async function GET(req: NextRequest) {
   const search = String(searchParams.get("search") ?? "").trim();
   const sort = String(searchParams.get("sort") ?? "name").trim();
   const order = searchParams.get("order") === "desc" ? "desc" : "asc";
-  const completenessStatus = String(searchParams.get("completeness") ?? "").trim() as CompletenessStatus | "";
+  const completenessParam = String(searchParams.get("completeness") ?? "").trim();
+  const completenessStatus: CompletenessStatus | "" =
+    completenessParam === "complete" ||
+    completenessParam === "needs_review" ||
+    completenessParam === "incomplete"
+      ? completenessParam
+      : "";
   const issueKinds = String(searchParams.get("issues") ?? "")
     .split(",")
     .map((value) => value.trim())
     .filter((value): value is CompletenessIssueKind =>
       value === "empty" || value === "na" || value === "zero" || value === "short"
     );
-  const completenessFilter = {
-    status: completenessStatus === "complete" || completenessStatus === "needs_review" || completenessStatus === "incomplete"
-      ? completenessStatus
-      : "",
+  const completenessFilter: CompletenessFilter = {
+    status: completenessStatus,
     issues: issueKinds,
   };
   const filterByCompleteness = hasCompletenessFilter(completenessFilter);
