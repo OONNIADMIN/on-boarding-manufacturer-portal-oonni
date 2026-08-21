@@ -8,11 +8,11 @@ import { serializeImageForListJson } from "@/lib/image-list-json";
 import { clientIp } from "@/lib/session-cookie";
 import { AUTH_WINDOW_MS, UPLOAD_LIMIT } from "@/lib/rate-limit";
 import {
-  MAX_UPLOAD_BYTES,
   contentLengthTooLarge,
   fileTooLarge,
   rejectIfLimited,
 } from "@/lib/request-limits";
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB, uploadTooLargeMessage } from "@/lib/upload-limits";
 import { imageUploadMeta, safeUploadFileName } from "@/lib/upload-file-guard";
 import { parsePositiveInt } from "@/lib/inventory-access";
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (error || !user) return unauthorized(error ?? undefined);
   const limited = rejectIfLimited(`upload-image:${user.id}:${clientIp(req)}`, UPLOAD_LIMIT, AUTH_WINDOW_MS);
   if (limited) return limited;
-  if (contentLengthTooLarge(req)) return err("File exceeds 10MB limit", 413);
+  if (contentLengthTooLarge(req, MAX_IMAGE_UPLOAD_BYTES)) return err(uploadTooLargeMessage(MAX_IMAGE_UPLOAD_MB), 413);
 
   try {
     const formData = await req.formData();
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const manufacturerIdRaw = formData.get("manufacturer_id");
 
     if (!file) return err("No file provided");
-    if (fileTooLarge(file.size)) return err("File exceeds 10MB limit", 413);
+    if (fileTooLarge(file.size, MAX_IMAGE_UPLOAD_BYTES)) return err(uploadTooLargeMessage(MAX_IMAGE_UPLOAD_MB), 413);
     if (!manufacturerIdRaw) return err("manufacturer_id is required");
 
     const manufacturerId = parsePositiveInt(String(manufacturerIdRaw), "manufacturer_id");
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    if (buffer.length > MAX_UPLOAD_BYTES) return err("File exceeds 10MB limit", 413);
+    if (buffer.length > MAX_IMAGE_UPLOAD_BYTES) return err(uploadTooLargeMessage(MAX_IMAGE_UPLOAD_MB), 413);
 
     const meta = imageUploadMeta(buffer);
     if (!meta) return err("Invalid file type. Allowed: JPEG, PNG, WebP, GIF");

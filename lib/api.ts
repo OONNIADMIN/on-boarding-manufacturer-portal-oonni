@@ -19,7 +19,8 @@ import type { EntityCompleteness, ProductCompleteness } from '@/lib/inventory-co
 
 export type { CatalogImageIngestProgress }
 
-// All API calls go to Next.js API routes (same origin — no CORS, no external backend needed)
+import { rememberCatalogImportJob } from '@/lib/catalog-import-jobs-client'
+
 const API_URL = '/api'
 
 function isJwt(value: string): boolean {
@@ -44,6 +45,30 @@ function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respons
     credentials: init?.credentials ?? 'include',
     headers,
   })
+}
+
+export interface CatalogImportJobView {
+  id: string
+  filename: string
+  status: string
+  phase: string
+  message: string | null
+  progress_current: number
+  progress_total: number
+  catalog_id: number | null
+  products_created: number
+  images_created: number
+  images_failed: number
+  error: string | null
+  created_at: string
+  finished_at: string | null
+}
+
+export interface CatalogUploadAccepted {
+  job_id: string
+  status: string
+  filename: string
+  message: string
 }
 
 export interface UploadResponse {
@@ -531,8 +556,12 @@ export const catalogAPI = {
     file: File,
     manufacturerId?: number,
     headerRowIndex = 0,
-    options?: { skuColumn?: string }
-  ): Promise<UploadResponse> {
+    options?: {
+      skuColumn?: string
+      imageColumns?: string[]
+      onProgress?: (percent: number) => void
+    }
+  ): Promise<CatalogUploadAccepted> {
     const token = authAPI.getToken()
     if (!token) {
       throw new Error('Authentication required')
@@ -547,29 +576,57 @@ export const catalogAPI = {
     if (options?.skuColumn?.trim()) {
       formData.append('sku_column', options.skuColumn.trim())
     }
-
-    const response = await apiFetch(`${API_URL}/catalogs/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const text = await response.text()
-      try {
-        const error = JSON.parse(text) as { detail?: string }
-        throw new Error(error.detail || 'Upload failed')
-      } catch (e) {
-        if (e instanceof Error && e.message !== 'Upload failed' && !e.message.startsWith('Unexpected')) {
-          throw e
-        }
-        throw new Error('Upload failed. Check ImageKit keys and that the catalog API is running.')
-      }
+    if (options?.imageColumns?.length) {
+      formData.append('image_columns', JSON.stringify(options.imageColumns))
     }
 
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${API_URL}/catalogs/upload`)
+      xhr.withCredentials = true
+      if (token && token.split('.').length === 3 && token.length > 40) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      }
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !options?.onProgress) return
+        options.onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+
+      xhr.onload = () => {
+        try {
+          const body = JSON.parse(xhr.responseText) as CatalogUploadAccepted & { detail?: string }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            options?.onProgress?.(100)
+            rememberCatalogImportJob(body.job_id)
+            resolve(body)
+          } else {
+            reject(new Error(body.detail || 'Upload failed'))
+          }
+        } catch {
+          reject(new Error('Upload failed. Check that the catalog API is running.'))
+        }
+      }
+
+      xhr.onerror = () => reject(new Error('Upload failed'))
+      xhr.send(formData)
+    })
+  },
+
+  async getImportJob(jobId: string): Promise<CatalogImportJobView> {
+    const response = await apiFetch(`${API_URL}/catalogs/upload-jobs/${encodeURIComponent(jobId)}`)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as { detail?: string }).detail || 'Failed to load import status')
+    }
     return response.json()
+  },
+
+  async listImportJobs(): Promise<CatalogImportJobView[]> {
+    const response = await apiFetch(`${API_URL}/catalogs/upload-jobs`)
+    if (!response.ok) return []
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
   },
 
   /**

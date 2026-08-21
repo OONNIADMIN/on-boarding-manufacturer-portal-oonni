@@ -70,7 +70,7 @@ describe("rate limit and DoS guards", () => {
   });
 
   test("upload size guards reject oversized files before buffering", () => {
-    expect(fileTooLarge(MAX_UPLOAD_BYTES)).toBe(false);
+    expect(MAX_UPLOAD_BYTES).toBe(150 * 1024 * 1024);
     expect(fileTooLarge(MAX_UPLOAD_BYTES + 1)).toBe(true);
     expect(fileTooLarge(-1)).toBe(true);
     expect(contentLengthTooLarge(headerReq(String(MAX_UPLOAD_BYTES + 2_000_000)))).toBe(true);

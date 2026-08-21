@@ -10,6 +10,7 @@ import {
   rejectIfLimited,
 } from "@/lib/request-limits";
 import { sniffSpreadsheetKind } from "@/lib/upload-file-guard";
+import { uploadTooLargeMessage } from "@/lib/upload-limits";
 import {
   BULK_KIND_PRODUCTS,
   BULK_KIND_VARIANTS,
@@ -35,16 +36,16 @@ export async function POST(req: NextRequest) {
     AUTH_WINDOW_MS
   );
   if (limited) return limited;
-  if (contentLengthTooLarge(req)) return err("File exceeds 10MB limit", 413);
+  if (contentLengthTooLarge(req)) return err(uploadTooLargeMessage(), 413);
 
   try {
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return err("Upload an Excel file exported from inventory");
-    if (fileTooLarge(file.size)) return err("File exceeds 10MB limit", 413);
+    if (fileTooLarge(file.size)) return err(uploadTooLargeMessage(), 413);
     const buffer = Buffer.from(await file.arrayBuffer());
     if (!buffer.length) return err("The uploaded file is empty");
-    if (buffer.length > MAX_UPLOAD_BYTES) return err("File exceeds 10MB limit", 413);
+    if (buffer.length > MAX_UPLOAD_BYTES) return err(uploadTooLargeMessage(), 413);
     if (sniffSpreadsheetKind(buffer, file.name) !== "xlsx") {
       return err("Upload an Excel .xlsx file exported from inventory");
     }

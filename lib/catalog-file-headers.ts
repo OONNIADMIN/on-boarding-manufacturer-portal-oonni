@@ -9,4 +9,6 @@ export {
   parseSpreadsheetPreviewFromFile,
   parseSpreadsheetRows,
   rowsToObjects,
+  fillMissingSkuHeader,
+  looksLikeSkuValue,
 } from "./catalog-spreadsheet-parse";

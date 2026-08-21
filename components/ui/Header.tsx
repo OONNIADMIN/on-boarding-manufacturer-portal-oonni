@@ -5,6 +5,7 @@ import { authAPI } from '@/lib/api'
 import { User } from '@/types'
 import { CircleUserRound } from 'lucide-react'
 import { PORTAL_TITLE } from '@/lib/constants'
+import CatalogImportBanner from './CatalogImportBanner'
 import styles from './Header.module.scss'
 
 export { PORTAL_TITLE }
@@ -202,6 +203,8 @@ export default function Header({
           </button>
         </div>
       </div>
+
+      {user ? <CatalogImportBanner /> : null}
       
       {showNavigation && (
         <nav className={`${styles.navigation} ${navStyle === 'flat' ? styles.navigationFlat : ''}`}>

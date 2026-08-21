@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, ChangeEvent } from 'react'
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB } from '@/lib/upload-limits'
 import styles from './FilePicker.module.scss'
 
 interface ImageFilesPickerProps {
@@ -28,12 +29,11 @@ export default function ImageFilesPicker({ onFilesSelect, selectedFiles }: Image
       return
     }
 
-    // Validate file sizes (10MB max per file)
-    const maxSize = 10 * 1024 * 1024
+    const maxSize = MAX_IMAGE_UPLOAD_BYTES
     const oversizedFiles = files.filter(file => file.size > maxSize)
     
     if (oversizedFiles.length > 0) {
-      alert(`Some files exceed 10MB limit:\n${oversizedFiles.map(f => f.name).join(', ')}`)
+      alert(`Some files exceed the ${MAX_IMAGE_UPLOAD_MB}MB limit:\n${oversizedFiles.map(f => f.name).join(', ')}`)
       return
     }
 

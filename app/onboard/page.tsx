@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
 import CatalogFilePicker, { type CatalogFileSelection } from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
-import { authAPI, catalogAPI, catalogColumnRulesAPI, imageAPI, productAPI, type CatalogImageIngestProgress } from '@/lib/api'
+import { authAPI, catalogAPI, catalogColumnRulesAPI, imageAPI } from '@/lib/api'
 import { detectImageUrlColumns, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
@@ -26,14 +26,11 @@ export default function CatalogsPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadReport, setUploadReport] = useState<CatalogUploadReport | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  
   const [selectedCatalogFile, setSelectedCatalogFile] = useState<File | null>(null)
   const [catalogHeaderRowIndex, setCatalogHeaderRowIndex] = useState<number | null>(null)
   const [catalogColumnNames, setCatalogColumnNames] = useState<string[]>([])
   const [catalogColumnMappings, setCatalogColumnMappings] = useState<Record<string, string>>({})
-  const [isProcessingCatalog, setIsProcessingCatalog] = useState(false)
-  const [catalogProcessingPhase, setCatalogProcessingPhase] = useState<'products' | 'images' | null>(null)
-  const [imageIngestProgress, setImageIngestProgress] = useState<CatalogImageIngestProgress | null>(null)
+  const [transferPercent, setTransferPercent] = useState<number | null>(null)
   const [isUploadCompleted, setIsUploadCompleted] = useState(false)
   const [hasUploadImages, setHasUploadImages] = useState(false)
 
@@ -121,9 +118,7 @@ export default function CatalogsPage() {
     }
 
     setIsUploading(true)
-    setIsProcessingCatalog(false)
-    setCatalogProcessingPhase(null)
-    setImageIngestProgress(null)
+    setTransferPercent(0)
     setUploadError(null)
     setUploadReport(null)
 
@@ -140,135 +135,51 @@ export default function CatalogsPage() {
         columnsForUpload.length
           ? columnMappings['sku'] ?? detectSkuColumn(columnsForUpload, columnRules)
           : null
+      const imgCols = [
+        ...new Set(
+          [
+            ...(selection?.imageColumns ?? []),
+            ...detectImageUrlColumns(
+              selection?.headerCells?.length ? selection.headerCells : columnsForUpload,
+              skuColForUpload,
+              columnRules,
+              selection?.sampleRows
+            ),
+          ]
+            .map((name) => String(name ?? '').trim())
+            .filter((name) => name && name !== skuColForUpload)
+        ),
+      ]
 
-      const catalogResult = await catalogAPI.uploadFile(
-        catalogFile,
-        manufacturerIdNum,
-        headerRowIndex,
-        skuColForUpload ? { skuColumn: skuColForUpload } : undefined
-      )
+      const accepted = await catalogAPI.uploadFile(catalogFile, manufacturerIdNum, headerRowIndex, {
+        skuColumn: skuColForUpload || undefined,
+        imageColumns: imgCols,
+        onProgress: (percent) => {
+          setTransferPercent(percent)
+        },
+      })
 
-      let columns: string[] = columnNames.length
-        ? columnNames
-        : catalogResult.data_info?.column_names ?? []
-      if (!columns.length && catalogResult.id) {
-        try {
-          const colRes = await catalogAPI.getColumns(catalogResult.id)
-          columns = colRes.list_columns ?? []
-        } catch {
-          /* columns optional until user opens mapping */
-        }
-      }
-
-      const catalogName = catalogResult.name || catalogFile.name || 'catalog'
-      const report: CatalogUploadReport = {
-        catalogName,
-        catalogId: catalogResult.id ?? null,
+      setUploadReport({
+        catalogName: catalogFile.name,
+        catalogId: null,
         productsCreated: null,
         imagesUploaded: 0,
-        imageColumns: 0,
+        imageColumns: imgCols.length,
         uploadFailures: 0,
-      }
-
-      if (catalogResult.id && columns.length) {
-        setIsProcessingCatalog(true)
-        setUploadError(null)
-        try {
-          const columnRules = await catalogColumnRulesAPI.listForUpload().catch(() => [])
-          const skuCol =
-            skuColForUpload ??
-            columnMappings['sku'] ??
-            detectSkuColumn(columns, columnRules)
-          if (skuCol) {
-            setCatalogProcessingPhase('products')
-            let created = catalogResult.products_from_upload?.created_count ?? 0
-            if (!catalogResult.products_from_upload) {
-              const productResult = await productAPI.createProductsFromCatalog(
-                catalogResult.id,
-                skuCol,
-                manufacturerIdNum
-              )
-              created = productResult.created_count ?? 0
-            }
-            report.productsCreated = created
-            const imgCols = [
-              ...new Set(
-                [
-                  ...(selection?.imageColumns ?? []),
-                  ...detectImageUrlColumns(
-                    selection?.headerCells?.length ? selection.headerCells : columns,
-                    skuCol,
-                    columnRules,
-                    selection?.sampleRows
-                  ),
-                ]
-                  .map((name) => String(name ?? '').trim())
-                  .filter((name) => name && name !== skuCol)
-              ),
-            ]
-            if (imgCols.length) {
-              setCatalogProcessingPhase('images')
-              setImageIngestProgress({
-                phase: 'uploading',
-                processed: 0,
-                total: 0,
-                uploaded: 0,
-                failed: 0,
-                images_created: 0,
-              })
-              const ingestResult = await catalogAPI.ingestImagesFromSpreadsheetUrls(
-                catalogResult.id,
-                skuCol,
-                imgCols,
-                manufacturerIdNum,
-                {
-                  onProgress: setImageIngestProgress,
-                  catalogFile,
-                }
-              )
-              report.imageColumns = imgCols.length
-              report.imagesUploaded = ingestResult.images_created ?? 0
-              report.uploadFailures = ingestResult.upload_failures ?? 0
-            }
-          }
-        } catch (procErr) {
-          console.error('Catalog processing error:', procErr)
-          setUploadError(
-            procErr instanceof Error
-              ? procErr.message
-              : 'Catalog uploaded, but automatic product/image processing failed.'
-          )
-        } finally {
-          setIsProcessingCatalog(false)
-          setCatalogProcessingPhase(null)
-          setImageIngestProgress(null)
-        }
-      }
-
-      if (catalogResult.id) {
-        try {
-          await catalogAPI.sendUploadNotification(
-            catalogResult.id,
-            report.imagesUploaded,
-            report.uploadFailures
-          )
-        } catch (err) {
-          console.error('Failed to send admin notification:', err)
-        }
-      }
-
-      setUploadReport(report)
+      })
       setSelectedCatalogFile(null)
       setCatalogHeaderRowIndex(null)
       setCatalogColumnNames([])
       setCatalogColumnMappings({})
       setIsUploadCompleted(true)
       setRefreshKey((prev) => prev + 1)
+      void accepted
     } catch (err) {
       console.error('Upload error:', err)
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setIsUploading(false)
+      setTransferPercent(null)
     }
   }
 
@@ -314,16 +225,6 @@ export default function CatalogsPage() {
     return null
   }
 
-  const imageIngestPercent =
-    imageIngestProgress && imageIngestProgress.total > 0
-      ? Math.min(
-          100,
-          Math.round((imageIngestProgress.processed / imageIngestProgress.total) * 100)
-        )
-      : imageIngestProgress?.phase === 'finalizing'
-        ? 100
-        : 0
-
   return (
     <main className={styles.main}>
       <div className={styles.container}>
@@ -343,37 +244,16 @@ export default function CatalogsPage() {
                 </svg>
                 <div>
                   <h2 id="catalog-upload-report-title" className={styles.uploadReportTitle}>
-                    Catalog uploaded
+                    File received
                   </h2>
                   <p className={styles.uploadReportLead}>
-                    Your catalog <strong>{uploadReport.catalogName}</strong>
-                    {uploadReport.catalogId ? ` (ID: ${uploadReport.catalogId})` : ''} is uploaded
-                    and will be processed by the OONNI catalog team.
+                    <strong>{uploadReport.catalogName}</strong> is on the server. Products and photos
+                    continue in the background — you can leave this page and keep using the portal.
+                    Progress stays in the header until the import finishes.
                   </p>
                 </div>
               </div>
-              <dl className={styles.uploadReportStats}>
-                {uploadReport.productsCreated != null ? (
-                  <div className={styles.uploadReportStat}>
-                    <dt>Products created</dt>
-                    <dd>{uploadReport.productsCreated}</dd>
-                  </div>
-                ) : null}
-                <div className={styles.uploadReportStat}>
-                  <dt>Images uploaded</dt>
-                  <dd>{uploadReport.imagesUploaded}</dd>
-                </div>
-                <div className={styles.uploadReportStat}>
-                  <dt>Image columns imported</dt>
-                  <dd>{uploadReport.imageColumns}</dd>
-                </div>
-                {uploadReport.uploadFailures > 0 ? (
-                  <div className={`${styles.uploadReportStat} ${styles.uploadReportStatWarn}`}>
-                    <dt>Images that could not be imported</dt>
-                    <dd>{uploadReport.uploadFailures}</dd>
-                  </div>
-                ) : null}
-              </dl>
+              <dl className={styles.uploadReportStats} />
             </section>
           )}
 
@@ -396,11 +276,12 @@ export default function CatalogsPage() {
               <div className={styles.welcomeDivider} aria-hidden="true"></div>
               <div className={styles.welcomeDescriptionPanel}>
                 <p className={styles.welcomeDescription}>
-                  Upload your Excel or CSV file using the{' '}
+                  Upload your Excel or CSV file (up to 150MB) using the{' '}
                   <span className={styles.welcomeHighlight}>catalog template</span> column names: a{' '}
                   <span className={styles.welcomeHighlight}>sku</span> column for products and an{' '}
                   <span className={styles.welcomeHighlight}>images</span> column for public image URLs.
-                  After upload we add the products to your Oonni catalog and import those photos automatically.
+                  Keep this page open only until the file is fully received. After that you can go to
+                  inventory or images while we create products and import photos in batches.
                   Download templates from <span className={styles.welcomeHighlight}>catalog template</span> in the
                   navigation (one file per product line if needed).
                 </p>
@@ -436,10 +317,12 @@ export default function CatalogsPage() {
                             disabled={!selectedCatalogFile || isUploading}
                             className={styles.uploadAllButton}
                           >
-                            {isUploading ? (
+                                {isUploading ? (
                               <>
                                 <span className={styles.spinner}></span>
-                                {isProcessingCatalog ? 'Processing catalog…' : 'Uploading…'}
+                                {transferPercent != null
+                                  ? `Sending file… ${transferPercent}%`
+                                  : 'Sending file…'}
                               </>
                             ) : (
                               <>
@@ -451,55 +334,28 @@ export default function CatalogsPage() {
                             )}
                           </button>
                           <p className={styles.uploadButtonHint}>
-                            Ready to upload - products and image URLs from the spreadsheet are processed
-                            automatically.
+                            Stay on this page until the file is received (up to 150MB). After that you can
+                            keep working while products and photos are processed in the background.
                           </p>
-                          {(isProcessingCatalog || imageIngestProgress) && (
+                          {isUploading && transferPercent != null && (
                             <div
                               className={styles.imageKitProgress}
                               role="status"
                               aria-live="polite"
-                              aria-busy={isProcessingCatalog}
+                              aria-busy={isUploading}
                             >
                               <div className={styles.imageKitProgressHeader}>
                                 <span className={styles.imageKitProgressLabel}>
-                                  {catalogProcessingPhase === 'products'
-                                    ? 'Adding products to your catalog…'
-                                    : imageIngestProgress?.phase === 'finalizing'
-                                      ? 'Finishing your catalog…'
-                                      : 'Uploading product photos…'}
+                                  Sending catalog file to the server…
                                 </span>
-                                {imageIngestProgress && catalogProcessingPhase === 'images' ? (
-                                  <span className={styles.imageKitProgressPct}>
-                                    {imageIngestPercent}%
-                                  </span>
-                                ) : null}
+                                <span className={styles.imageKitProgressPct}>{transferPercent}%</span>
                               </div>
                               <div className={styles.imageKitProgressTrack}>
                                 <div
                                   className={styles.imageKitProgressFill}
-                                  style={{
-                                    width:
-                                      catalogProcessingPhase === 'products'
-                                        ? '35%'
-                                        : `${Math.max(imageIngestPercent, catalogProcessingPhase === 'images' ? 8 : 0)}%`,
-                                  }}
+                                  style={{ width: `${transferPercent}%` }}
                                 />
                               </div>
-                              {imageIngestProgress && catalogProcessingPhase === 'images' ? (
-                                <p className={styles.imageKitProgressMeta}>
-                                  {imageIngestProgress.uploaded} photos uploaded
-                                  {imageIngestProgress.total > 0
-                                    ? ` · ${imageIngestProgress.processed} of ${imageIngestProgress.total} source URL(s)`
-                                    : ''}
-                                  {imageIngestProgress.failed > 0
-                                    ? ` · ${imageIngestProgress.failed} failed`
-                                    : ''}
-                                  {imageIngestProgress.images_created > 0
-                                    ? ` · ${imageIngestProgress.images_created} linked to products`
-                                    : ''}
-                                </p>
-                              ) : null}
                             </div>
                           )}
                         </div>

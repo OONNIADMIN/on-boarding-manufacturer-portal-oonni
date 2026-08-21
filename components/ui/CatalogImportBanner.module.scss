@@ -1,0 +1,54 @@
+@use '../../styles/variables' as *;
+
+.bar {
+  width: 100%;
+  background: rgba(0, 51, 51, 0.35);
+  padding: 0.55rem 1.5rem 0.75rem;
+}
+
+.item + .item {
+  margin-top: 0.45rem;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: $white;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+
+  strong {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    opacity: 0.9;
+    white-space: nowrap;
+  }
+}
+
+.track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: #d8c79b;
+  transition: width 0.3s ease;
+}
+
+.done {
+  background: #8fca9d;
+}
+
+.failed {
+  background: #e8a0a0;
+}

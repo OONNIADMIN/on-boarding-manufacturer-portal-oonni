@@ -1,4 +1,5 @@
 export { default as Header } from './Header'
+export { default as CatalogImportBanner } from './CatalogImportBanner'
 export { default as Pagination } from './Pagination'
 export { default as DataTable } from './DataTable'
 export { default as RowActions } from './RowActions'

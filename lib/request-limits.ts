@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tooManyRequests } from "@/lib/api-response";
 import { consumeRateLimit, AUTH_WINDOW_MS } from "@/lib/rate-limit";
+import { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export { MAX_UPLOAD_BYTES } from "@/lib/upload-limits";
 const CONTENT_LENGTH_OVERHEAD = 1_048_576;
 
 export function contentLengthTooLarge(

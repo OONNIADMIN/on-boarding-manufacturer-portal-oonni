@@ -9,6 +9,11 @@ const nextConfig = {
   ...(process.env.NODE_ENV === 'production' || process.env.DOCKER_BUILD === '1'
     ? { output: 'standalone' }
     : {}),
+  experimental: {
+    serverActions: {
+        bodySizeLimit: '160mb',
+    },
+  },
   sassOptions: {
     includePaths: [path.join(__dirname, 'styles')],
   },

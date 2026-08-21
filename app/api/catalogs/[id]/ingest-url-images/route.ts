@@ -18,6 +18,7 @@ import {
   rejectIfLimited,
 } from "@/lib/request-limits";
 import { sniffSpreadsheetKind } from "@/lib/upload-file-guard";
+import { uploadTooLargeMessage } from "@/lib/upload-limits";
 
 type IngestRequestBody = {
   sku_column?: string;
@@ -80,7 +81,7 @@ async function parseIngestRequest(req: NextRequest): Promise<{
     let spreadsheetName = "";
     if (file instanceof File && file.size > 0) {
       if (fileTooLarge(file.size)) {
-        throw new Error("File exceeds 10MB limit");
+        throw new Error(uploadTooLargeMessage());
       }
       spreadsheetBuffer = Buffer.from(await file.arrayBuffer());
       spreadsheetName = file.name;
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error || !user) return unauthorized(error ?? undefined);
   const limited = rejectIfLimited(`ingest-images:${user.id}:${clientIp(req)}`, INGEST_LIMIT, AUTH_WINDOW_MS);
   if (limited) return limited;
-  if (contentLengthTooLarge(req)) return err("File exceeds 10MB limit", 413);
+  if (contentLengthTooLarge(req)) return err(uploadTooLargeMessage(), 413);
 
   try {
     const { id } = await params;
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       spreadsheetBuffer && spreadsheetBuffer.length > 0
         ? spreadsheetBuffer
         : await fetchCatalogSpreadsheetBuffer(catalog.catalog_file);
-    if (buffer.length > MAX_UPLOAD_BYTES) return err("File exceeds 10MB limit", 413);
+    if (buffer.length > MAX_UPLOAD_BYTES) return err(uploadTooLargeMessage(), 413);
     if (spreadsheetBuffer && !sniffSpreadsheetKind(spreadsheetBuffer, spreadsheetName || "catalog.xlsx")) {
       return err("Invalid file type. Allowed: CSV, XLSX, XLS");
     }
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.error("ingest-url-images error:", e);
     const hint = imageKitUploadFailureMessage(e);
     if (hint) return err(hint, 503);
-    if (e instanceof Error && e.message.includes("10MB")) return err(e.message, 413);
+    if (e instanceof Error && e.message.includes("MB limit")) return err(e.message, 413);
     const message =
       e instanceof Error && e.message.includes("Could not download the catalog file")
         ? e.message
