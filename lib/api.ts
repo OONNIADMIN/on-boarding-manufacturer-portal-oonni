@@ -19,7 +19,7 @@ import type { EntityCompleteness, ProductCompleteness } from '@/lib/inventory-co
 
 export type { CatalogImageIngestProgress }
 
-import { rememberCatalogImportJob } from '@/lib/catalog-import-jobs-client'
+import { rememberCatalogImportJob, clearRememberedCatalogImportJobs } from '@/lib/catalog-import-jobs-client'
 
 const API_URL = '/api'
 
@@ -313,6 +313,7 @@ export const authAPI = {
    */
   logout(): void {
     if (typeof window !== 'undefined') {
+      clearRememberedCatalogImportJobs()
       void apiFetch(`${API_URL}/auth/logout`, { method: 'POST' })
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')

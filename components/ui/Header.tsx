@@ -204,7 +204,7 @@ export default function Header({
         </div>
       </div>
 
-      {user ? <CatalogImportBanner /> : null}
+      {user ? <CatalogImportBanner userId={user.id} /> : null}
       
       {showNavigation && (
         <nav className={`${styles.navigation} ${navStyle === 'flat' ? styles.navigationFlat : ''}`}>

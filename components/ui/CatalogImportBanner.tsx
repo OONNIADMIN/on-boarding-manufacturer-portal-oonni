@@ -23,17 +23,18 @@ function percent(job: CatalogImportJobView): number {
   return 15
 }
 
-export default function CatalogImportBanner() {
+export default function CatalogImportBanner({ userId }: { userId: number }) {
   const [jobs, setJobs] = useState<CatalogImportJobView[]>([])
 
   useEffect(() => {
     let cancelled = false
 
     const refresh = async () => {
-      const remembered = listRememberedCatalogImportJobs()
+      const remembered = listRememberedCatalogImportJobs(userId)
       try {
         const listed = await catalogAPI.listImportJobs()
-        const byId = new Map(listed.map((job) => [job.id, job]))
+        const mine = listed.filter((job) => remembered.includes(job.id) || job.status !== 'completed')
+        const byId = new Map(mine.map((job) => [job.id, job]))
         const extra = await Promise.all(
           remembered
             .filter((id) => !byId.has(id))
@@ -43,17 +44,16 @@ export default function CatalogImportBanner() {
           if (job) byId.set(job.id, job)
         }
         const ordered = [...byId.values()]
-          .filter((job) => remembered.includes(job.id) || job.status !== 'completed')
           .sort((a, b) => b.created_at.localeCompare(a.created_at))
           .slice(0, 3)
         if (!cancelled) setJobs(ordered)
         for (const job of ordered) {
           if (job.status === 'completed' || job.status === 'failed') {
-            window.setTimeout(() => forgetCatalogImportJob(job.id), 20_000)
+            window.setTimeout(() => forgetCatalogImportJob(job.id, userId), 20_000)
           }
         }
       } catch {
-        /* keep last */
+        if (!cancelled) setJobs([])
       }
     }
 
@@ -62,8 +62,9 @@ export default function CatalogImportBanner() {
     return () => {
       cancelled = true
       window.clearInterval(timer)
+      setJobs([])
     }
-  }, [])
+  }, [userId])
 
   if (!jobs.length) return null
 
