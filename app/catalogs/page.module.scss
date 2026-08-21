@@ -1,231 +1,194 @@
-// ============================================
-// FilesList Component Styles
-// ============================================
-
 @use '../../styles/variables' as *;
 @use '../../styles/mixins' as *;
 
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
 .container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+}
+
+.toolbar {
+  @include flex-between;
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+  align-items: flex-end;
+}
+
+.title {
+  margin: 0 0 $spacing-xs;
+  font-size: $font-size-2xl;
+  color: $gray-900;
+}
+
+.subtitle {
+  margin: 0;
+  color: $gray-600;
+  font-size: $font-size-sm;
+  max-width: 42rem;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.manufacturerFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: $font-size-sm;
+  color: $gray-700;
+
+  span {
+    font-weight: $font-weight-medium;
+    white-space: nowrap;
+  }
+
+  select {
+    min-width: 12rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid $gray-300;
+    border-radius: $radius-sm;
+    background: $white;
+  }
+}
+
+.addButton {
+  @include button-secondary;
+  white-space: nowrap;
+  gap: 0.4rem;
+}
+
+.tableCard {
   background: $white;
   border-radius: $radius-lg;
-  padding: 0;
   box-shadow: $shadow-sm;
   overflow: hidden;
 }
 
-.header {
-  @include flex-between;
-  padding: $spacing-lg $spacing-xl;
-  border-bottom: 1px solid $table-border;
+.nameCell {
+  min-width: 0;
+  max-width: 18rem;
+
+  strong,
+  .slug {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: $gray-900;
+  }
 }
 
-.title {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-semibold;
-  color: $gray-900;
-  margin: 0;
+.slug {
+  color: $gray-500;
+  font-size: $font-size-xs;
+  font-family: monospace;
 }
 
-.refreshButton {
-  @include button-secondary;
-  display: flex;
-  align-items: right;
-  gap: $spacing-xs;
-  padding: $spacing-sm $spacing-md;
+.idCell {
+  font-family: monospace;
   font-size: $font-size-sm;
-
-  svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-md;
-  }
-}
-
-.viewButton {
-  @include button-ghost;
-  padding: $spacing-xs;
   color: $gray-600;
-  border-radius: $radius-md;
-
-  &:hover {
-    color: $oonni-green;
-    background-color: rgba($oonni-green, 0.1);
-  }
-
-  svg {
-    width: 1rem;
-    height: 1rem;
-  }
 }
 
-.loading {
-  @include loading-container;
+.truncateCell {
+  display: block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dateCell {
+  color: $gray-600;
+  white-space: nowrap;
+  font-size: $font-size-sm;
+}
+
+.badgeOk,
+.badgeMuted {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: $radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.badgeOk {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.badgeMuted {
+  background: $gray-100;
+  color: $gray-600;
+}
+
+.error {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: $error;
+}
+
+.notice {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-sm;
+}
+
+.loadingScreen {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-sm;
+  min-height: 100vh;
+  padding: $spacing-2xl;
+  color: $gray-600;
 }
 
 .spinner {
   @include spinner(40px, $oonni-green);
 }
 
-.error {
-  padding: $spacing-lg;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: $radius-lg;
-  color: $error;
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin: $spacing-lg;
-}
-
-.errorIcon {
-  font-size: $font-size-2xl;
-}
-
-.empty {
-  @include loading-container;
-}
-
-.emptyIcon {
-  font-size: $font-size-4xl;
-}
-
-.tableWrapper {
-  overflow-x: auto;
-}
-
-.table {
-  @include table-base;
-}
-
-.fileIcon {
-  font-size: $font-size-lg;
-}
-
-.catalogId {
-  font-weight: $font-weight-medium;
-  color: $oonni-green;
-  font-family: monospace;
-  font-size: $font-size-sm;
-}
-
-.fileName {
-  font-weight: $font-weight-medium;
-  color: $gray-900;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 300px;
-}
-
-.slug {
-  color: $gray-600;
-  font-size: $font-size-sm;
-  font-family: monospace;
-}
-
-.fileSize,
-.fileDate {
-  color: $gray-600;
-  white-space: nowrap;
-}
-
-.deleteButton {
-  padding: 0.375rem 0.75rem;
-  background: transparent;
-  border: 1px solid $gray-300;
-  font-size: $font-size-sm;
-  cursor: pointer;
-  border-radius: $radius-sm;
-  transition: all $transition-base;
-  color: $error;
-
-  &:hover {
-    background: #fef2f2;
-    border-color: $error;
-  }
-}
-
-.footer {
-  padding: $spacing-md $spacing-xl;
-  background-color: $gray-50;
-  text-align: center;
-  border-top: 1px solid $table-border;
-}
-
-.totalCount {
-  font-size: $font-size-sm;
-  color: $gray-600;
-  font-weight: $font-weight-medium;
-}
-
-.pagination {
-  @include flex-center;
-  gap: $spacing-sm;
-  padding: $spacing-md $spacing-xl;
-  border-top: 1px solid $table-border;
-}
-
-.paginationButton {
-  padding: $spacing-sm $spacing-md;
-  background: $white;
-  border: 1px solid $gray-300;
-  border-radius: $radius-sm;
-  font-size: $font-size-sm;
-  cursor: pointer;
-  transition: all $transition-base;
-  color: $gray-700;
-
-  &:hover:not(:disabled) {
-    background: $gray-50;
-    border-color: $gray-400;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  &.active {
-    background: $oonni-teal;
-    color: $white;
-    border-color: $oonni-teal;
-  }
-}
-
 @include respond-to('md') {
-  .container {
-    border-radius: 0;
-  }
-
-  .header {
+  .toolbar {
     flex-direction: column;
-    align-items: flex-start;
-    gap: $spacing-md;
-    padding: $spacing-md;
+    align-items: stretch;
   }
 
-  .refreshButton {
+  .toolbarActions {
+    justify-content: flex-start;
+  }
+
+  .manufacturerFilter {
     width: 100%;
-  }
 
-  .table {
-    th,
-    td {
-      padding: 0.75rem $spacing-md;
+    select {
+      flex: 1;
     }
   }
-
-  .fileName {
-    max-width: 150px;
-  }
-
-  .pagination {
-    padding: $spacing-md;
-  }
 }
-

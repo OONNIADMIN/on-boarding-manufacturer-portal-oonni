@@ -280,7 +280,7 @@ export default function DashboardPage() {
                       <div className={styles.statItem}>
                         <div className={styles.statValue}>{stats.totalManufacturers}</div>
                         <div className={styles.statLabel}>Manufacturers</div>
-                        {stats.recentActivity.newManufacturers > 0 && (
+                        {(stats.recentActivity?.newManufacturers ?? 0) > 0 && (
                           <div className={styles.statChange}>
                             +{stats.recentActivity.newManufacturers} this week
                           </div>
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                       <div className={styles.statItem}>
                         <div className={styles.statValue}>{stats.totalUsers}</div>
                         <div className={styles.statLabel}>Total Users</div>
-                        {stats.recentActivity.newUsers > 0 && (
+                        {(stats.recentActivity?.newUsers ?? 0) > 0 && (
                           <div className={styles.statChange}>
                             +{stats.recentActivity.newUsers} this week
                           </div>
@@ -300,7 +300,7 @@ export default function DashboardPage() {
                       <div className={styles.statItem}>
                         <div className={styles.statValue}>{stats.totalCatalogs}</div>
                         <div className={styles.statLabel}>Catalogs</div>
-                        {stats.recentActivity.newCatalogs > 0 && (
+                        {(stats.recentActivity?.newCatalogs ?? 0) > 0 && (
                           <div className={styles.statChange}>
                             +{stats.recentActivity.newCatalogs} this week
                           </div>
@@ -310,7 +310,7 @@ export default function DashboardPage() {
                       <div className={styles.statItem}>
                         <div className={styles.statValue}>{stats.totalImages}</div>
                         <div className={styles.statLabel}>Images</div>
-                        {stats.recentActivity.newImages > 0 && (
+                        {(stats.recentActivity?.newImages ?? 0) > 0 && (
                           <div className={styles.statChange}>
                             +{stats.recentActivity.newImages} this week
                           </div>

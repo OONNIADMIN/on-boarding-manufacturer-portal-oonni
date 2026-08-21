@@ -302,7 +302,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: $z-index-modal;
+  z-index: 5000;
   padding: $spacing-lg;
 }
 

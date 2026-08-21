@@ -12,6 +12,7 @@ export interface Catalog {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  manufacturer?: { id: number; name: string; slug: string } | null;
 }
 
 
