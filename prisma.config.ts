@@ -3,9 +3,12 @@ import path from "node:path";
 import { defineConfig } from "prisma/config";
 
 /**
- * Prisma CLI does not load .env.local (Next.js does). Parse DATABASE_URL from .env then .env.local (local wins).
+ * Prisma CLI does not load .env.local (Next.js does).
+ * Only hydrate from files when DATABASE_URL is not already set (Docker/Compose must win).
  */
 function hydrateDatabaseUrlFromEnvFiles(): void {
+  if (process.env.DATABASE_URL?.trim()) return;
+
   for (const name of [".env", ".env.local"]) {
     const filePath = path.resolve(process.cwd(), name);
     if (!existsSync(filePath)) continue;
