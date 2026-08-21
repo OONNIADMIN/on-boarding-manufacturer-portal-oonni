@@ -28,6 +28,12 @@ export function serverError(message = "Internal server error") {
   return NextResponse.json({ detail: message }, { status: 500 });
 }
 
+export function tooManyRequests(message = "Too many requests. Try again later.", retryAfterSeconds = 900) {
+  const res = NextResponse.json({ detail: message }, { status: 429 });
+  res.headers.set("Retry-After", String(retryAfterSeconds));
+  return res;
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

@@ -4,6 +4,7 @@ import { isAdminUser, requireAuth } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
 import { serializeImageForListJson } from "@/lib/image-list-json";
 import { buildNonAdminImagesWhere } from "@/lib/manufacturer-image-scope";
+import { parseBoundedInt } from "@/lib/bounded-int";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,8 @@ export async function GET(req: NextRequest) {
   if (error || !user) return unauthorized(error ?? undefined);
 
   const { searchParams } = new URL(req.url);
-  const limit = parseInt(searchParams.get("limit") ?? "50", 10);
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+  const limit = parseBoundedInt(searchParams.get("limit"), 50, 1, 100);
+  const offset = parseBoundedInt(searchParams.get("offset"), 0, 0, 10_000);
 
   const isAdmin = isAdminUser(user);
   const visibility = isAdmin ? {} : await buildNonAdminImagesWhere(user);

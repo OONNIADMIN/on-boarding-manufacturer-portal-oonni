@@ -1,17 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { isAdminUser, requireAuth } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
+import { parseBoundedInt } from "@/lib/bounded-int";
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth(req);
   if (error || !user) return unauthorized(error ?? undefined);
 
   const { searchParams } = new URL(req.url);
-  const skip = parseInt(searchParams.get("skip") ?? "0", 10);
-  const limit = parseInt(searchParams.get("limit") ?? "100", 10);
+  const skip = parseBoundedInt(searchParams.get("skip"), 0, 0, 10_000);
+  const limit = parseBoundedInt(searchParams.get("limit"), 100, 1, 500);
 
-  const isAdmin = user.role.name === "admin";
+  const isAdmin = isAdminUser(user);
   const catalogs = await prisma.catalog.findMany({
     where: {
       deleted_at: null,

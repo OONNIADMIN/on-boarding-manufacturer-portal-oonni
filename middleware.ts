@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth-edge";
 
-const PUBLIC_PATHS = ["/login", "/set-password", "/api/auth/login", "/api/auth/set-password", "/api/auth/verify-invitation", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/set-password", "/api/auth/login", "/api/auth/set-password", "/api/auth/verify-invitation", "/api/auth/logout", "/api/health"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));

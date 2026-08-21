@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
 import { withCanonicalImageUrl } from "@/lib/imagekit";
+import { parseBoundedInt } from "@/lib/bounded-int";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAdmin(req);
@@ -10,8 +11,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const manufacturerId = searchParams.get("manufacturer_id");
-  const limit = parseInt(searchParams.get("limit") ?? "50", 10);
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+  const limit = parseBoundedInt(searchParams.get("limit"), 50, 1, 100);
+  const offset = parseBoundedInt(searchParams.get("offset"), 0, 0, 10_000);
 
   const [products, total] = await Promise.all([
     prisma.product.findMany({

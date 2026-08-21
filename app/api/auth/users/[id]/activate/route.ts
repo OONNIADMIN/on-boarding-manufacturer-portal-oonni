@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, hashPassword } from "@/lib/auth";
 import { ok, err, unauthorized, notFound } from "@/lib/api-response";
+import { passwordPolicyError } from "@/lib/password-policy";
 
 export async function POST(
   req: NextRequest,
@@ -19,7 +20,8 @@ export async function POST(
     const password = typeof body.password === "string" ? body.password : "";
 
     if (!password) return err("password is required");
-    if (password.length < 8) return err("Password must be at least 8 characters");
+    const policyError = passwordPolicyError(password);
+    if (policyError) return err(policyError);
 
     const target = await prisma.user.findUnique({
       where: { id: userId },

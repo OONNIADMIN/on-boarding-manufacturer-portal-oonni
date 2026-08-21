@@ -64,8 +64,10 @@ export async function requireInventoryManufacturer(req: NextRequest): Promise<
 }
 
 export function parsePositiveInt(value: string | undefined, label: string): number | null {
-  const parsed = parseInt(value ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  const raw = (value ?? "").trim();
+  if (!/^\d+$/.test(raw)) return null;
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) return null;
   void label;
   return parsed;
 }

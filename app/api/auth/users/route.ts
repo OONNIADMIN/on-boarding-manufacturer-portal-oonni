@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, hashPassword } from "@/lib/auth";
-import { ok, created, err, unauthorized, forbidden, slugify } from "@/lib/api-response";
+import { ok, created, err, unauthorized, slugify } from "@/lib/api-response";
+import { passwordPolicyError } from "@/lib/password-policy";
 
 // Serializes a user with role and manufacturer
 function serializeUser(u: NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>) {
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
   if (error || !admin) return unauthorized(error ?? undefined);
 
   const users = await prisma.user.findMany({
+    where: { deleted_at: null },
     include: { role: true, manufacturer: true },
     orderBy: { id: "asc" },
   });
@@ -39,6 +41,10 @@ export async function POST(req: NextRequest) {
     const { email, name, password, role_id, manufacturer_id } = body;
 
     if (!email || !name || !role_id) return err("email, name and role_id are required");
+    if (password) {
+      const policyError = passwordPolicyError(String(password));
+      if (policyError) return err(policyError);
+    }
 
     const exists = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: "insensitive" } } });
     if (exists) return err("User with this email already exists");

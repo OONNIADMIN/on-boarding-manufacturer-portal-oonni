@@ -4,6 +4,7 @@ import { isAdminUser, requireAuth } from "@/lib/auth";
 import { ok, serverError, unauthorized } from "@/lib/api-response";
 import { serializeImageForListJson } from "@/lib/image-list-json";
 import { buildNonAdminImagesWhere } from "@/lib/manufacturer-image-scope";
+import { parseBoundedInt } from "@/lib/bounded-int";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const manufacturerId = searchParams.get("manufacturer_id");
     const productId = searchParams.get("product_id");
-    const limit = parseInt(searchParams.get("limit") ?? "50", 10);
-    const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+    const limit = parseBoundedInt(searchParams.get("limit"), 50, 1, 100);
+    const offset = parseBoundedInt(searchParams.get("offset"), 0, 0, 10_000);
 
     const isAdmin = isAdminUser(user);
 
@@ -51,8 +52,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error("[GET /api/images]", e);
-    const message =
-      e instanceof Error ? e.message : "Failed to load images. Check server logs and database connection.";
-    return serverError(message);
+    return serverError("Failed to load images");
   }
 }

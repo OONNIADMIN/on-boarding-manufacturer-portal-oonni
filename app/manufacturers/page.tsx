@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { authAPI, manufacturerAPI } from '@/lib/api'
+import { passwordPolicyError } from '@/lib/password-policy'
 import { User, ManufacturerListItem } from '@/types'
 import { Header } from '@/components'
 import styles from './page.module.scss'
@@ -145,8 +146,9 @@ export default function ManufacturersPage() {
     const token = authAPI.getToken()
     if (!token || !selectedManufacturer) return
 
-    if (activatePassword.length < 8) {
-      setUsersError('Password must be at least 8 characters')
+    const policyError = passwordPolicyError(activatePassword)
+    if (policyError) {
+      setUsersError(policyError)
       return
     }
     if (activatePassword !== activateConfirm) {
@@ -315,7 +317,7 @@ export default function ManufacturersPage() {
                                 <input
                                   type="password"
                                   className={styles.activateInput}
-                                  placeholder="New password (min. 8 characters)"
+                                  placeholder="New password (letters and numbers)"
                                   value={activatePassword}
                                   onChange={(e) => setActivatePassword(e.target.value)}
                                   autoComplete="new-password"

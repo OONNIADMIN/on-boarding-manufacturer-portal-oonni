@@ -9,6 +9,7 @@ import {
 import { manufacturerImageKitCatalogsFolder, manufacturerImageKitImagesFolder } from "@/lib/manufacturer-media-path";
 import {
   assertHttpUrlForFetch,
+  fetchRemoteHttpUrl,
   splitUrlsInCell,
   joinUrlsInCell,
   filenameFromUrl,
@@ -101,8 +102,11 @@ async function deletePreviousCatalogFileFromImageKit(params: {
 
   try {
     let skip = 0;
-    const limit = 1000;
+    const limit = 100;
+    let pages = 0;
     for (;;) {
+      pages += 1;
+      if (pages > 20) return;
       const files = await listImageKitFilesInFolder({
         folderPath: params.catalogsFolder,
         fileTypeFilter: "all",
@@ -157,10 +161,9 @@ async function processSpreadsheetRows(
 
     try {
       const parsed = assertHttpUrlForFetch(sourceUrl);
-      const imgRes = await fetch(parsed.toString(), {
-        redirect: "follow",
-        signal: AbortSignal.timeout(45_000),
-        headers: { "User-Agent": "OonniCatalogImporter/1.0" },
+      const imgRes = await fetchRemoteHttpUrl(sourceUrl, {
+        timeoutMs: 45_000,
+        userAgent: "OonniCatalogImporter/1.0",
       });
       if (!imgRes.ok) {
         console.warn("Remote image fetch failed:", sourceUrl, imgRes.status);

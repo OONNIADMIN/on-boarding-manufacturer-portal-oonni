@@ -41,36 +41,19 @@ export async function GET(req: NextRequest, { params }: Params) {
     orderBy: [{ sku: "asc" }, { name: "asc" }],
   });
 
-  const storedRows = variants.length
-    ? await prisma.$queryRawUnsafe<Array<{ id: number; images: unknown; attributes: unknown }>>(
-        `SELECT id, images, attributes FROM inventory_variants WHERE inventory_product_id = $1`,
-        product.id
-      )
-    : [];
-  const storedById = new Map(
-    storedRows.map((row) => [
-      Number(row.id),
-      {
-        images: normalizeInventoryImages(row.images),
-        attributes: row.attributes,
-      },
-    ])
-  );
-
   const types = await loadProductTypeCatalogs();
   const variantCatalog = catalogForProductType(types, product.product_type, "variant");
 
   return ok({
     variants: variants.map((variant) => {
-      const stored = storedById.get(variant.id);
       const images = resolveVariantImages(
-        { ...variant, images: stored?.images ?? variant.images },
+        { ...variant, images: normalizeInventoryImages(variant.images) },
         product.payload,
         product.images,
         { includeProductFallback: false }
       );
       const attributes = resolveCatalogAttributes(
-        { attributes: stored?.attributes ?? variant.attributes, payload: variant.payload },
+        { attributes: variant.attributes, payload: variant.payload },
         variantCatalog
       );
       const scored = { ...variant, payload: null, images, attributes };

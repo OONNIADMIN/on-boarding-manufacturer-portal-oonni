@@ -107,18 +107,18 @@ function collectVariantImages(variant: { images?: unknown; media?: unknown }) {
 }
 
 async function persistVariantImages(variantRowId: number, images: unknown) {
-  await prisma.$executeRawUnsafe(
-    `UPDATE inventory_variants SET images = $1::jsonb WHERE id = $2`,
-    JSON.stringify(images ?? []),
-    variantRowId
-  );
+  await prisma.inventoryVariant.update({
+    where: { id: variantRowId },
+    data: { images: asJson(images ?? []) },
+  });
 }
 
 export async function fetchNauticalInventoryProducts(sellerId: string): Promise<NauticalInventoryProductNode[]> {
   const nodes: NauticalInventoryProductNode[] = [];
   let after: string | null = null;
+  const maxPages = 50;
 
-  for (;;) {
+  for (let page = 0; page < maxPages; page += 1) {
     const data: ProductsConnection = await executeTraideQuery<ProductsConnection>("inventoryProducts", {
       first: 100,
       after,

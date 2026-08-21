@@ -2,11 +2,18 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, generateInvitationToken, getInvitationTokenExpiry } from "@/lib/auth";
 import { sendManufacturerInvitation } from "@/lib/email";
-import { ok, err, unauthorized, notFound } from "@/lib/api-response";
+import { ok, err, unauthorized, notFound, tooManyRequests } from "@/lib/api-response";
+import { clientIp } from "@/lib/session-cookie";
+import { AUTH_WINDOW_MS, RESEND_INVITE_LIMIT, consumeRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const { error } = await requireAdmin(req);
   if (error) return unauthorized(error);
+
+  const ip = clientIp(req);
+  if (!consumeRateLimit(`resend-invite:${ip}`, RESEND_INVITE_LIMIT, AUTH_WINDOW_MS)) {
+    return tooManyRequests("Too many invitation emails. Try again in 15 minutes.");
+  }
 
   try {
     const body = await req.json();

@@ -1,7 +1,22 @@
 /** Max size when downloading a remote image before uploading to ImageKit */
 export const MAX_REMOTE_IMAGE_BYTES = 15 * 1024 * 1024;
 
-const BLOCKED_HOSTS = new Set(["localhost", "0.0.0.0", "metadata.google.internal"]);
+const BLOCKED_HOSTS = new Set([
+  "localhost",
+  "0.0.0.0",
+  "metadata.google.internal",
+  "metadata",
+  "169.254.169.254",
+]);
+
+function isBlockedHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (BLOCKED_HOSTS.has(host)) return true;
+  if (host === "::1" || host === "0:0:0:0:0:0:0:1") return true;
+  if (host.startsWith("fe80:") || host.startsWith("fc00:") || host.startsWith("fd00:")) return true;
+  if (host.endsWith(".internal") || host.endsWith(".local") || host.endsWith(".localhost")) return true;
+  return isBlockedIp(host);
+}
 
 function isBlockedIp(hostname: string): boolean {
   if (hostname === "localhost") return true;
@@ -34,10 +49,33 @@ export function assertHttpUrlForFetch(raw: string): URL {
     throw new Error("Only http(s) URLs are allowed");
   }
   const host = url.hostname.toLowerCase();
-  if (BLOCKED_HOSTS.has(host) || isBlockedIp(host)) {
+  if (isBlockedHost(host)) {
     throw new Error("URL host is not allowed");
   }
   return url;
+}
+
+export async function fetchRemoteHttpUrl(
+  raw: string,
+  init?: { timeoutMs?: number; userAgent?: string }
+): Promise<Response> {
+  let url = assertHttpUrlForFetch(raw);
+  for (let hop = 0; hop < 4; hop += 1) {
+    const res = await fetch(url.toString(), {
+      redirect: "manual",
+      cache: "no-store",
+      signal: AbortSignal.timeout(init?.timeoutMs ?? 45_000),
+      headers: { "User-Agent": init?.userAgent ?? "OonniImporter/1.0" },
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) throw new Error("Redirect without location");
+      url = assertHttpUrlForFetch(new URL(location, url).toString());
+      continue;
+    }
+    return res;
+  }
+  throw new Error("Too many redirects");
 }
 
 function cellLooksLikeStartOfUrl(t: string): boolean {

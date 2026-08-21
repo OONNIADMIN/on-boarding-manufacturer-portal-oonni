@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
 
 interface UserRow {
@@ -18,7 +18,7 @@ interface UserRow {
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth(req);
+  const { error } = await requireAdmin(req);
   if (error) return unauthorized(error);
 
   const { id } = await params;
