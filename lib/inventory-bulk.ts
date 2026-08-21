@@ -862,7 +862,13 @@ async function applyVariantRows(
 }
 
 export function parseCompletenessQuery(searchParams: URLSearchParams): CompletenessFilter & { search?: string } {
-  const completenessStatus = String(searchParams.get("completeness") ?? "").trim() as CompletenessStatus | "";
+  const completenessParam = String(searchParams.get("completeness") ?? "").trim();
+  const status: CompletenessStatus | "" =
+    completenessParam === "complete" ||
+    completenessParam === "needs_review" ||
+    completenessParam === "incomplete"
+      ? completenessParam
+      : "";
   const issueKinds = String(searchParams.get("issues") ?? "")
     .split(",")
     .map((value) => value.trim())
@@ -872,12 +878,7 @@ export function parseCompletenessQuery(searchParams: URLSearchParams): Completen
     );
   return {
     search: String(searchParams.get("search") ?? "").trim() || undefined,
-    status:
-      completenessStatus === "complete" ||
-      completenessStatus === "needs_review" ||
-      completenessStatus === "incomplete"
-        ? completenessStatus
-        : "",
+    status,
     issues: issueKinds,
   };
 }
