@@ -20,14 +20,14 @@ type InventoryProductModalProps = {
 
 type ProductCategory = InventoryProductRow['category']
 
-function categoryField(category: ProductCategory, key: 'id' | 'slug' | 'name'): string {
+function categoryField(category: ProductCategory | undefined, key: 'id' | 'slug' | 'name'): string {
   if (!category) return ''
   return String(category[key] ?? '').trim()
 }
 
 function matchProductCategory(
   options: InventoryCategoryOption[],
-  category: ProductCategory,
+  category: ProductCategory | undefined,
   fallbackId = '',
   fallbackName = ''
 ): InventoryCategoryOption | null {
