@@ -26,7 +26,7 @@ import {
   type InventoryVariantRow,
 } from '@/lib/api'
 import { ManufacturerListItem, User } from '@/types'
-import { mapInventoryAttributes } from '@/lib/inventory-attributes'
+import { mapInventoryAttributes, isIncompleteAttributeValue } from '@/lib/inventory-attributes'
 import {
   evaluateProductCompleteness,
   evaluateVariantCompleteness,
@@ -98,10 +98,17 @@ function catalogSaveNotice(
     : 'Variant saved. Some details could not be published yet.'
 }
 
-function attributeRows(attrs: InventoryProductRow['attributes']): Array<{ name: string; value: string }> {
+function attributeRows(attrs: InventoryProductRow['attributes']): Array<{
+  name: string
+  value: string
+  required: boolean
+  incomplete: boolean
+}> {
   return mapInventoryAttributes(attrs).map((attr) => ({
     name: attr.name,
     value: attr.value.trim() || '—',
+    required: Boolean(attr.valueRequired),
+    incomplete: isIncompleteAttributeValue(attr.value, attr.inputType),
   }))
 }
 
@@ -110,7 +117,7 @@ function AttributeTable({
   rows,
 }: {
   title: string
-  rows: Array<{ name: string; value: string }>
+  rows: Array<{ name: string; value: string; required: boolean; incomplete: boolean }>
 }) {
   return (
     <div className={styles.attributesBlock}>
@@ -125,8 +132,21 @@ function AttributeTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.name}>
-                <td title={row.name}>{row.name}</td>
+              <tr
+                key={row.name}
+                className={row.incomplete ? styles.attrIncomplete : undefined}
+                title={
+                  row.incomplete
+                    ? row.required
+                      ? 'Required attribute is empty, 0, or N/A'
+                      : 'Value is empty, 0, or N/A'
+                    : undefined
+                }
+              >
+                <td title={row.name}>
+                  {row.name}
+                  {row.required && row.incomplete ? <span className={styles.attrRequiredMark}>Required</span> : null}
+                </td>
                 <td title={row.value}>{row.value}</td>
               </tr>
             ))}
@@ -281,7 +301,7 @@ export default function InventoryPage() {
   const bulkFileRef = useRef<HTMLInputElement>(null)
   const [productDialog, setProductDialog] = useState<{ mode: 'create' } | { mode: 'edit' | 'view'; product: InventoryProductRow } | null>(null)
   const [variantDialog, setVariantDialog] = useState<
-    | { mode: 'create'; productId: number }
+    | { mode: 'create'; productId: number; siblingAttributes: InventoryVariantRow['attributes'][] }
     | { mode: 'edit' | 'view'; productId: number; variant: InventoryVariantRow }
     | null
   >(null)
@@ -982,7 +1002,13 @@ export default function InventoryPage() {
                           productId={product.id}
                           productImages={product.images}
                           variants={loadedVariants ?? []}
-                          onCreate={(productId) => setVariantDialog({ mode: 'create', productId })}
+                          onCreate={(productId) =>
+                            setVariantDialog({
+                              mode: 'create',
+                              productId,
+                              siblingAttributes: (loadedVariants ?? []).map((row) => row.attributes),
+                            })
+                          }
                           onView={(productId, variant) => setVariantDialog({ mode: 'view', productId, variant })}
                           onEdit={(productId, variant) => setVariantDialog({ mode: 'edit', productId, variant })}
                           onDelete={(productId, variant) => setDeleteDialog({ kind: 'variant', productId, variant })}
@@ -1011,6 +1037,7 @@ export default function InventoryPage() {
         mode={variantDialog?.mode ?? 'create'}
         variant={variantDialog && variantDialog.mode !== 'create' ? variantDialog.variant : null}
         manufacturerId={manufacturerId}
+        siblingAttributes={variantDialog?.mode === 'create' ? variantDialog.siblingAttributes : undefined}
         isSaving={isSaving}
         onClose={() => setVariantDialog(null)}
         onSubmit={handleSaveVariant}

@@ -373,6 +373,30 @@
   }
 }
 
+.attrIncomplete {
+  background: #f87171;
+
+  td,
+  td:first-child {
+    color: #7f1d1d;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.attrRequiredMark {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: $radius-sm;
+  background: #b91c1c;
+  color: $white;
+  font-size: 0.65rem;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .error {
   margin-bottom: $spacing-md;
   padding: $spacing-md;

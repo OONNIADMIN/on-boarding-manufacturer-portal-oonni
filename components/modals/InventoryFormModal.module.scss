@@ -84,6 +84,17 @@
   gap: $spacing-xs;
 }
 
+.formGroupIncomplete {
+  padding: 0.45rem;
+  border-radius: $radius-md;
+  background: #f87171;
+
+  .label {
+    color: #7f1d1d;
+    font-weight: $font-weight-semibold;
+  }
+}
+
 .full {
   grid-column: 1 / -1;
 }
@@ -167,6 +178,22 @@
   color: $gray-600;
 }
 
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.categoryHeader .categorySelected {
+  flex: 1;
+  min-width: 0;
+}
+
+.categoryHeader .addButton {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .categorySelected {
   padding: 0.65rem 0.75rem;
   border: 1px solid $gray-200;
@@ -239,6 +266,36 @@
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem;
+  border-radius: $radius-md;
+}
+
+.attrRowIncomplete {
+  background: #f87171;
+}
+
+.requiredBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.55rem;
+  border-radius: $radius-md;
+  background: #fecaca;
+  color: #7f1d1d;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+}
+
+.attrRowIncomplete .requiredBadge {
+  background: #b91c1c;
+  color: $white;
+}
+
+.removePlaceholder {
+  width: 2.25rem;
+  min-height: 1px;
 }
 
 .removeButton,

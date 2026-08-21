@@ -1,8 +1,9 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import type { InventoryAttribute, InventoryCategoryOption, InventoryProductInput, InventoryProductRow } from '@/lib/api'
-import { mapInventoryAttributes } from '@/lib/inventory-attributes'
+import type { InventoryCategoryOption, InventoryProductInput, InventoryProductRow } from '@/lib/api'
+import { inventoryAttributeFormRows, isIncompleteAttributeValue, type InventoryAttributeFormRow } from '@/lib/inventory-attributes'
+import InventoryAttributeFields, { attributeWritePayload } from './InventoryAttributeFields'
 import styles from './InventoryFormModal.module.scss'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -16,8 +17,6 @@ type InventoryProductModalProps = {
   onClose: () => void
   onSubmit: (payload: InventoryProductInput) => Promise<void> | void
 }
-
-type AttrRow = { name: string; value: string }
 
 type ProductCategory = InventoryProductRow['category']
 
@@ -50,12 +49,6 @@ function matchProductCategory(
   return byName[0] ?? null
 }
 
-function attributeRows(attrs: InventoryAttribute[] | undefined): AttrRow[] {
-  const mapped = mapInventoryAttributes(attrs)
-  if (!mapped.length) return [{ name: '', value: '' }]
-  return mapped.map((attr) => ({ name: attr.name, value: attr.value }))
-}
-
 const emptyForm = {
   name: '',
   slug: '',
@@ -83,8 +76,9 @@ export default function InventoryProductModal({
   const readOnly = mode === 'view'
   const [error, setError] = useState('')
   const [form, setForm] = useState(emptyForm)
-  const [attributes, setAttributes] = useState<AttrRow[]>([{ name: '', value: '' }])
+  const [attributes, setAttributes] = useState<InventoryAttributeFormRow[]>(inventoryAttributeFormRows([]))
   const [categoryQuery, setCategoryQuery] = useState('')
+  const [editingCategory, setEditingCategory] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -104,13 +98,15 @@ export default function InventoryProductModal({
         category_name: categoryField(product.category, 'name'),
         product_type_name: product.product_type?.name ?? '',
       })
-      setAttributes(attributeRows(product.attributes))
+      setAttributes(inventoryAttributeFormRows(product.attributes))
       setCategoryQuery('')
+      setEditingCategory(false)
       return
     }
     setForm(emptyForm)
-    setAttributes([{ name: '', value: '' }])
+    setAttributes(inventoryAttributeFormRows([]))
     setCategoryQuery('')
+    setEditingCategory(false)
   }, [isOpen, mode, product])
 
   useEffect(() => {
@@ -147,6 +143,9 @@ export default function InventoryProductModal({
 
   if (!isOpen) return null
 
+  const fieldClass = (incomplete: boolean, extra = '') =>
+    [styles.formGroup, extra, incomplete ? styles.formGroupIncomplete : ''].filter(Boolean).join(' ')
+
   const title = mode === 'create' ? 'Add product' : mode === 'edit' ? 'Edit product' : 'View product'
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -158,7 +157,7 @@ export default function InventoryProductModal({
     try {
       await onSubmit({
         ...form,
-        attributes: attributes.filter((row) => row.name.trim()),
+        attributes: attributeWritePayload(attributes),
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save product')
@@ -185,7 +184,7 @@ export default function InventoryProductModal({
           {error ? <div className={styles.error}>{error}</div> : null}
 
           <div className={styles.grid}>
-            <label className={`${styles.formGroup} ${styles.full}`}>
+            <label className={fieldClass(isIncompleteAttributeValue(form.name), styles.full)}>
               <span className={styles.label}>Name *</span>
               <input
                 className={styles.input}
@@ -195,110 +194,123 @@ export default function InventoryProductModal({
                 readOnly={readOnly}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Slug</span>
-              <input
-                className={styles.input}
-                value={form.slug}
-                onChange={(event) => setField('slug', event.target.value)}
-                readOnly={readOnly}
-                placeholder="Generated from name"
-              />
-            </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>External ID</span>
-              <input
-                className={styles.input}
-                value={form.external_id}
-                onChange={(event) => setField('external_id', event.target.value)}
-                readOnly={readOnly}
-              />
-            </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Status</span>
-              <select className={styles.select} value={form.status} disabled>
-                {form.status && !['DRAFT', 'PUBLISHED', 'HIDDEN'].includes(form.status) ? (
-                  <option value={form.status}>{form.status}</option>
-                ) : null}
-                <option value="DRAFT">Draft</option>
-                <option value="PUBLISHED">Published</option>
-                <option value="HIDDEN">Hidden</option>
-              </select>
-              <p className={styles.hint}>Publication status is set automatically and cannot be changed here.</p>
-            </label>
-            <div className={`${styles.formGroup} ${styles.full}`}>
-              <span className={styles.label}>Category</span>
+            {mode === 'create' ? (
+              <>
+                <label className={fieldClass(isIncompleteAttributeValue(form.slug))}>
+                  <span className={styles.label}>Slug *</span>
+                  <input
+                    className={styles.input}
+                    value={form.slug}
+                    onChange={(event) => setField('slug', event.target.value)}
+                    placeholder="Generated from name"
+                  />
+                </label>
+                <label className={fieldClass(isIncompleteAttributeValue(form.external_id))}>
+                  <span className={styles.label}>External ID *</span>
+                  <input
+                    className={styles.input}
+                    value={form.external_id}
+                    onChange={(event) => setField('external_id', event.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
+            <div className={fieldClass(!selectedCategoryLabel, styles.full)}>
+              <span className={styles.label}>Category *</span>
               {readOnly ? (
                 <input className={styles.input} value={selectedCategoryLabel} readOnly />
               ) : (
                 <>
-                  <div className={styles.categorySelected} aria-live="polite">
-                    {selectedCategoryLabel || 'No category assigned'}
-                  </div>
-                  <input
-                    className={styles.input}
-                    type="search"
-                    data-category-search="true"
-                    value={categoryQuery}
-                    onChange={(event) => setCategoryQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') event.preventDefault()
-                    }}
-                    placeholder={categories.length ? 'Type to find a category' : 'Categories will appear here when they are available'}
-                    disabled={!categories.length}
-                    autoComplete="off"
-                    enterKeyHint="search"
-                  />
-                  {categories.length ? (
-                    <div className={styles.categoryResults} role="listbox" aria-label="Matching categories">
-                      {visibleCategories.length ? (
-                        visibleCategories.map((row) => {
-                          const isSelected = row.id === selectedCategoryValue
-                          return (
-                            <button
-                              key={row.id}
-                              type="button"
-                              role="option"
-                              aria-selected={isSelected}
-                              className={`${styles.categoryResult} ${isSelected ? styles.categoryResultActive : ''}`}
-                              onClick={() => {
-                                setForm((prev) => ({
-                                  ...prev,
-                                  category_id: row.id,
-                                  category_name: row.name,
-                                }))
-                                setCategoryQuery('')
-                              }}
-                            >
-                              <span className={styles.categoryResultName} style={{ paddingLeft: `${Math.max(0, row.level - 1) * 0.75}rem` }}>
-                                {row.name}
-                              </span>
-                              <span className={styles.categoryResultPath}>{row.path}</span>
-                            </button>
-                          )
-                        })
-                      ) : (
-                        <p className={styles.categoryEmpty}>No categories match “{categoryQuery.trim()}”.</p>
-                      )}
-                      {filteredCategories.length > visibleCategories.length ? (
-                        <p className={styles.categoryEmpty}>
-                          Showing {visibleCategories.length} of {filteredCategories.length}. Type more to narrow the list.
-                        </p>
-                      ) : null}
+                  <div className={styles.categoryHeader}>
+                    <div className={styles.categorySelected} aria-live="polite">
+                      {selectedCategoryLabel || 'No category assigned'}
                     </div>
-                  ) : (
-                    <p className={styles.hint}>Your current category is kept. Search the list to choose a different one.</p>
-                  )}
-                  <p className={styles.hint}>
-                    {selectedCategoryLabel
-                      ? `Selected: ${selectedCategoryLabel}`
-                      : 'Search and click a category to assign it.'}
-                  </p>
+                    {editingCategory ? (
+                      <button
+                        type="button"
+                        className={styles.addButton}
+                        onClick={() => {
+                          setEditingCategory(false)
+                          setCategoryQuery('')
+                        }}
+                      >
+                        Done
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.addButton}
+                        onClick={() => setEditingCategory(true)}
+                        disabled={!categories.length}
+                      >
+                        Edit category
+                      </button>
+                    )}
+                  </div>
+                  {editingCategory ? (
+                    <>
+                      <input
+                        className={styles.input}
+                        type="search"
+                        data-category-search="true"
+                        value={categoryQuery}
+                        onChange={(event) => setCategoryQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') event.preventDefault()
+                        }}
+                        placeholder={categories.length ? 'Type to find a category' : 'Categories will appear here when they are available'}
+                        disabled={!categories.length}
+                        autoComplete="off"
+                        enterKeyHint="search"
+                      />
+                      {categories.length ? (
+                        <div className={styles.categoryResults} role="listbox" aria-label="Matching categories">
+                          {visibleCategories.length ? (
+                            visibleCategories.map((row) => {
+                              const isSelected = row.id === selectedCategoryValue
+                              return (
+                                <button
+                                  key={row.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  className={`${styles.categoryResult} ${isSelected ? styles.categoryResultActive : ''}`}
+                                  onClick={() => {
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      category_id: row.id,
+                                      category_name: row.name,
+                                    }))
+                                    setCategoryQuery('')
+                                    setEditingCategory(false)
+                                  }}
+                                >
+                                  <span className={styles.categoryResultName} style={{ paddingLeft: `${Math.max(0, row.level - 1) * 0.75}rem` }}>
+                                    {row.name}
+                                  </span>
+                                  <span className={styles.categoryResultPath}>{row.path}</span>
+                                </button>
+                              )
+                            })
+                          ) : (
+                            <p className={styles.categoryEmpty}>No categories match “{categoryQuery.trim()}”.</p>
+                          )}
+                          {filteredCategories.length > visibleCategories.length ? (
+                            <p className={styles.categoryEmpty}>
+                              Showing {visibleCategories.length} of {filteredCategories.length}. Type more to narrow the list.
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className={styles.hint}>Your current category is kept. Search the list to choose a different one.</p>
+                      )}
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Type</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.product_type_name))}>
+              <span className={styles.label}>Type *</span>
               <input
                 className={styles.input}
                 value={form.product_type_name}
@@ -315,8 +327,8 @@ export default function InventoryProductModal({
               />
               Available for purchase
             </label>
-            <label className={`${styles.formGroup} ${styles.full}`}>
-              <span className={styles.label}>Description</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.description), styles.full)}>
+              <span className={styles.label}>Description *</span>
               <textarea
                 className={styles.textarea}
                 value={form.description}
@@ -324,8 +336,8 @@ export default function InventoryProductModal({
                 readOnly={readOnly}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>SEO title</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.seo_title))}>
+              <span className={styles.label}>SEO title *</span>
               <input
                 className={styles.input}
                 value={form.seo_title}
@@ -333,8 +345,8 @@ export default function InventoryProductModal({
                 readOnly={readOnly}
               />
             </label>
-            <label className={`${styles.formGroup} ${styles.full}`}>
-              <span className={styles.label}>SEO description</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.seo_description), styles.full)}>
+              <span className={styles.label}>SEO description *</span>
               <textarea
                 className={styles.textarea}
                 value={form.seo_description}
@@ -344,47 +356,7 @@ export default function InventoryProductModal({
             </label>
           </div>
 
-          <div className={styles.formGroup}>
-            <span className={styles.label}>Attributes</span>
-            <div className={styles.attrList}>
-              {attributes.map((row, index) => (
-                <div className={styles.attrRow} key={`attr-${index}`}>
-                  <input
-                    className={styles.input}
-                    placeholder="Name"
-                    value={row.name}
-                    readOnly={readOnly}
-                    onChange={(event) => {
-                      const next = [...attributes]
-                      next[index] = { ...row, name: event.target.value }
-                      setAttributes(next)
-                    }}
-                  />
-                  <input
-                    className={styles.input}
-                    placeholder="Value"
-                    value={row.value}
-                    readOnly={readOnly}
-                    onChange={(event) => {
-                      const next = [...attributes]
-                      next[index] = { ...row, value: event.target.value }
-                      setAttributes(next)
-                    }}
-                  />
-                  {readOnly ? null : (
-                    <button
-                      type="button"
-                      className={styles.removeButton}
-                      onClick={() => setAttributes((prev) => prev.filter((_, i) => i !== index))}
-                      aria-label="Remove attribute"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          <InventoryAttributeFields attributes={attributes} readOnly={readOnly} onChange={setAttributes} />
 
           <div className={styles.actions}>
             <button type="button" className={styles.cancelButton} onClick={onClose} disabled={isSaving}>

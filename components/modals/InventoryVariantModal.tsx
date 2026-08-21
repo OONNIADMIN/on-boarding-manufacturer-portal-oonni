@@ -1,9 +1,10 @@
 'use client'
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
-import type { InventoryAttribute, InventoryVariantInput, InventoryVariantRow } from '@/lib/api'
+import type { InventoryVariantInput, InventoryVariantRow } from '@/lib/api'
 import { imageAPI } from '@/lib/api'
-import { mapInventoryAttributes } from '@/lib/inventory-attributes'
+import { inventoryAttributeFormRows, isIncompleteAttributeValue, uniqueRequiredAttributeTemplates, type InventoryAttributeFormRow } from '@/lib/inventory-attributes'
+import InventoryAttributeFields, { attributeWritePayload } from './InventoryAttributeFields'
 import styles from './InventoryFormModal.module.scss'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -14,18 +15,12 @@ type InventoryVariantModalProps = {
   variant?: InventoryVariantRow | null
   isSaving?: boolean
   manufacturerId?: number | null
+  siblingAttributes?: InventoryVariantRow['attributes'][]
   onClose: () => void
   onSubmit: (payload: InventoryVariantInput) => Promise<void> | void
 }
 
-type AttrRow = { name: string; value: string }
 type ImageRow = { id?: string | null; url: string }
-
-function attributeRows(attrs: InventoryAttribute[] | undefined): AttrRow[] {
-  const mapped = mapInventoryAttributes(attrs)
-  if (!mapped.length) return [{ name: '', value: '' }]
-  return mapped.map((attr) => ({ name: attr.name, value: attr.value }))
-}
 
 function imageRows(images: InventoryVariantRow['images'] | undefined): ImageRow[] {
   if (!Array.isArray(images)) return []
@@ -53,13 +48,14 @@ export default function InventoryVariantModal({
   variant,
   isSaving = false,
   manufacturerId,
+  siblingAttributes,
   onClose,
   onSubmit,
 }: InventoryVariantModalProps) {
   const readOnly = mode === 'view'
   const [error, setError] = useState('')
   const [form, setForm] = useState(emptyForm)
-  const [attributes, setAttributes] = useState<AttrRow[]>([{ name: '', value: '' }])
+  const [attributes, setAttributes] = useState<InventoryAttributeFormRow[]>(inventoryAttributeFormRows([]))
   const [images, setImages] = useState<ImageRow[]>([])
   const [imageUrl, setImageUrl] = useState('')
   const [isUploading, setIsUploading] = useState(false)
@@ -80,18 +76,22 @@ export default function InventoryVariantModal({
         height: variant.dimensions?.height == null ? '' : String(variant.dimensions.height),
         unit: variant.dimensions?.unit || 'in',
       })
-      setAttributes(attributeRows(variant.attributes))
+      setAttributes(inventoryAttributeFormRows(variant.attributes))
       setImages(imageRows(variant.images))
       return
     }
     setForm(emptyForm)
-    setAttributes([{ name: '', value: '' }])
+    const required = uniqueRequiredAttributeTemplates(siblingAttributes ?? [])
+    setAttributes(required.length ? required : inventoryAttributeFormRows([]))
     setImages([])
-  }, [isOpen, mode, variant])
+  }, [isOpen, mode, variant, siblingAttributes])
 
   if (!isOpen) return null
 
   const title = mode === 'create' ? 'Add variant' : mode === 'edit' ? 'Edit variant' : 'View variant'
+
+  const fieldClass = (incomplete: boolean, extra = '') =>
+    [styles.formGroup, extra, incomplete ? styles.formGroupIncomplete : ''].filter(Boolean).join(' ')
 
   const toNumber = (value: string): number | null => {
     const trimmed = value.trim()
@@ -156,7 +156,7 @@ export default function InventoryVariantModal({
         width: toNumber(form.width),
         height: toNumber(form.height),
         unit: form.unit,
-        attributes: attributes.filter((row) => row.name.trim()),
+        attributes: attributeWritePayload(attributes),
         images,
       })
     } catch (e) {
@@ -179,8 +179,8 @@ export default function InventoryVariantModal({
         <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
           {error ? <div className={styles.error}>{error}</div> : null}
 
-          <div className={styles.formGroup}>
-            <span className={styles.label}>Images</span>
+          <div className={fieldClass(!images.length)}>
+            <span className={styles.label}>Images *</span>
             {images.length ? (
               <div className={styles.imageGallery}>
                 {images.map((image, index) => (
@@ -248,7 +248,7 @@ export default function InventoryVariantModal({
           </div>
 
           <div className={styles.grid}>
-            <label className={`${styles.formGroup} ${styles.full}`}>
+            <label className={fieldClass(isIncompleteAttributeValue(form.name), styles.full)}>
               <span className={styles.label}>Name *</span>
               <input
                 className={styles.input}
@@ -258,8 +258,8 @@ export default function InventoryVariantModal({
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>SKU</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.sku))}>
+              <span className={styles.label}>SKU *</span>
               <input
                 className={styles.input}
                 value={form.sku}
@@ -267,8 +267,8 @@ export default function InventoryVariantModal({
                 onChange={(event) => setForm((prev) => ({ ...prev, sku: event.target.value }))}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Unit</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.unit))}>
+              <span className={styles.label}>Unit *</span>
               <input
                 className={styles.input}
                 value={form.unit}
@@ -276,8 +276,8 @@ export default function InventoryVariantModal({
                 onChange={(event) => setForm((prev) => ({ ...prev, unit: event.target.value }))}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Length</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.length))}>
+              <span className={styles.label}>Length *</span>
               <input
                 className={styles.input}
                 type="number"
@@ -287,8 +287,8 @@ export default function InventoryVariantModal({
                 onChange={(event) => setForm((prev) => ({ ...prev, length: event.target.value }))}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Width</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.width))}>
+              <span className={styles.label}>Width *</span>
               <input
                 className={styles.input}
                 type="number"
@@ -298,8 +298,8 @@ export default function InventoryVariantModal({
                 onChange={(event) => setForm((prev) => ({ ...prev, width: event.target.value }))}
               />
             </label>
-            <label className={styles.formGroup}>
-              <span className={styles.label}>Height</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.height))}>
+              <span className={styles.label}>Height *</span>
               <input
                 className={styles.input}
                 type="number"
@@ -309,8 +309,8 @@ export default function InventoryVariantModal({
                 onChange={(event) => setForm((prev) => ({ ...prev, height: event.target.value }))}
               />
             </label>
-            <label className={`${styles.formGroup} ${styles.full}`}>
-              <span className={styles.label}>SEO description</span>
+            <label className={fieldClass(isIncompleteAttributeValue(form.seo_description), styles.full)}>
+              <span className={styles.label}>SEO description *</span>
               <textarea
                 className={styles.textarea}
                 value={form.seo_description}
@@ -320,47 +320,7 @@ export default function InventoryVariantModal({
             </label>
           </div>
 
-          <div className={styles.formGroup}>
-            <span className={styles.label}>Attributes</span>
-            <div className={styles.attrList}>
-              {attributes.map((row, index) => (
-                <div className={styles.attrRow} key={`attr-${index}`}>
-                  <input
-                    className={styles.input}
-                    placeholder="Name"
-                    value={row.name}
-                    readOnly={readOnly}
-                    onChange={(event) => {
-                      const next = [...attributes]
-                      next[index] = { ...row, name: event.target.value }
-                      setAttributes(next)
-                    }}
-                  />
-                  <input
-                    className={styles.input}
-                    placeholder="Value"
-                    value={row.value}
-                    readOnly={readOnly}
-                    onChange={(event) => {
-                      const next = [...attributes]
-                      next[index] = { ...row, value: event.target.value }
-                      setAttributes(next)
-                    }}
-                  />
-                  {readOnly ? null : (
-                    <button
-                      type="button"
-                      className={styles.removeButton}
-                      onClick={() => setAttributes((prev) => prev.filter((_, i) => i !== index))}
-                      aria-label="Remove attribute"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          <InventoryAttributeFields attributes={attributes} readOnly={readOnly} onChange={setAttributes} />
 
           <div className={styles.actions}>
             <button type="button" className={styles.cancelButton} onClick={onClose} disabled={isSaving || isUploading}>
