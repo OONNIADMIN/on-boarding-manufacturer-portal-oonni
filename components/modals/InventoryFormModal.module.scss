@@ -137,13 +137,17 @@
 }
 
 .imageGallerySortable .imageLink {
-  pointer-events: none;
+  cursor: grab;
 }
 
 .imageLink {
   display: block;
   line-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   border-radius: $radius-md;
+  cursor: zoom-in;
 }
 
 .imageThumb {

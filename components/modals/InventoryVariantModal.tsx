@@ -5,6 +5,7 @@ import type { InventoryVariantInput, InventoryVariantRow } from '@/lib/api'
 import { imageAPI } from '@/lib/api'
 import { inventoryAttributeFormRows, isIncompleteAttributeValue, uniqueRequiredAttributeTemplates, type InventoryAttributeFormRow } from '@/lib/inventory-attributes'
 import InventoryAttributeFields, { attributeWritePayload } from './InventoryAttributeFields'
+import ImageZoomLightbox from '@/components/ui/ImageZoomLightbox'
 import styles from './InventoryFormModal.module.scss'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -61,8 +62,10 @@ export default function InventoryVariantModal({
   const [isUploading, setIsUploading] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const [zoomIndex, setZoomIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const draggedFromRef = useRef<number | null>(null)
+  const skipZoomClickRef = useRef(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -71,7 +74,9 @@ export default function InventoryVariantModal({
     setIsUploading(false)
     setDragIndex(null)
     setDropIndex(null)
+    setZoomIndex(null)
     draggedFromRef.current = null
+    skipZoomClickRef.current = false
     if (variant && mode !== 'create') {
       setForm({
         name: variant.name ?? '',
@@ -128,6 +133,7 @@ export default function InventoryVariantModal({
       return
     }
     draggedFromRef.current = index
+    skipZoomClickRef.current = true
     setDragIndex(index)
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', String(index))
@@ -153,6 +159,14 @@ export default function InventoryVariantModal({
     draggedFromRef.current = null
     setDragIndex(null)
     setDropIndex(null)
+    window.setTimeout(() => {
+      skipZoomClickRef.current = false
+    }, 0)
+  }
+
+  const openZoom = (index: number) => {
+    if (!readOnly || skipZoomClickRef.current || dragIndex != null) return
+    setZoomIndex(index)
   }
 
   const addImageUrls = (raw: string) => {
@@ -254,20 +268,22 @@ export default function InventoryVariantModal({
                     onDrop={(event) => handleImageDrop(event, index)}
                     onDragEnd={handleImageDragEnd}
                   >
-                    <a
-                      href={image.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.imageLink}
-                      title={readOnly ? `Variant image ${index + 1}` : `Drag to reorder. Open photo ${index + 1}`}
-                      draggable={false}
-                      onClick={(event) => {
-                        if (dragIndex != null) event.preventDefault()
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.url} alt={`Variant ${index + 1}`} className={styles.imageThumb} draggable={false} />
-                    </a>
+                    {readOnly ? (
+                      <button
+                        type="button"
+                        className={styles.imageLink}
+                        title={`Zoom photo ${index + 1}`}
+                        onClick={() => openZoom(index)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={image.url} alt={`Variant ${index + 1}`} className={styles.imageThumb} draggable={false} />
+                      </button>
+                    ) : (
+                      <span className={styles.imageLink}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={image.url} alt={`Variant ${index + 1}`} className={styles.imageThumb} draggable={false} />
+                      </span>
+                    )}
                     {readOnly ? null : (
                       <button
                         type="button"
@@ -289,7 +305,7 @@ export default function InventoryVariantModal({
               <>
                 <p className={styles.hint}>
                   Upload photos from your computer, or paste an image URL from your files.
-                  Drag photos to set the display order; the first photo is shown first.
+                  Drag photos to set the display order. The first photo is shown first.
                 </p>
                 <div className={styles.imageAddRow}>
                   <input
@@ -415,6 +431,15 @@ export default function InventoryVariantModal({
           </div>
         </form>
       </div>
+      {readOnly && zoomIndex != null ? (
+        <ImageZoomLightbox
+          urls={images.map((image) => image.url)}
+          index={zoomIndex}
+          alt="Variant photo"
+          onClose={() => setZoomIndex(null)}
+          onIndexChange={setZoomIndex}
+        />
+      ) : null}
     </div>
   )
 }
