@@ -3,14 +3,16 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   mergeInventoryAttributes,
+  mapInventoryAttributes,
   resolveInventoryAttributes,
   isIncompleteAttributeValue,
   isRequiredInventoryAttribute,
 } from "@/lib/inventory-attributes";
 import {
   catalogForProductType,
+  catalogsFromProductTypes,
   loadProductTypeCatalogs,
-  resolveCatalogAttributes,
+  resolveScopedCatalogAttributes,
 } from "@/lib/inventory-attribute-catalog";
 import {
   completenessIssueColumn,
@@ -186,24 +188,24 @@ function parseBool(value: string, fallback: boolean): boolean {
   return fallback;
 }
 
-function uniqueAttributeNames(items: Array<{ attributes?: unknown; payload?: unknown }>): string[] {
+function uniqueAttributeNames(items: Array<{ attributes?: unknown }>): string[] {
   const names = new Set<string>();
   for (const item of items) {
-    for (const attr of resolveInventoryAttributes(item)) {
+    for (const attr of mapInventoryAttributes(item.attributes)) {
       if (attr.name) names.add(attr.name);
     }
   }
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 
-function attributeValue(item: { attributes?: unknown; payload?: unknown }, name: string): string {
-  return resolveInventoryAttributes(item).find((attr) => attr.name === name)?.value ?? "";
+function attributeValue(item: { attributes?: unknown }, name: string): string {
+  return mapInventoryAttributes(item.attributes).find((attr) => attr.name === name)?.value ?? "";
 }
 
-function requiredAttributeNames(items: Array<{ attributes?: unknown; payload?: unknown }>): Set<string> {
+function requiredAttributeNames(items: Array<{ attributes?: unknown }>): Set<string> {
   const names = new Set<string>();
   for (const item of items) {
-    for (const attr of resolveInventoryAttributes(item)) {
+    for (const attr of mapInventoryAttributes(item.attributes)) {
       if (isRequiredInventoryAttribute(attr) && attr.name) names.add(attr.name);
     }
   }
@@ -211,7 +213,7 @@ function requiredAttributeNames(items: Array<{ attributes?: unknown; payload?: u
 }
 
 function requiredPaint(
-  item: { attributes?: unknown; payload?: unknown },
+  item: { attributes?: unknown },
   header: string,
   requiredColumns: Set<string>,
   issues?: Map<string, CompletenessIssue>
@@ -219,7 +221,7 @@ function requiredPaint(
   if (PRODUCT_CORE_REQUIRED.has(header) || VARIANT_CORE_REQUIRED.has(header)) {
     return issues?.has(header) ? { missing: true, required: true } : undefined;
   }
-  const attr = resolveInventoryAttributes(item).find((row) => row.name === header);
+  const attr = mapInventoryAttributes(item.attributes).find((row) => row.name === header);
   const required = requiredColumns.has(header) || Boolean(attr && isRequiredInventoryAttribute(attr));
   if (!attr) {
     return required ? { missing: true, required: true } : undefined;
@@ -231,12 +233,22 @@ function requiredPaint(
 
 async function enrichLoadedAttributes(loaded: LoadedInventory): Promise<void> {
   const types = await loadProductTypeCatalogs();
+  const allProductCatalog = catalogsFromProductTypes(types, "product");
+  const allVariantCatalog = catalogsFromProductTypes(types, "variant");
   for (const product of loaded.products) {
     const productCatalog = catalogForProductType(types, product.product_type, "product");
     const variantCatalog = catalogForProductType(types, product.product_type, "variant");
-    (product as { attributes: unknown }).attributes = resolveCatalogAttributes(product, productCatalog);
+    (product as { attributes: unknown }).attributes = resolveScopedCatalogAttributes(
+      product,
+      productCatalog,
+      variantCatalog.length ? variantCatalog : allVariantCatalog
+    );
     for (const variant of loaded.variantsByProduct.get(product.id) ?? []) {
-      (variant as { attributes: unknown }).attributes = resolveCatalogAttributes(variant, variantCatalog);
+      (variant as { attributes: unknown }).attributes = resolveScopedCatalogAttributes(
+        variant,
+        variantCatalog,
+        productCatalog.length ? productCatalog : allProductCatalog
+      );
     }
   }
 }
