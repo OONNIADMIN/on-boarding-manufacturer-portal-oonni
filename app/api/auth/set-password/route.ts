@@ -1,14 +1,25 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword, signToken, isInvitationTokenExpired } from "@/lib/auth";
-import { ok, err } from "@/lib/api-response";
+import { ok, err, tooManyRequests } from "@/lib/api-response";
+import { applySessionCookie, clientIp } from "@/lib/session-cookie";
+import { AUTH_WINDOW_MS, SET_PASSWORD_LIMIT, consumeRateLimit } from "@/lib/rate-limit";
+import { passwordPolicyError } from "@/lib/password-policy";
+import { contentLengthTooLarge } from "@/lib/request-limits";
 
 export async function POST(req: NextRequest) {
   try {
+    if (contentLengthTooLarge(req, 16_384, 0)) return err("Request too large", 413);
+    const ip = clientIp(req);
+    if (!consumeRateLimit(`set-password:${ip}`, SET_PASSWORD_LIMIT, AUTH_WINDOW_MS)) {
+      return tooManyRequests("Too many attempts. Try again in 15 minutes.");
+    }
+
     const { token: rawToken, password } = await req.json();
 
     if (!rawToken || !password) return err("token and password are required");
-    if (password.length < 8) return err("Password must be at least 8 characters");
+    const policyError = passwordPolicyError(String(password));
+    if (policyError) return err(policyError);
 
     const token = typeof rawToken === "string" ? rawToken.trim() : "";
 
@@ -34,10 +45,13 @@ export async function POST(req: NextRequest) {
       include: { role: true, manufacturer: true },
     });
 
-    const accessToken = await signToken({ sub: String(updated.id), email: updated.email, role: updated.role.name });
+    const accessToken = await signToken({
+      sub: String(updated.id),
+      email: updated.email,
+      role: updated.role.name,
+    });
 
-    return ok({
-      access_token: accessToken,
+    const res = ok({
       token_type: "bearer",
       user: {
         id: updated.id,
@@ -52,6 +66,7 @@ export async function POST(req: NextRequest) {
         manufacturer: updated.manufacturer,
       },
     });
+    return applySessionCookie(res, accessToken);
   } catch (e) {
     console.error("Set password error:", e);
     return err("Failed to set password", 500);

@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { isAdminUser, requireAuth } from "@/lib/auth";
 import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
 import { parseSpreadsheetRows, rowsToObjects } from "@/lib/catalog-file-headers";
+import { parseBoundedInt } from "@/lib/bounded-int";
 
 function catalogFileLabel(catalogFileUrl: string): string {
   const pathname = catalogFileUrl.split("?")[0] ?? "catalog.csv";
@@ -17,13 +18,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const column = searchParams.get("column") ?? "";
-  const limit = parseInt(searchParams.get("limit") ?? "20", 10);
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+  const limit = parseBoundedInt(searchParams.get("limit"), 20, 1, 100);
+  const offset = parseBoundedInt(searchParams.get("offset"), 0, 0, 10_000);
 
   const catalog = await prisma.catalog.findUnique({ where: { id: parseInt(id, 10) } });
   if (!catalog || catalog.deleted_at) return notFound("Catalog not found");
 
-  const isAdmin = user.role.name === "admin";
+  const isAdmin = isAdminUser(user);
   const isOwn = user.manufacturer_id === catalog.manufacturer_id;
   if (!isAdmin && !isOwn) return forbidden("Access denied");
   if (!catalog.catalog_file) return notFound("Catalog file not found");

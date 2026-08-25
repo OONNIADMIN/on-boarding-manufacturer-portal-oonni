@@ -8,6 +8,7 @@ import {
 import { manufacturerImageKitImagesFolder } from "@/lib/manufacturer-media-path";
 import {
   assertHttpUrlForFetch,
+  fetchRemoteHttpUrl,
   filenameFromUrl,
   MAX_REMOTE_IMAGE_BYTES,
   normalizeMimeType,
@@ -30,7 +31,7 @@ export async function ensureVariantImagesInImageKit(params: {
 }): Promise<{ images: DamInventoryImage[]; errors: string[] }> {
   const manufacturer = await prisma.manufacturer.findFirst({
     where: { id: params.manufacturerId, deleted_at: null },
-    select: { id: true, slug: true, imagekit_media_root: true },
+    select: { id: true, slug: true, name: true, imagekit_media_root: true },
   });
   if (!manufacturer) {
     return { images: [], errors: ["Manufacturer not found"] };
@@ -65,10 +66,9 @@ export async function ensureVariantImagesInImageKit(params: {
   for (const image of needsUpload) {
     try {
       const parsedUrl = assertHttpUrlForFetch(image.url);
-      const imgRes = await fetch(parsedUrl.toString(), {
-        redirect: "follow",
-        signal: AbortSignal.timeout(45_000),
-        headers: { "User-Agent": "OonniInventoryImporter/1.0" },
+      const imgRes = await fetchRemoteHttpUrl(image.url, {
+        timeoutMs: 45_000,
+        userAgent: "OonniInventoryImporter/1.0",
       });
       if (!imgRes.ok) {
         errors.push(`Could not download image ${image.url} (${imgRes.status})`);

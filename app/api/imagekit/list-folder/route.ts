@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { effectiveManufacturerId, requireAuth } from "@/lib/auth";
+import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
 import { err, forbidden, notFound, ok, unauthorized } from "@/lib/api-response";
+import { parseBoundedInt } from "@/lib/bounded-int";
 import {
   manufacturerImageKitCatalogsFolder,
   manufacturerImageKitImagesFolder,
@@ -27,10 +28,10 @@ export async function GET(req: NextRequest) {
   }
   const scope = scopeRaw;
 
-  const limit = parseInt(searchParams.get("limit") ?? "100", 10);
-  const skip = parseInt(searchParams.get("skip") ?? "0", 10);
+  const limit = parseBoundedInt(searchParams.get("limit"), 100, 1, 100);
+  const skip = parseBoundedInt(searchParams.get("skip"), 0, 0, 10_000);
 
-  const isAdmin = user.role.name.trim().toLowerCase() === "admin";
+  const isAdmin = isAdminUser(user);
   let manufacturerId: number;
   if (isAdmin) {
     const idRaw = searchParams.get("manufacturer_id");

@@ -33,6 +33,7 @@ export { productVariantUpdate } from "./operations/product-variant-update";
 export { productImageCreate } from "./operations/product-image-create";
 export { productVariantImageAssign } from "./operations/variant-image-assign";
 export { productImageBulkDelete } from "./operations/product-image-bulk-delete";
+export { productImageReorder, orderedTraideImageIds } from "./operations/product-image-reorder";
 
 export {
   syncTraideCategories,

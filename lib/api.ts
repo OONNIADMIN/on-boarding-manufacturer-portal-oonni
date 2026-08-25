@@ -19,8 +19,57 @@ import type { EntityCompleteness, ProductCompleteness } from '@/lib/inventory-co
 
 export type { CatalogImageIngestProgress }
 
-// All API calls go to Next.js API routes (same origin — no CORS, no external backend needed)
+import { rememberCatalogImportJob, clearRememberedCatalogImportJobs } from '@/lib/catalog-import-jobs-client'
+
 const API_URL = '/api'
+
+function isJwt(value: string): boolean {
+  return value.split('.').length === 3 && value.length > 40
+}
+
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers)
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('access_token')
+    if (token && isJwt(token) && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+  const auth = headers.get('Authorization')
+  if (auth?.toLowerCase().startsWith('bearer ')) {
+    const value = auth.slice(7).trim()
+    if (!isJwt(value)) headers.delete('Authorization')
+  }
+  return fetch(input, {
+    ...init,
+    credentials: init?.credentials ?? 'include',
+    headers,
+  })
+}
+
+export interface CatalogImportJobView {
+  id: string
+  filename: string
+  status: string
+  phase: string
+  message: string | null
+  progress_current: number
+  progress_total: number
+  catalog_id: number | null
+  products_created: number
+  images_created: number
+  images_failed: number
+  error: string | null
+  created_at: string
+  finished_at: string | null
+}
+
+export interface CatalogUploadAccepted {
+  job_id: string
+  status: string
+  filename: string
+  message: string
+}
 
 export interface UploadResponse {
   id?: number
@@ -227,7 +276,7 @@ export const authAPI = {
    * Login with email and password
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await apiFetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -250,16 +299,12 @@ export const authAPI = {
     }
 
     const data = await response.json()
-    
-    // Store token in localStorage and cookie
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('access_token', data.access_token)
+
+    if (typeof window !== 'undefined' && data.user) {
+      localStorage.removeItem('access_token')
       localStorage.setItem('user', JSON.stringify(data.user))
-      
-      // Set cookie for middleware authentication
-      document.cookie = `access_token=${data.access_token}; path=/; max-age=${60 * 60 * 24}; SameSite=Strict`
     }
-    
+
     return data
   },
 
@@ -268,10 +313,10 @@ export const authAPI = {
    */
   logout(): void {
     if (typeof window !== 'undefined') {
+      clearRememberedCatalogImportJobs()
+      void apiFetch(`${API_URL}/auth/logout`, { method: 'POST' })
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
-      
-      // Remove cookie
       document.cookie = 'access_token=; path=/; max-age=0; SameSite=Strict'
     }
   },
@@ -280,10 +325,10 @@ export const authAPI = {
    * Get stored token
    */
   getToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('access_token')
-    }
-    return null
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('access_token')
+    if (stored && isJwt(stored)) return stored
+    return localStorage.getItem('user') ? 'cookie' : null
   },
 
   /**
@@ -304,7 +349,7 @@ export const authAPI = {
   },
 
   async getMe(token: string): Promise<User> {
-    const response = await fetch(`${API_URL}/auth/me`, {
+    const response = await apiFetch(`${API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) {
@@ -315,7 +360,7 @@ export const authAPI = {
   },
 
   async updateProfile(token: string, data: { name: string }): Promise<User> {
-    const response = await fetch(`${API_URL}/auth/me`, {
+    const response = await apiFetch(`${API_URL}/auth/me`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -343,7 +388,7 @@ export const authAPI = {
    * Get all users (admin only)
    */
   async getAllUsers(token: string): Promise<User[]> {
-    const response = await fetch(`${API_URL}/auth/users`, {
+    const response = await apiFetch(`${API_URL}/auth/users`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -360,7 +405,7 @@ export const authAPI = {
    * Get all roles
    */
   async getRoles(): Promise<Role[]> {
-    const response = await fetch(`${API_URL}/auth/roles`)
+    const response = await apiFetch(`${API_URL}/auth/roles`)
 
     if (!response.ok) {
       throw new Error('Failed to get roles')
@@ -379,11 +424,7 @@ export const authAPI = {
     password: string
     role_id: number
   }): Promise<User> {
-    console.log('API_URL:', API_URL)
-    console.log('Creating user with data:', { ...userData, password: '***' })
-    console.log('Authorization header:', `Bearer ${token.substring(0, 20)}...`)
-    
-    const response = await fetch(`${API_URL}/auth/users`, {
+    const response = await apiFetch(`${API_URL}/auth/users`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -392,11 +433,8 @@ export const authAPI = {
       body: JSON.stringify(userData),
     })
 
-    console.log('Response status:', response.status)
-    
     if (!response.ok) {
       const error = await response.json()
-      console.error('Error response:', error)
       throw new Error(error.detail || 'Failed to create user')
     }
 
@@ -407,7 +445,7 @@ export const authAPI = {
    * Verify invitation token
    */
   async verifyInvitation(token: string): Promise<InvitationVerifyResponse> {
-    const response = await fetch(`${API_URL}/auth/verify-invitation/${token}`)
+    const response = await apiFetch(`${API_URL}/auth/verify-invitation/${token}`)
 
     if (!response.ok) {
       throw new Error('Failed to verify invitation token')
@@ -420,7 +458,7 @@ export const authAPI = {
    * Set password using invitation token
    */
   async setPassword(request: SetPasswordRequest): Promise<LoginResponse> {
-    const response = await fetch(`${API_URL}/auth/set-password`, {
+    const response = await apiFetch(`${API_URL}/auth/set-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -434,16 +472,12 @@ export const authAPI = {
     }
 
     const data = await response.json()
-    
-    // Store token in localStorage and cookie (auto-login)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('access_token', data.access_token)
+
+    if (typeof window !== 'undefined' && data.user) {
+      localStorage.removeItem('access_token')
       localStorage.setItem('user', JSON.stringify(data.user))
-      
-      // Set cookie for middleware authentication
-      document.cookie = `access_token=${data.access_token}; path=/; max-age=${60 * 60 * 24}; SameSite=Strict`
     }
-    
+
     return data
   },
 
@@ -455,7 +489,7 @@ export const authAPI = {
     name: string
     manufacturer_id?: number
   }): Promise<User> {
-    const response = await fetch(`${API_URL}/auth/invite-manufacturer`, {
+    const response = await apiFetch(`${API_URL}/auth/invite-manufacturer`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -476,7 +510,7 @@ export const authAPI = {
    * Resend invitation email to a manufacturer user (admin only)
    */
   async resendInvitation(token: string, userId: number): Promise<{ message: string; email: string }> {
-    const response = await fetch(`${API_URL}/auth/resend-invitation`, {
+    const response = await apiFetch(`${API_URL}/auth/resend-invitation`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -497,7 +531,7 @@ export const authAPI = {
    * Activate a manufacturer user and set their password (admin only)
    */
   async activateUser(token: string, userId: number, password: string): Promise<User> {
-    const response = await fetch(`${API_URL}/auth/users/${userId}/activate`, {
+    const response = await apiFetch(`${API_URL}/auth/users/${userId}/activate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -523,8 +557,12 @@ export const catalogAPI = {
     file: File,
     manufacturerId?: number,
     headerRowIndex = 0,
-    options?: { skuColumn?: string }
-  ): Promise<UploadResponse> {
+    options?: {
+      skuColumn?: string
+      imageColumns?: string[]
+      onProgress?: (percent: number) => void
+    }
+  ): Promise<CatalogUploadAccepted> {
     const token = authAPI.getToken()
     if (!token) {
       throw new Error('Authentication required')
@@ -539,29 +577,57 @@ export const catalogAPI = {
     if (options?.skuColumn?.trim()) {
       formData.append('sku_column', options.skuColumn.trim())
     }
-
-    const response = await fetch(`${API_URL}/catalogs/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const text = await response.text()
-      try {
-        const error = JSON.parse(text) as { detail?: string }
-        throw new Error(error.detail || 'Upload failed')
-      } catch (e) {
-        if (e instanceof Error && e.message !== 'Upload failed' && !e.message.startsWith('Unexpected')) {
-          throw e
-        }
-        throw new Error('Upload failed. Check ImageKit keys and that the catalog API is running.')
-      }
+    if (options?.imageColumns?.length) {
+      formData.append('image_columns', JSON.stringify(options.imageColumns))
     }
 
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${API_URL}/catalogs/upload`)
+      xhr.withCredentials = true
+      if (token && token.split('.').length === 3 && token.length > 40) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      }
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !options?.onProgress) return
+        options.onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+
+      xhr.onload = () => {
+        try {
+          const body = JSON.parse(xhr.responseText) as CatalogUploadAccepted & { detail?: string }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            options?.onProgress?.(100)
+            rememberCatalogImportJob(body.job_id)
+            resolve(body)
+          } else {
+            reject(new Error(body.detail || 'Upload failed'))
+          }
+        } catch {
+          reject(new Error('Upload failed. Check that the catalog API is running.'))
+        }
+      }
+
+      xhr.onerror = () => reject(new Error('Upload failed'))
+      xhr.send(formData)
+    })
+  },
+
+  async getImportJob(jobId: string): Promise<CatalogImportJobView> {
+    const response = await apiFetch(`${API_URL}/catalogs/upload-jobs/${encodeURIComponent(jobId)}`)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as { detail?: string }).detail || 'Failed to load import status')
+    }
     return response.json()
+  },
+
+  async listImportJobs(): Promise<CatalogImportJobView[]> {
+    const response = await apiFetch(`${API_URL}/catalogs/upload-jobs`)
+    if (!response.ok) return []
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
   },
 
   /**
@@ -573,7 +639,7 @@ export const catalogAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs?limit=500`, {
+    const response = await apiFetch(`${API_URL}/catalogs?limit=500`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -596,7 +662,7 @@ export const catalogAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs/${catalogId}/columns`, {
+    const response = await apiFetch(`${API_URL}/catalogs/${catalogId}/columns`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -627,7 +693,7 @@ export const catalogAPI = {
     }
 
     const params = new URLSearchParams({ sku_column: skuColumn })
-    const response = await fetch(`${API_URL}/catalogs/${catalogId}/preview-skus?${params}`, {
+    const response = await apiFetch(`${API_URL}/catalogs/${catalogId}/preview-skus?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -650,7 +716,7 @@ export const catalogAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs/${catalogId}`, {
+    const response = await apiFetch(`${API_URL}/catalogs/${catalogId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -672,7 +738,7 @@ export const catalogAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs/${catalogId}`, {
+    const response = await apiFetch(`${API_URL}/catalogs/${catalogId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -695,7 +761,7 @@ export const catalogAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs/${catalogId}/notify-upload`, {
+    const response = await apiFetch(`${API_URL}/catalogs/${catalogId}/notify-upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -746,7 +812,7 @@ export const catalogAPI = {
       .filter(Boolean)
     const imageColumn = imageColumnList[0] ?? ''
 
-    const response = await fetch(`${API_URL}/catalogs/${catalogId}/ingest-url-images`, {
+    const response = await apiFetch(`${API_URL}/catalogs/${catalogId}/ingest-url-images`, {
       method: 'POST',
       headers: useMultipart
         ? { Authorization: `Bearer ${token}` }
@@ -862,7 +928,7 @@ export const catalogAPI = {
    * Check backend health
    */
   async healthCheck(): Promise<{ status: string; service: string; version: string }> {
-    const response = await fetch(`${API_URL}/health`)
+    const response = await apiFetch(`${API_URL}/health`)
     
     if (!response.ok) {
       throw new Error('Backend is not responding')
@@ -886,7 +952,7 @@ export const catalogColumnRulesAPI = {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}/catalog-column-rules`, {
+    const response = await apiFetch(`${API_URL}/catalog-column-rules`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -904,7 +970,7 @@ export const catalogColumnRulesAPI = {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+    const response = await apiFetch(`${API_URL}/admin/catalog-column-rules`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -921,7 +987,7 @@ export const catalogColumnRulesAPI = {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+    const response = await apiFetch(`${API_URL}/admin/catalog-column-rules`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -943,7 +1009,7 @@ export const catalogColumnRulesAPI = {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}/admin/catalog-column-rules`, {
+    const response = await apiFetch(`${API_URL}/admin/catalog-column-rules`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1038,7 +1104,7 @@ export const imageAPI = {
       params.set('manufacturer_id', String(options.manufacturerId))
     }
 
-    const response = await fetch(`${API_URL}/imagekit/list-folder?${params}`, {
+    const response = await apiFetch(`${API_URL}/imagekit/list-folder?${params}`, {
       headers,
       credentials: 'include',
       cache: 'no-store',
@@ -1071,7 +1137,7 @@ export const imageAPI = {
     imageIds.forEach(id => formData.append('image_ids', id.toString()))
     formData.append('product_id', productId.toString())
 
-    const response = await fetch(`${API_URL}/images/bulk-assign-product`, {
+    const response = await apiFetch(`${API_URL}/images/bulk-assign-product`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1134,7 +1200,7 @@ export const imageAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/images/upload/${encodeURIComponent(imageKey)}`, {
+    const response = await apiFetch(`${API_URL}/images/upload/${encodeURIComponent(imageKey)}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1170,7 +1236,7 @@ export const imageAPI = {
       params.append('product_id', productId.toString())
     }
 
-    const response = await fetch(`${API_URL}/images/?${params}`, {
+    const response = await apiFetch(`${API_URL}/images/?${params}`, {
       headers,
       credentials: 'include',
       cache: 'no-store',
@@ -1210,7 +1276,7 @@ export const catalogTemplatesAPI = {
     if (token) {
       headers.Authorization = `Bearer ${token}`
     }
-    const response = await fetch(`${API_URL}/catalog-templates`, {
+    const response = await apiFetch(`${API_URL}/catalog-templates`, {
       headers,
       credentials: 'include',
       cache: 'no-store',
@@ -1229,9 +1295,9 @@ export const catalogTemplatesAPI = {
     if (token) {
       headers.Authorization = `Bearer ${token}`
     }
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/catalog-templates/download?id=${encodeURIComponent(templateId)}`,
-      { headers, credentials: 'include', cache: 'no-store' }
+      { headers, cache: 'no-store' }
     )
     if (!response.ok) {
       const errJson = (await response.json().catch(() => ({}))) as { detail?: string }
@@ -1263,7 +1329,7 @@ export const nauticalAPI = {
     if (token) {
       headers.Authorization = `Bearer ${token}`
     }
-    const response = await fetch(`${API_URL}/nautical/product-types`, {
+    const response = await apiFetch(`${API_URL}/nautical/product-types`, {
       headers,
       credentials: 'include',
       cache: 'no-store',
@@ -1284,9 +1350,9 @@ export const nauticalAPI = {
       headers.Authorization = `Bearer ${token}`
     }
 
-    const resolveRes = await fetch(
+    const resolveRes = await apiFetch(
       `${API_URL}/imagekit/templates?product_type_id=${encodeURIComponent(productTypeId)}`,
-      { headers, credentials: 'include', cache: 'no-store' }
+      { headers, cache: 'no-store' }
     )
     if (!resolveRes.ok) {
       const error = (await resolveRes.json().catch(() => ({}))) as { detail?: string }
@@ -1318,7 +1384,7 @@ export const nauticalAPI = {
       // Fall through to server proxy if direct ImageKit fetch is blocked.
     }
 
-    const response = await fetch(`${API_URL}/nautical/catalog-template`, {
+    const response = await apiFetch(`${API_URL}/nautical/catalog-template`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -1366,7 +1432,7 @@ export const imagekitAPI = {
     if (options?.productTypeId?.trim()) params.set('product_type_id', options.productTypeId.trim())
     else if (options?.name?.trim()) params.set('name', options.name.trim())
     const qs = params.toString()
-    const response = await fetch(`${API_URL}/imagekit/templates${qs ? `?${qs}` : ''}`, {
+    const response = await apiFetch(`${API_URL}/imagekit/templates${qs ? `?${qs}` : ''}`, {
       headers,
       credentials: 'include',
       cache: 'no-store',
@@ -1387,7 +1453,7 @@ export const manufacturerAPI = {
    * Get all manufacturers (returns list format for UI)
    */
   async getManufacturers(token: string): Promise<ManufacturerListItem[]> {
-    const response = await fetch(`${API_URL}/manufacturers`, {
+    const response = await apiFetch(`${API_URL}/manufacturers`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1405,7 +1471,7 @@ export const manufacturerAPI = {
    * Get all manufacturers (returns full manufacturer objects)
    */
   async getAllManufacturers(token: string): Promise<Manufacturer[]> {
-    const response = await fetch(`${API_URL}/manufacturers`, {
+    const response = await apiFetch(`${API_URL}/manufacturers`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1422,7 +1488,7 @@ export const manufacturerAPI = {
    * Get a specific manufacturer by ID
    */
   async getManufacturer(token: string, manufacturerId: number): Promise<Manufacturer> {
-    const response = await fetch(`${API_URL}/manufacturers/${manufacturerId}`, {
+    const response = await apiFetch(`${API_URL}/manufacturers/${manufacturerId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1443,7 +1509,7 @@ export const manufacturerAPI = {
     slug: string
     thumbnail?: string
   }): Promise<Manufacturer> {
-    const response = await fetch(`${API_URL}/manufacturers`, {
+    const response = await apiFetch(`${API_URL}/manufacturers`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1465,7 +1531,7 @@ export const manufacturerAPI = {
     manufacturerId: number,
     data: { name?: string; thumbnail?: string }
   ): Promise<Manufacturer> {
-    const response = await fetch(`${API_URL}/manufacturers/${manufacturerId}`, {
+    const response = await apiFetch(`${API_URL}/manufacturers/${manufacturerId}`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1486,7 +1552,7 @@ export const manufacturerAPI = {
    * Get users for a specific manufacturer
    */
   async getManufacturerUsers(token: string, manufacturerId: number): Promise<User[]> {
-    const response = await fetch(`${API_URL}/manufacturers/${manufacturerId}/users`, {
+    const response = await apiFetch(`${API_URL}/manufacturers/${manufacturerId}/users`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1520,7 +1586,7 @@ export const statsAPI = {
       newImages: number
     }
   }> {
-    const response = await fetch(`${API_URL}/stats/platform`, {
+    const response = await apiFetch(`${API_URL}/stats/platform`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1566,7 +1632,7 @@ export const statsAPI = {
       users: number
     }
   }> {
-    const response = await fetch(`${API_URL}/stats/detailed`, {
+    const response = await apiFetch(`${API_URL}/stats/detailed`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1603,7 +1669,7 @@ export const productAPI = {
       params.append('manufacturer_id', manufacturerId.toString())
     }
 
-    const response = await fetch(`${API_URL}/products/admin/all?${params}`, {
+    const response = await apiFetch(`${API_URL}/products/admin/all?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -1633,7 +1699,7 @@ export const productAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/products/preview-skus`, {
+    const response = await apiFetch(`${API_URL}/products/preview-skus`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1676,7 +1742,7 @@ export const productAPI = {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${API_URL}/catalogs/products/from-catalog-column`, {
+    const response = await apiFetch(`${API_URL}/catalogs/products/from-catalog-column`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1819,7 +1885,7 @@ async function inventoryRequest<T>(
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
   if (options?.body !== undefined) headers['Content-Type'] = 'application/json'
 
-  const response = await fetch(`${API_URL}${withManufacturerId(path, options?.manufacturerId)}`, {
+  const response = await apiFetch(`${API_URL}${withManufacturerId(path, options?.manufacturerId)}`, {
     method: options?.method ?? 'GET',
     headers,
     body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
@@ -1866,7 +1932,7 @@ export const inventoryAPI = {
       params.set('manufacturer_id', String(options.manufacturerId))
     }
 
-    const response = await fetch(`${API_URL}/inventory/products?${params.toString()}`, {
+    const response = await apiFetch(`${API_URL}/inventory/products?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
@@ -1884,12 +1950,10 @@ export const inventoryAPI = {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}${withManufacturerId(`/inventory/products/${productId}/variants`, manufacturerId)}`,
-      {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    })
+      { cache: 'no-store' }
+    )
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
       throw new Error(error.detail || 'Failed to load variants')
@@ -1986,7 +2050,7 @@ export const inventoryAPI = {
     if (options?.manufacturerId && options.manufacturerId > 0) {
       params.set('manufacturer_id', String(options.manufacturerId))
     }
-    const response = await fetch(`${API_URL}/inventory/export?${params.toString()}`, {
+    const response = await apiFetch(`${API_URL}/inventory/export?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) {
@@ -2023,7 +2087,7 @@ export const inventoryAPI = {
     const formData = new FormData()
     formData.append('file', file)
     if (kind) formData.append('kind', kind)
-    const response = await fetch(`${API_URL}${withManufacturerId('/inventory/import', manufacturerId)}`, {
+    const response = await apiFetch(`${API_URL}${withManufacturerId('/inventory/import', manufacturerId)}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -2043,7 +2107,7 @@ export const inventoryAPI = {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
 
-    const response = await fetch(`${API_URL}${withManufacturerId('/inventory/products', manufacturerId)}`, {
+    const response = await apiFetch(`${API_URL}${withManufacturerId('/inventory/products', manufacturerId)}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })

@@ -3,10 +3,7 @@
  * Do not import from @/lib/auth in middleware - it pulls in bcrypt and Prisma (Node-only).
  */
 import { jwtVerify } from "jose";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "fallback-secret-change-in-production"
-);
+import { getJwtSecretBytes } from "@/lib/jwt-secret";
 
 export interface JWTPayload {
   sub: string;
@@ -18,7 +15,7 @@ export interface JWTPayload {
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecretBytes());
     return payload as unknown as JWTPayload;
   } catch {
     return null;

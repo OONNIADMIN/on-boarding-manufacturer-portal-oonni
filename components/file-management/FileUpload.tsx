@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react'
-import { catalogAPI, UploadResponse } from '@/lib/api'
+import { catalogAPI, CatalogUploadAccepted } from '@/lib/api'
+import { MAX_UPLOAD_BYTES, uploadTooLargeMessage } from '@/lib/upload-limits'
 import styles from './FileUpload.module.scss'
 
 interface FileUploadProps {
-  onSuccess?: (data: UploadResponse) => void
+  onSuccess?: (data: CatalogUploadAccepted) => void
   onError?: (error: Error) => void
 }
 
@@ -62,10 +63,9 @@ export default function FileUpload({ onSuccess, onError }: FileUploadProps) {
       return
     }
 
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024
-    if (file.size > maxSize) {
-      setError('File size exceeds 10MB limit.')
+    // Validate file size (150MB max for catalogs)
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(uploadTooLargeMessage())
       return
     }
 

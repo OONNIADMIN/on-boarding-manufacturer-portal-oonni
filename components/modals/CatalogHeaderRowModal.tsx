@@ -12,6 +12,7 @@ import {
   type CatalogColumnRuleRecord,
 } from '@/lib/catalog-column-validation'
 import {
+  detectCatalogMediaUrlColumns,
   detectImageUrlColumns,
   detectSkuColumn,
   IMAGE_COLUMN_SAMPLE_ROWS,
@@ -112,7 +113,7 @@ export default function CatalogHeaderRowModal({
     const skuColumn =
       columnChecks.find((check) => check.label.trim().toLowerCase() === 'sku')?.matchedColumn ??
       detectSkuColumn(columnNames, columnRules)
-    return detectImageUrlColumns(headerCells, skuColumn, columnRules, sampleRows)
+    return detectCatalogMediaUrlColumns(headerCells, skuColumn, columnRules, sampleRows)
   }, [headerCells, sampleRows, columnNames, columnRules, columnChecks])
 
   const maxColumns = useMemo(
@@ -158,8 +159,9 @@ export default function CatalogHeaderRowModal({
               Select header row
             </h2>
             <p className={styles.subtitle}>
-              Choose the row that contains the column names. Each column is checked
-              in the next 10 rows for image URLs (.jpg, .png, or an /image/ path).
+              Choose the row that contains the column names. SKU is located from
+              the names configured by your admin (for example Product #). All other
+              headers are kept as they are.
             </p>
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
@@ -206,8 +208,8 @@ export default function CatalogHeaderRowModal({
           <div className={styles.validationPanel}>
             <h3 className={styles.validationTitle}>Expected columns (informational)</h3>
             <p className={styles.validationHint}>
-              Image columns are detected from URLs in the next 10 rows (.jpg, .png, or an /image/
-              path), not only from the header name. Missing columns will not block upload.
+              This guide only shows whether important columns are present. Missing columns do
+              not block upload. Every header in the selected row is kept in the catalog file.
             </p>
             {!columnNames.length ? (
               <p className={styles.validationNote}>This row has no column headers.</p>

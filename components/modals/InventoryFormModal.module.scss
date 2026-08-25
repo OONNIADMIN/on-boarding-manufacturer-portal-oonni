@@ -132,6 +132,14 @@
   gap: 0.5rem;
 }
 
+.imageGallerySortable .imageCard {
+  cursor: grab;
+}
+
+.imageGallerySortable .imageLink {
+  pointer-events: none;
+}
+
 .imageLink {
   display: block;
   line-height: 0;
@@ -148,6 +156,18 @@
 
 .imageCard {
   position: relative;
+  user-select: none;
+}
+
+.imageCardDragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.imageCardDropTarget {
+  outline: 2px solid $oonni-green;
+  outline-offset: 2px;
+  border-radius: $radius-md;
 }
 
 .imageRemove {

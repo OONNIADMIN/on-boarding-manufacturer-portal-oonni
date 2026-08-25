@@ -1,20 +1,29 @@
 import type { Manufacturer } from "@prisma/client";
 
 /**
- * ImageKit Media Library folder paths (e.g. `/test-harwin/images`).
- * Uses the manufacturer `slug` from the DB (unique) — not `id_slug`, so names match the dashboard.
- * Override with `imagekit_media_root` if you still store files under a legacy path (e.g. `/6_oldslug`).
+ * Media library folder paths from the manufacturer company `name` (not a hardcoded brand).
+ * Override with `imagekit_media_root` if files already live under a legacy path.
  */
 function sanitizePathSegment(s: string): string {
-  return s.replace(/[^a-zA-Z0-9_-]/g, "").replace(/^-+|-+$/g, "").slice(0, 100) || "mfr";
+  return s
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
 }
 
-export function defaultManufacturerMediaRoot(m: Pick<Manufacturer, "id" | "slug">): string {
-  const slugPart = sanitizePathSegment(m.slug || `m${m.id}`);
-  return `/${slugPart}`;
+export function defaultManufacturerMediaRoot(
+  m: Pick<Manufacturer, "id" | "slug"> & { name?: string | null }
+): string {
+  const fromName = sanitizePathSegment(m.name || "");
+  const fromSlug = sanitizePathSegment(m.slug || "");
+  return `/${fromName || fromSlug || `m${m.id}`}`;
 }
 
 export type ManufacturerMediaPathInput = Pick<Manufacturer, "id" | "slug"> & {
+  name?: string | null;
   imagekit_media_root?: string | null;
 };
 
@@ -34,4 +43,13 @@ export function manufacturerImageKitImagesFolder(m: ManufacturerMediaPathInput):
 
 export function manufacturerImageKitCatalogsFolder(m: ManufacturerMediaPathInput): string {
   return `${manufacturerImageKitRoot(m)}/catalogs`;
+}
+
+/** Per-catalog photo folder so a new directory appears in the media library. */
+export function manufacturerImageKitCatalogImagesFolder(
+  m: ManufacturerMediaPathInput,
+  catalogSlug: string
+): string {
+  const slug = sanitizePathSegment(catalogSlug) || "catalog";
+  return `${manufacturerImageKitImagesFolder(m)}/${slug}`;
 }

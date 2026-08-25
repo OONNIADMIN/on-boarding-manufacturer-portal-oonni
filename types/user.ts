@@ -59,7 +59,7 @@ export interface LoginRequest {
  * Login response type
  */
 export interface LoginResponse {
-  access_token: string;
+  access_token?: string;
   token_type: string;
   user: Omit<User, 'password'>;
 }

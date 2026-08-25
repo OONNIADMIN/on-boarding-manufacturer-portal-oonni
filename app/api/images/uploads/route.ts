@@ -4,6 +4,8 @@ import { isAdminUser, requireAuth } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/api-response";
 import { serializeImageForListJson } from "@/lib/image-list-json";
 import { buildNonAdminImagesWhere } from "@/lib/manufacturer-image-scope";
+import { parseBoundedInt } from "@/lib/bounded-int";
+import { hideImagesMissingFromImageKit } from "@/lib/reconcile-imagekit-images";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +14,8 @@ export async function GET(req: NextRequest) {
   if (error || !user) return unauthorized(error ?? undefined);
 
   const { searchParams } = new URL(req.url);
-  const limit = parseInt(searchParams.get("limit") ?? "50", 10);
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+  const limit = parseBoundedInt(searchParams.get("limit"), 50, 1, 100);
+  const offset = parseBoundedInt(searchParams.get("offset"), 0, 0, 10_000);
 
   const isAdmin = isAdminUser(user);
   const visibility = isAdmin ? {} : await buildNonAdminImagesWhere(user);
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
     ...visibility,
   };
 
-  const [images, total] = await Promise.all([
+  let [images, total] = await Promise.all([
     prisma.image.findMany({
       where,
       include: { manufacturer: true, product: true },
@@ -33,6 +35,20 @@ export async function GET(req: NextRequest) {
     }),
     prisma.image.count({ where }),
   ]);
+
+  const hidden = await hideImagesMissingFromImageKit(images);
+  if (hidden > 0) {
+    [images, total] = await Promise.all([
+      prisma.image.findMany({
+        where,
+        include: { manufacturer: true, product: true },
+        orderBy: { created_at: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.image.count({ where }),
+    ]);
+  }
 
   return ok({
     total_images: total,

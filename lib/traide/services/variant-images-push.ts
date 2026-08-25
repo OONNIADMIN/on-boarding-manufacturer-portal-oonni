@@ -12,7 +12,9 @@ import {
 } from "@/lib/traide/mappers/variant-images";
 import { productImageBulkDelete } from "@/lib/traide/operations/product-image-bulk-delete";
 import { productImageCreate } from "@/lib/traide/operations/product-image-create";
+import { orderedTraideImageIds, productImageReorder } from "@/lib/traide/operations/product-image-reorder";
 import { productVariantImageAssign } from "@/lib/traide/operations/variant-image-assign";
+import { normalizeInventoryImages } from "@/lib/inventory-crud";
 
 const TRAIDE_IMAGE_COUNTRY_CODE = "US";
 
@@ -165,6 +167,33 @@ export async function pushVariantImagesToTraide(
     where: { id: variant.id },
     data: { images: asJson(toInventoryImages(persisted)) },
   });
+
+  try {
+    const siblings = await prisma.inventoryVariant.findMany({
+      where: { inventory_product_id: variant.product.id, id: { not: variant.id } },
+      select: { images: true },
+    });
+    const productImages = await prisma.inventoryProduct.findFirst({
+      where: { id: variant.product.id },
+      select: { images: true },
+    });
+    const imagesIds = [
+      ...orderedTraideImageIds(persisted),
+      ...siblings.flatMap((row) => orderedTraideImageIds(normalizeInventoryImages(row.images))),
+      ...orderedTraideImageIds(normalizeInventoryImages(productImages?.images)),
+    ].filter((id, index, all) => all.indexOf(id) === index);
+    if (imagesIds.length >= 2) {
+      const reordered = await productImageReorder(productId, imagesIds);
+      errors.push(
+        ...reordered.errors.map((message) => `Variant ${variant.id} photo order: ${message}`)
+      );
+    }
+  } catch (e) {
+    errors.push(
+      `Variant ${variant.id} photo order: ${e instanceof Error ? e.message : "could not update photo order"}`
+    );
+  }
+
   return { errors };
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react'
 import { imageAPI, ImageUploadResponse } from '@/lib/api'
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB, uploadTooLargeMessage } from '@/lib/upload-limits'
 import ImageUploadProgress from './ImageUploadProgress'
 import styles from './ImageUpload.module.scss'
 
@@ -63,17 +64,9 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
       return
     }
 
-    const allowedTypes = [
-      'image/jpeg',
-      'image/jpg', 
-      'image/png',
-      'image/webp',
-      'image/gif',
-      'image/bmp',
-      'image/tiff'
-    ]
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff']
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+    const maxSize = MAX_IMAGE_UPLOAD_BYTES
 
     const validFiles: File[] = []
     const errors: string[] = []
@@ -87,7 +80,7 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
       }
 
       if (file.size > maxSize) {
-        errors.push(`${file.name}: File size exceeds 50MB`)
+        errors.push(`${file.name}: ${uploadTooLargeMessage(MAX_IMAGE_UPLOAD_MB)}`)
         return
       }
 
@@ -236,7 +229,7 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
           onChange={handleFileInputChange}
           className={styles.fileInput}
@@ -259,7 +252,7 @@ export default function ImageUpload({ onSuccess, onError, manufacturerId, maxFil
               {isDragging ? 'Drop your images here' : 'Click to upload or drag and drop'}
             </p>
             <p className={styles.secondaryText}>
-              JPG, PNG, WebP, GIF, BMP, or TIFF (max 50MB each, up to {maxFiles} files)
+              JPG, PNG, WebP, or GIF (max {MAX_IMAGE_UPLOAD_MB}MB each, up to {maxFiles} files)
             </p>
           </div>
         </div>

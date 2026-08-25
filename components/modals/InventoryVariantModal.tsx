@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import type { InventoryVariantInput, InventoryVariantRow } from '@/lib/api'
 import { imageAPI } from '@/lib/api'
 import { inventoryAttributeFormRows, isIncompleteAttributeValue, uniqueRequiredAttributeTemplates, type InventoryAttributeFormRow } from '@/lib/inventory-attributes'
@@ -59,13 +59,19 @@ export default function InventoryVariantModal({
   const [images, setImages] = useState<ImageRow[]>([])
   const [imageUrl, setImageUrl] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const draggedFromRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
     setError('')
     setImageUrl('')
     setIsUploading(false)
+    setDragIndex(null)
+    setDropIndex(null)
+    draggedFromRef.current = null
     if (variant && mode !== 'create') {
       setForm({
         name: variant.name ?? '',
@@ -98,6 +104,55 @@ export default function InventoryVariantModal({
     if (!trimmed) return null
     const num = Number(trimmed)
     return Number.isFinite(num) ? num : null
+  }
+
+  const moveImageTo = (from: number, to: number) => {
+    setImages((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev
+      const next = [...prev]
+      const [item] = next.splice(from, 1)
+      if (!item) return prev
+      next.splice(to, 0, item)
+      return next
+    })
+  }
+
+  const handleImageDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
+    if (readOnly) {
+      event.preventDefault()
+      return
+    }
+    const target = event.target as HTMLElement
+    if (target.closest('button')) {
+      event.preventDefault()
+      return
+    }
+    draggedFromRef.current = index
+    setDragIndex(index)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(index))
+  }
+
+  const handleImageDragOver = (event: DragEvent<HTMLDivElement>, index: number) => {
+    if (readOnly || draggedFromRef.current == null) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (dropIndex !== index) setDropIndex(index)
+  }
+
+  const handleImageDrop = (event: DragEvent<HTMLDivElement>, index: number) => {
+    event.preventDefault()
+    const from = draggedFromRef.current ?? Number(event.dataTransfer.getData('text/plain'))
+    moveImageTo(from, index)
+    draggedFromRef.current = null
+    setDragIndex(null)
+    setDropIndex(null)
+  }
+
+  const handleImageDragEnd = () => {
+    draggedFromRef.current = null
+    setDragIndex(null)
+    setDropIndex(null)
   }
 
   const addImageUrls = (raw: string) => {
@@ -182,18 +237,43 @@ export default function InventoryVariantModal({
           <div className={fieldClass(!images.length)}>
             <span className={styles.label}>Images *</span>
             {images.length ? (
-              <div className={styles.imageGallery}>
+              <div className={`${styles.imageGallery} ${readOnly ? '' : styles.imageGallerySortable}`}>
                 {images.map((image, index) => (
-                  <div className={styles.imageCard} key={`${image.id ?? image.url}-${index}`}>
-                    <a href={image.url} target="_blank" rel="noreferrer" className={styles.imageLink} title={`Variant image ${index + 1}`}>
+                  <div
+                    className={[
+                      styles.imageCard,
+                      dragIndex === index ? styles.imageCardDragging : '',
+                      dropIndex === index && dragIndex !== index ? styles.imageCardDropTarget : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    key={`${image.id ?? image.url}-${index}`}
+                    draggable={!readOnly}
+                    onDragStart={(event) => handleImageDragStart(event, index)}
+                    onDragOver={(event) => handleImageDragOver(event, index)}
+                    onDrop={(event) => handleImageDrop(event, index)}
+                    onDragEnd={handleImageDragEnd}
+                  >
+                    <a
+                      href={image.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.imageLink}
+                      title={readOnly ? `Variant image ${index + 1}` : `Drag to reorder. Open photo ${index + 1}`}
+                      draggable={false}
+                      onClick={(event) => {
+                        if (dragIndex != null) event.preventDefault()
+                      }}
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.url} alt={`Variant ${index + 1}`} className={styles.imageThumb} />
+                      <img src={image.url} alt={`Variant ${index + 1}`} className={styles.imageThumb} draggable={false} />
                     </a>
                     {readOnly ? null : (
                       <button
                         type="button"
                         className={styles.imageRemove}
                         onClick={() => setImages((prev) => prev.filter((_, i) => i !== index))}
+                        onMouseDown={(event) => event.stopPropagation()}
                         aria-label="Remove image"
                       >
                         ×
@@ -209,6 +289,7 @@ export default function InventoryVariantModal({
               <>
                 <p className={styles.hint}>
                   Upload photos from your computer, or paste an image URL from your files.
+                  Drag photos to set the display order; the first photo is shown first.
                 </p>
                 <div className={styles.imageAddRow}>
                   <input

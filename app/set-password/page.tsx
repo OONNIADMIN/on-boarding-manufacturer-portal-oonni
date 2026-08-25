@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { authAPI } from '@/lib/api'
+import { passwordPolicyError } from '@/lib/password-policy'
 import styles from './page.module.scss'
 
 function SetPasswordContent() {
@@ -53,8 +54,9 @@ function SetPasswordContent() {
     setError('')
 
     // Validation
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long')
+    const policyError = passwordPolicyError(password)
+    if (policyError) {
+      setError(policyError)
       return
     }
 
@@ -144,11 +146,8 @@ function SetPasswordContent() {
           <div className={styles.header}>
             <h1 className={styles.title}>Welcome to Oonni!</h1>
             <p className={styles.subtitle}>
-              Hi <strong>{invitationData.name}</strong>, please set your password to continue
+              Please set your password to continue
             </p>
-            {invitationData.email && (
-              <p className={styles.email}>{invitationData.email}</p>
-            )}
           </div>
 
           <form onSubmit={handleSubmit} className={styles.form}>
@@ -186,7 +185,7 @@ function SetPasswordContent() {
                 disabled={isLoading}
                 minLength={8}
               />
-              <p className={styles.hint}>Must be at least 8 characters</p>
+              <p className={styles.hint}>At least 8 characters, with letters and numbers</p>
             </div>
 
             <div className={styles.formGroup}>

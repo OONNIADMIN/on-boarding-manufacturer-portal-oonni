@@ -3,14 +3,9 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { prisma } from "./db";
+import { getJwtExpireMinutes, getJwtSecretBytes } from "./jwt-secret";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "fallback-secret-change-in-production"
-);
-const JWT_EXPIRE_MINUTES = parseInt(
-  process.env.JWT_EXPIRE_MINUTES ?? "1440",
-  10
-);
+const JWT_EXPIRE_MINUTES = getJwtExpireMinutes();
 
 export interface JWTPayload {
   sub: string;
@@ -36,12 +31,12 @@ export async function signToken(payload: Omit<JWTPayload, "iat" | "exp">): Promi
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${JWT_EXPIRE_MINUTES}m`)
-    .sign(JWT_SECRET);
+    .sign(getJwtSecretBytes());
 }
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecretBytes());
     return payload as unknown as JWTPayload;
   } catch {
     return null;

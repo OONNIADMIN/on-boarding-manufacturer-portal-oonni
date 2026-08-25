@@ -6,6 +6,7 @@ import { MAX_HEADER_PREVIEW_ROWS, parseSpreadsheetPreviewFromFile } from '@/lib/
 import { IMAGE_COLUMN_SAMPLE_ROWS } from '@/lib/catalog-column-detection'
 import { catalogColumnRulesAPI } from '@/lib/api'
 import type { CatalogColumnRuleRecord } from '@/lib/catalog-column-validation'
+import { MAX_UPLOAD_BYTES, uploadTooLargeMessage } from '@/lib/upload-limits'
 import styles from './FilePicker.module.scss'
 
 export type { CatalogFileSelection }
@@ -61,9 +62,8 @@ export default function CatalogFilePicker({
       return
     }
 
-    const maxSize = 10 * 1024 * 1024
-    if (file.size > maxSize) {
-      const message = 'File size exceeds 10MB limit.'
+    if (file.size > MAX_UPLOAD_BYTES) {
+      const message = uploadTooLargeMessage()
       onValidationError?.(message)
       alert(message)
       resetFileInput()

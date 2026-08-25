@@ -20,6 +20,7 @@ import {
   resolveCatalogAttributes,
 } from "@/lib/inventory-attribute-catalog";
 import { resolveVariantImages } from "@/lib/inventory-crud";
+import { inventoryOrderBy, inventorySearchOr } from "@/lib/inventory-list-query";
 
 export const dynamic = "force-dynamic";
 
@@ -59,31 +60,10 @@ export async function GET(req: NextRequest) {
     deleted_at: null,
   };
 
-  if (search) {
-    where.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { slug: { contains: search, mode: "insensitive" } },
-      { external_id: { contains: search, mode: "insensitive" } },
-      { status: { contains: search, mode: "insensitive" } },
-      {
-        variants: {
-          some: {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { sku: { contains: search, mode: "insensitive" } },
-            ],
-          },
-        },
-      },
-    ];
-  }
+  const searchOr = inventorySearchOr(search);
+  if (searchOr) where.OR = searchOr;
 
-  const orderBy: Prisma.InventoryProductOrderByWithRelationInput =
-    sort === "external_id"
-      ? { external_id: order }
-      : sort === "status"
-        ? { status: order }
-        : { name: order };
+  const orderBy = inventoryOrderBy(sort, order);
 
   const [counted, rows] = await Promise.all([
     filterByCompleteness ? Promise.resolve(0) : prisma.inventoryProduct.count({ where }),

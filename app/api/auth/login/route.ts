@@ -1,13 +1,22 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword, signToken } from "@/lib/auth";
-import { ok, err, forbidden } from "@/lib/api-response";
+import { signToken } from "@/lib/auth";
+import { ok, err, tooManyRequests } from "@/lib/api-response";
+import { applySessionCookie, clientIp } from "@/lib/session-cookie";
+import { contentLengthTooLarge } from "@/lib/request-limits";
+import { LOGIN_FAILURE_DETAIL, consumeLoginAttempt, passwordsMatch } from "@/lib/login-guard";
 
 export async function POST(req: NextRequest) {
   try {
+    if (contentLengthTooLarge(req, 16_384, 0)) return err("Request too large", 413);
     const body = await req.json();
     const email = (body.email ?? "").trim().toLowerCase();
     const password = (body.password ?? "").trim();
+    const ip = clientIp(req);
+
+    if (!consumeLoginAttempt(ip, email)) {
+      return tooManyRequests("Too many login attempts. Try again in 15 minutes.");
+    }
 
     if (!email || !password) return err("Email and password are required");
 
@@ -16,15 +25,14 @@ export async function POST(req: NextRequest) {
       include: { role: true, manufacturer: true },
     });
 
-    if (!user || !user.password_hash) return err("Incorrect email or password", 401);
-    const valid = await verifyPassword(password, user.password_hash);
-    if (!valid) return err("Incorrect email or password", 401);
-    if (!user.is_active) return forbidden("Inactive user");
+    const valid = await passwordsMatch(password, user?.password_hash);
+    if (!valid || !user || !user.is_active) {
+      return err(LOGIN_FAILURE_DETAIL, 401);
+    }
 
     const token = await signToken({ sub: String(user.id), email: user.email, role: user.role.name });
 
-    return ok({
-      access_token: token,
+    const res = ok({
       token_type: "bearer",
       user: {
         id: user.id,
@@ -39,6 +47,7 @@ export async function POST(req: NextRequest) {
         manufacturer: user.manufacturer,
       },
     });
+    return applySessionCookie(res, token);
   } catch (e) {
     console.error("Login error:", e);
     return err("Login failed", 500);

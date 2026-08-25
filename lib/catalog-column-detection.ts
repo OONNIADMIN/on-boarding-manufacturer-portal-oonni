@@ -81,6 +81,19 @@ export function detectSkuColumn(
   return findCatalogColumn(columnNames, FALLBACK_SKU_CANDIDATES);
 }
 
+/** Locate the SKU header. Admin SKU candidates win; other rules are not used. */
+export function resolveSkuColumn(
+  columnNames: string[],
+  options?: { preferred?: string | null; rules?: CatalogColumnRuleRecord[] }
+): string | null {
+  const preferred = options?.preferred?.trim();
+  if (preferred) {
+    const exact = findCatalogColumn(columnNames, [preferred]);
+    if (exact) return exact;
+  }
+  return detectSkuColumn(columnNames, options?.rules);
+}
+
 /** Data rows after the header used to decide if a column holds image URLs. */
 export const IMAGE_COLUMN_SAMPLE_ROWS = 10;
 
@@ -186,4 +199,75 @@ export function detectImageUrlColumn(
   sampleRows?: string[][]
 ): string | null {
   return detectImageUrlColumns(columnNames, skuColumn, rules, sampleRows)[0] ?? null;
+}
+
+const VIDEO_FILE_EXT_RE = /\.(mp4|mov|webm|avi|m4v|mpeg|mpg)(\?|#|$)/i;
+const DOCUMENT_FILE_EXT_RE = /\.(pdf|zip|docx?|xlsx?|pptx?|csv|txt)(\?|#|$)/i;
+const FILE_HEADER_HINTS = [
+  "video",
+  "file",
+  "document",
+  "attachment",
+  "attachments",
+  "pdf",
+  "download",
+  "asset",
+  "assets",
+];
+
+/** True when a cell holds an http(s) URL to an image, video, or downloadable file. */
+export function cellLooksLikeRemoteAssetUrl(cell: unknown): boolean {
+  if (cellLooksLikeImageUrl(cell)) return true;
+  const raw = String(cell ?? "").trim();
+  if (!raw) return false;
+  const parts = [raw, ...raw.split(/[\s,;|]+/).map((part) => part.trim()).filter(Boolean)];
+  return parts.some((part) => {
+    if (!looksLikeHttpUrl(part)) return false;
+    return VIDEO_FILE_EXT_RE.test(part) || DOCUMENT_FILE_EXT_RE.test(part);
+  });
+}
+
+function headerLooksLikeFile(normalized: string): boolean {
+  return FILE_HEADER_HINTS.some((hint) => {
+    const re = new RegExp(`(^|[^a-z])${hint}s?([^a-z]|$)`);
+    return re.test(normalized);
+  });
+}
+
+/**
+ * Columns with remote image, video, or file URLs.
+ * Additive to `detectImageUrlColumns` — does not replace image-URL detection.
+ */
+export function detectCatalogMediaUrlColumns(
+  columnNames: string[],
+  skuColumn: string | null,
+  rules?: CatalogColumnRuleRecord[],
+  sampleRows?: string[][]
+): string[] {
+  const found = detectImageUrlColumns(columnNames, skuColumn, rules, sampleRows);
+  const skuNorm = skuColumn ? normalizeCatalogHeader(skuColumn) : "";
+  const seen = new Set(found.map((name) => normalizeCatalogHeader(name)));
+  const headers = columnNames.map((c) => String(c ?? "").trim());
+  const sample = sampleRows?.slice(0, IMAGE_COLUMN_SAMPLE_ROWS) ?? [];
+
+  const add = (header: string | null | undefined) => {
+    const name = String(header ?? "").trim();
+    if (!name) return;
+    const n = normalizeCatalogHeader(name);
+    if (!n || n === skuNorm || seen.has(n)) return;
+    seen.add(n);
+    found.push(name);
+  };
+
+  for (let col = 0; col < headers.length; col++) {
+    const header = headers[col];
+    if (!header) continue;
+    if (sample.length) {
+      if (sample.some((row) => cellLooksLikeRemoteAssetUrl(row?.[col]))) add(header);
+      continue;
+    }
+    if (headerLooksLikeFile(normalizeCatalogHeader(header))) add(header);
+  }
+
+  return found;
 }

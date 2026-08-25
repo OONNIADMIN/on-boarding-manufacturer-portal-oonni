@@ -3,12 +3,14 @@ import type { Manufacturer } from "@prisma/client";
 import {
   canonicalImageKitUrl,
   deleteFromImageKit,
+  isImageKitPublicUrl,
   listImageKitFilesInFolder,
   uploadToImageKit,
 } from "@/lib/imagekit";
 import { manufacturerImageKitCatalogsFolder, manufacturerImageKitImagesFolder } from "@/lib/manufacturer-media-path";
 import {
   assertHttpUrlForFetch,
+  fetchRemoteHttpUrl,
   splitUrlsInCell,
   joinUrlsInCell,
   filenameFromUrl,
@@ -21,10 +23,11 @@ import {
   parseSpreadsheetRows,
 } from "@/lib/catalog-file-headers";
 import {
-  detectImageUrlColumns,
+  detectCatalogMediaUrlColumns,
   detectSkuColumn,
   IMAGE_COLUMN_SAMPLE_ROWS,
 } from "@/lib/catalog-column-detection";
+import { catalogImageStorageKey, createOrReuseImage, findManufacturerImageForFile, imageKitFilePathFromKey } from "@/lib/image-record";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -58,6 +61,7 @@ export type CatalogImageIngestResult = {
   images_created: number;
   upload_failures: number;
   rows_missing_product: number;
+  urls_written?: number;
 };
 
 type IngestContext = {
@@ -101,8 +105,11 @@ async function deletePreviousCatalogFileFromImageKit(params: {
 
   try {
     let skip = 0;
-    const limit = 1000;
+    const limit = 100;
+    let pages = 0;
     for (;;) {
+      pages += 1;
+      if (pages > 20) return;
       const files = await listImageKitFilesInFolder({
         folderPath: params.catalogsFolder,
         fileTypeFilter: "all",
@@ -130,6 +137,7 @@ async function processSpreadsheetRows(
   ctx: IngestContext
 ): Promise<CatalogImageIngestResult> {
   const urlMap = new Map<string, CachedUpload>();
+  const attachedToProduct = new Set<string>();
   let imagesCreated = 0;
   let uploadFailures = 0;
   let rowsSkippedNoProduct = 0;
@@ -156,11 +164,33 @@ async function processSpreadsheetRows(
     if (existing) return existing;
 
     try {
+      if (isImageKitPublicUrl(sourceUrl)) {
+        const stored = await findManufacturerImageForFile({
+          manufacturerId: ctx.manufacturerId,
+          url: sourceUrl,
+        });
+        if (stored) {
+          const cached: CachedUpload = {
+            url: stored.s3_url,
+            filePath: imageKitFilePathFromKey(stored.s3_key),
+            fileId: stored.imagekit_file_id ?? "",
+            fileSize: Number(stored.file_size),
+            mimeType: stored.mime_type,
+            width: stored.width ?? undefined,
+            height: stored.height ?? undefined,
+            originalFilename: stored.original_filename,
+          };
+          urlMap.set(sourceUrl, cached);
+          processedUnique++;
+          emitProgress("uploading");
+          return cached;
+        }
+      }
+
       const parsed = assertHttpUrlForFetch(sourceUrl);
-      const imgRes = await fetch(parsed.toString(), {
-        redirect: "follow",
-        signal: AbortSignal.timeout(45_000),
-        headers: { "User-Agent": "OonniCatalogImporter/1.0" },
+      const imgRes = await fetchRemoteHttpUrl(sourceUrl, {
+        timeoutMs: 45_000,
+        userAgent: "OonniCatalogImporter/1.0",
       });
       if (!imgRes.ok) {
         console.warn("Remote image fetch failed:", sourceUrl, imgRes.status);
@@ -178,19 +208,26 @@ async function processSpreadsheetRows(
         return null;
       }
       const mime = normalizeMimeType(imgRes.headers.get("content-type"), parsed);
-      if (!mime.startsWith("image/")) {
-        console.warn("Remote URL is not an image:", sourceUrl, mime);
+      const isImage = mime.startsWith("image/");
+      const isVideo = mime.startsWith("video/");
+      const isFile = mime.startsWith("application/") || mime.startsWith("text/");
+      if (!isImage && !isVideo && !isFile) {
+        console.warn("Remote URL is not a usable file:", sourceUrl, mime);
         uploadFailures++;
         processedUnique++;
         emitProgress("uploading");
         return null;
       }
-      const baseName = filenameFromUrl(parsed, "imported.jpg");
+      const baseName = filenameFromUrl(parsed, isImage ? "imported.jpg" : "imported.bin");
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const fileName = `${stamp}_${baseName}`;
-      const uploaded = await uploadToImageKit(buf, fileName, ctx.imagesFolder, mime, {
-        preTransform: IMPORT_IMAGE_PRE_TRANSFORM,
-      });
+      const uploaded = await uploadToImageKit(
+        buf,
+        fileName,
+        ctx.imagesFolder,
+        mime,
+        isImage ? { preTransform: IMPORT_IMAGE_PRE_TRANSFORM } : undefined
+      );
       const cached: CachedUpload = {
         url: uploaded.url,
         filePath: uploaded.filePath,
@@ -217,6 +254,7 @@ async function processSpreadsheetRows(
 
   const maxIdx = Math.max(skuIdx, ...imgIdxs);
   for (let r = headerRowIndex + 1; r < aoa.length; r++) {
+    try {
     const row = aoa[r];
     if (!row) continue;
     while (row.length <= maxIdx) row.push("");
@@ -228,9 +266,9 @@ async function processSpreadsheetRows(
             where: {
               sku,
               manufacturer_id: ctx.manufacturerId,
-              catalog_id: ctx.catalogId,
               deleted_at: null,
             },
+            orderBy: { id: "desc" },
           })
         : null;
 
@@ -240,36 +278,47 @@ async function processSpreadsheetRows(
       if (urls.length === 0) continue;
 
       const replacements: string[] = [];
-      for (const src of urls) {
+      for (let urlIndex = 0; urlIndex < urls.length; urlIndex++) {
+        const src = urls[urlIndex];
         const uploaded = await ensureUploaded(src);
         if (!uploaded) {
           replacements.push(src);
           continue;
         }
         replacements.push(uploaded.url);
-        if (product) {
-          await prisma.image.create({
-            data: {
-              manufacturer_id: ctx.manufacturerId,
-              user_id: ctx.userId,
-              product_id: product.id,
-              original_filename: uploaded.originalFilename,
-              s3_key: uploaded.filePath,
-              s3_url: uploaded.url,
-              imagekit_file_id: uploaded.fileId,
-              file_size: uploaded.fileSize,
-              mime_type: uploaded.mimeType,
-              width: uploaded.width ?? null,
-              height: uploaded.height ?? null,
-              optimized: 1,
-            },
-          });
-          imagesCreated++;
-        } else {
+        if (!product) {
           rowsSkippedNoProduct++;
+          continue;
+        }
+        const attachKey = `${product.id}:${uploaded.fileId || uploaded.filePath}`;
+        if (attachedToProduct.has(attachKey)) continue;
+        try {
+          const outcome = await createOrReuseImage({
+            manufacturer_id: ctx.manufacturerId,
+            user_id: ctx.userId,
+            product_id: product.id,
+            original_filename: uploaded.originalFilename,
+            s3_key: catalogImageStorageKey(uploaded.filePath, `p${product.id}`),
+            s3_url: uploaded.url,
+            imagekit_file_id: uploaded.fileId || null,
+            file_size: uploaded.fileSize,
+            mime_type: uploaded.mimeType,
+            width: uploaded.width ?? null,
+            height: uploaded.height ?? null,
+            optimized: 1,
+          });
+          attachedToProduct.add(attachKey);
+          if (outcome === "created") imagesCreated++;
+        } catch (error) {
+          console.warn("Catalog image row skipped:", sku, error);
+          uploadFailures++;
         }
       }
       row[imgIdx] = joinUrlsInCell(replacements, imageCellOriginal);
+    }
+    } catch (rowError) {
+      console.warn("Catalog image row skipped:", rowError);
+      uploadFailures++;
     }
   }
 
@@ -332,23 +381,32 @@ export async function ingestCatalogImagesFromSpreadsheet(params: {
     .map((name) => name.trim())
     .filter(Boolean);
 
-  const detectedImageColumns = detectImageUrlColumns(
+  const detectedImageColumns = detectCatalogMediaUrlColumns(
     header,
     skuColumn || null,
     undefined,
     aoa.slice(params.headerRowIndex + 1, params.headerRowIndex + 1 + IMAGE_COLUMN_SAMPLE_ROWS)
   );
 
-  const imageColumns = (detectedImageColumns.length ? detectedImageColumns : requestedImageColumns)
+  const imageColumns = (requestedImageColumns.length ? requestedImageColumns : detectedImageColumns)
     .filter((name) => findHeaderColumnIndex(header, name) >= 0);
 
   const imgIdxs = [...new Set(imageColumns.map((name) => findHeaderColumnIndex(header, name)))]
     .filter((idx) => idx >= 0);
 
-  if (skuIdx < 0 || !imgIdxs.length) {
-    throw new Error(
-      `Columns not found. Available: ${namedColumns.join(", ")}`
-    );
+  if (skuIdx < 0) {
+    throw new Error(`SKU column not found. Available: ${namedColumns.join(", ")}`);
+  }
+  if (!imgIdxs.length) {
+    return {
+      message: "No remote file URL columns to import",
+      catalog_id: params.catalogId,
+      catalog_file: params.catalogFileUrl,
+      unique_sources_fetched: 0,
+      images_created: 0,
+      upload_failures: 0,
+      rows_missing_product: 0,
+    };
   }
 
   const ctx: IngestContext = {

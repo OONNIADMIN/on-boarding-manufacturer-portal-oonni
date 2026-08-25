@@ -38,7 +38,7 @@ export type NauticalInventoryProductNode = {
   id: string;
   slug: string;
   name: string;
-  images?: Array<{ url?: string | null }> | null;
+  images?: Array<{ id?: string | null; url?: string | null; sortOrder?: number | null }> | null;
   descriptionHtml?: string | null;
   description?: string | null;
   currency?: string | null;
@@ -70,7 +70,7 @@ export type NauticalInventoryProductNode = {
     name?: string | null;
     sku?: string | null;
     seoDescription?: string | null;
-    images?: Array<{ id?: string | null; url?: string | null }> | null;
+    images?: Array<{ id?: string | null; url?: string | null; sortOrder?: number | null }> | null;
     media?: Array<{ id?: string | null; url?: string | null }> | null;
     externalId?: string | null;
     externalSource?: string | null;
@@ -107,18 +107,18 @@ function collectVariantImages(variant: { images?: unknown; media?: unknown }) {
 }
 
 async function persistVariantImages(variantRowId: number, images: unknown) {
-  await prisma.$executeRawUnsafe(
-    `UPDATE inventory_variants SET images = $1::jsonb WHERE id = $2`,
-    JSON.stringify(images ?? []),
-    variantRowId
-  );
+  await prisma.inventoryVariant.update({
+    where: { id: variantRowId },
+    data: { images: asJson(images ?? []) },
+  });
 }
 
 export async function fetchNauticalInventoryProducts(sellerId: string): Promise<NauticalInventoryProductNode[]> {
   const nodes: NauticalInventoryProductNode[] = [];
   let after: string | null = null;
+  const maxPages = 50;
 
-  for (;;) {
+  for (let page = 0; page < maxPages; page += 1) {
     const data: ProductsConnection = await executeTraideQuery<ProductsConnection>("inventoryProducts", {
       first: 100,
       after,

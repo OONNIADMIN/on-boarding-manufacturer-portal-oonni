@@ -6,11 +6,18 @@ import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
-  const { error } = await requireAuth(req);
-  if (error) return unauthorized(error);
+  const { user, error } = await requireAuth(req);
+  if (error || !user) return unauthorized(error ?? undefined);
 
   const { id } = await params;
-  const mfr = await prisma.manufacturer.findUnique({ where: { id: parseInt(id, 10) } });
+  const manufacturerId = parseInt(id, 10);
+  if (!Number.isFinite(manufacturerId) || manufacturerId < 1) return err("Invalid manufacturer id");
+
+  const isAdmin = isAdminUser(user);
+  const ownId = effectiveManufacturerId(user);
+  if (!isAdmin && ownId !== manufacturerId) return forbidden("Access denied");
+
+  const mfr = await prisma.manufacturer.findUnique({ where: { id: manufacturerId } });
   if (!mfr || mfr.deleted_at) return notFound("Manufacturer not found");
   return ok(mfr);
 }
