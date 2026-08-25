@@ -38,7 +38,7 @@ export type NauticalInventoryProductNode = {
   id: string;
   slug: string;
   name: string;
-  images?: Array<{ url?: string | null }> | null;
+  images?: Array<{ id?: string | null; url?: string | null; sortOrder?: number | null }> | null;
   descriptionHtml?: string | null;
   description?: string | null;
   currency?: string | null;
@@ -70,7 +70,7 @@ export type NauticalInventoryProductNode = {
     name?: string | null;
     sku?: string | null;
     seoDescription?: string | null;
-    images?: Array<{ id?: string | null; url?: string | null }> | null;
+    images?: Array<{ id?: string | null; url?: string | null; sortOrder?: number | null }> | null;
     media?: Array<{ id?: string | null; url?: string | null }> | null;
     externalId?: string | null;
     externalSource?: string | null;

@@ -28,6 +28,10 @@ import {
   PRODUCT_IMAGE_BULK_DELETE_MUTATION,
   type ProductImageBulkDeletePayload,
 } from "./product-image-bulk-delete";
+import {
+  PRODUCT_IMAGE_REORDER_MUTATION,
+  type ProductImageReorderPayload,
+} from "./product-image-reorder";
 
 export {
   PRODUCT_BULK_CREATE_MUTATION,
@@ -37,6 +41,7 @@ export {
   PRODUCT_IMAGE_CREATE_MUTATION,
   PRODUCT_VARIANT_IMAGE_ASSIGN_MUTATION,
   PRODUCT_IMAGE_BULK_DELETE_MUTATION,
+  PRODUCT_IMAGE_REORDER_MUTATION,
   type ProductBulkCreatePayload,
   type ProductUpdatePayload,
   type ProductVariantBulkCreatePayload,
@@ -44,6 +49,7 @@ export {
   type ProductImageCreatePayload,
   type ProductVariantImageAssignPayload,
   type ProductImageBulkDeletePayload,
+  type ProductImageReorderPayload,
   type TraideBulkProductError,
   type TraideProductError,
 };
@@ -56,6 +62,7 @@ export const TRAIDE_MUTATIONS = {
   productImageCreate: PRODUCT_IMAGE_CREATE_MUTATION,
   productVariantImageAssign: PRODUCT_VARIANT_IMAGE_ASSIGN_MUTATION,
   productImageBulkDelete: PRODUCT_IMAGE_BULK_DELETE_MUTATION,
+  productImageReorder: PRODUCT_IMAGE_REORDER_MUTATION,
 } as const;
 
 export type TraideMutationName = keyof typeof TRAIDE_MUTATIONS;

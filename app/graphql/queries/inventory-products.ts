@@ -15,6 +15,7 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
         images {
           id
           url
+          sortOrder
         }
         descriptionHtml
         description
@@ -86,6 +87,7 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
           images {
             id
             url
+            sortOrder
           }
           attributes {
             attribute {
