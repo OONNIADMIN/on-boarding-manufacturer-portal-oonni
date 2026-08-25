@@ -31,12 +31,6 @@ query InventoryProducts($first: Int!, $after: String, $seller: ID!) {
         availableForPurchase
         status
         isPublished
-        dimensions {
-          length
-          width
-          height
-          unit
-        }
         warnings {
           code
           message
