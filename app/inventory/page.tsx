@@ -14,6 +14,7 @@ import {
   CompletenessMeter,
   CompletenessChart,
   CompletenessBreakdown,
+  ImageZoomLightbox,
 } from '@/components'
 import {
   authAPI,
@@ -63,26 +64,39 @@ function ImageGallery({
   alt: string
   size?: 'sm' | 'md'
 }) {
+  const [zoomIndex, setZoomIndex] = useState<number | null>(null)
   if (!urls.length) {
     return <span className={styles.thumbFallback} aria-hidden="true" />
   }
   return (
-    <div className={size === 'md' ? styles.imageGalleryMd : styles.imageGallery} role="list">
-      {urls.map((url, index) => (
-        <a
-          key={`${url}-${index}`}
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className={styles.imageLink}
-          title={`${alt} image ${index + 1}`}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`${alt} ${index + 1}`} className={styles.thumb} />
-        </a>
-      ))}
-    </div>
+    <>
+      <div className={size === 'md' ? styles.imageGalleryMd : styles.imageGallery} role="list">
+        {urls.map((url, index) => (
+          <button
+            key={`${url}-${index}`}
+            type="button"
+            className={styles.imageLink}
+            title={`Zoom ${alt} image ${index + 1}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              setZoomIndex(index)
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={`${alt} ${index + 1}`} className={styles.thumb} />
+          </button>
+        ))}
+      </div>
+      {zoomIndex != null ? (
+        <ImageZoomLightbox
+          urls={urls}
+          index={zoomIndex}
+          alt={alt}
+          onClose={() => setZoomIndex(null)}
+          onIndexChange={setZoomIndex}
+        />
+      ) : null}
+    </>
   )
 }
 
