@@ -31,7 +31,7 @@ export async function ensureVariantImagesInImageKit(params: {
 }): Promise<{ images: DamInventoryImage[]; errors: string[] }> {
   const manufacturer = await prisma.manufacturer.findFirst({
     where: { id: params.manufacturerId, deleted_at: null },
-    select: { id: true, slug: true, imagekit_media_root: true },
+    select: { id: true, slug: true, name: true, imagekit_media_root: true },
   });
   if (!manufacturer) {
     return { images: [], errors: ["Manufacturer not found"] };

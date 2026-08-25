@@ -13,6 +13,7 @@
 .meta {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   color: $white;
   font-size: 0.8rem;
@@ -27,7 +28,27 @@
 
   span {
     opacity: 0.9;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+.dismiss {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: $white;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.85;
+  padding: 0 0.15rem;
+
+  &:hover {
+    opacity: 1;
   }
 }
 

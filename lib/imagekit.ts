@@ -716,12 +716,13 @@ export async function createImageKitFolder(
 }
 
 /**
- * Ensure `/{slug}`, `/{slug}/images` and `/{slug}/catalogs` exist in ImageKit.
+ * Ensure `/{companyName}`, `/{companyName}/images` and `/{companyName}/catalogs` exist in ImageKit.
  * Does not throw — logs and returns false if ImageKit is not configured or the API fails.
  */
 export async function ensureManufacturerImageKitFolders(m: {
   id: number;
   slug: string;
+  name?: string | null;
   imagekit_media_root?: string | null;
 }): Promise<{ ok: boolean; root: string; error?: string }> {
   const root = manufacturerImageKitRoot(m);

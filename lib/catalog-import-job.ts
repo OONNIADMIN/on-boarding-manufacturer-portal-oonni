@@ -5,8 +5,11 @@ import path from "path";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { slugify } from "@/lib/api-response";
-import { uploadToImageKit } from "@/lib/imagekit";
-import { manufacturerImageKitCatalogsFolder } from "@/lib/manufacturer-media-path";
+import { uploadToImageKit, ensureManufacturerImageKitFolders, createImageKitFolder } from "@/lib/imagekit";
+import {
+  manufacturerImageKitCatalogsFolder,
+  manufacturerImageKitImagesFolder,
+} from "@/lib/manufacturer-media-path";
 import {
   countDataRows,
   extractColumnNamesFromRows,
@@ -18,7 +21,7 @@ import { ingestCatalogImagesFromSpreadsheet } from "@/lib/catalog-image-ingest";
 import { ingestEmbeddedImagesFromWorkbook } from "@/lib/catalog-embedded-image-ingest";
 import { detectSkuColumn } from "@/lib/catalog-column-detection";
 import { sendCatalogUploadNotification } from "@/lib/email";
-import { prepareCatalogFileForRemoteStore } from "@/lib/xlsx-embedded-images";
+import { prepareCatalogFileForRemoteStore, stripXlsxEmbeddedMedia } from "@/lib/xlsx-embedded-images";
 
 const running = new Set<string>();
 
@@ -155,8 +158,22 @@ async function processCatalogImport(publicId: string): Promise<void> {
       message: "Reading spreadsheet and checking columns…",
     });
 
-    const buffer = await readFile(job.storage_path);
-    const rows = parseSpreadsheetRows(buffer, job.original_filename);
+    const originalBuffer = await readFile(job.storage_path);
+    const lowerName = job.original_filename.toLowerCase();
+    const isExcel = lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls");
+
+    await patchJob(publicId, {
+      message: isExcel
+        ? "Preparing a compact catalog copy and reading columns…"
+        : "Reading spreadsheet and checking columns…",
+    });
+
+    const workBuffer =
+      isExcel && originalBuffer.length > 8 * 1024 * 1024
+        ? await stripXlsxEmbeddedMedia(originalBuffer)
+        : originalBuffer;
+
+    const rows = parseSpreadsheetRows(workBuffer, job.original_filename);
     if (!rows.length) throw new Error("The uploaded file is empty");
     if (job.header_row_index >= rows.length) {
       throw new Error(
@@ -190,6 +207,11 @@ async function processCatalogImport(publicId: string): Promise<void> {
       message: `Found ${dataRows} data row(s) and ${columnNames.length} column(s).`,
     });
 
+    const manufacturer = await prisma.manufacturer.findUnique({ where: { id: job.manufacturer_id } });
+    if (!manufacturer || manufacturer.deleted_at) throw new Error("Manufacturer not found");
+
+    await ensureManufacturerImageKitFolders(manufacturer);
+
     let productsCreated = 0;
     if (skuColumn) {
       await patchJob(publicId, {
@@ -198,7 +220,7 @@ async function processCatalogImport(publicId: string): Promise<void> {
         message: "Creating products in batches…",
       });
       const productResult = await createProductsFromCatalogSpreadsheet({
-        buffer,
+        buffer: workBuffer,
         fileName: job.original_filename,
         headerRowIndex: job.header_row_index,
         skuColumn,
@@ -212,62 +234,31 @@ async function processCatalogImport(publicId: string): Promise<void> {
           });
         },
       });
-      productsCreated = productResult.created_count;
-      await patchJob(publicId, { products_created: productsCreated });
+      productsCreated = productResult.created_count + productResult.reused_count;
+      await patchJob(publicId, {
+        products_created: productsCreated,
+        message:
+          productResult.created_count === 0 && productResult.reused_count > 0
+            ? `Using ${productResult.reused_count} existing product(s). Importing photos next…`
+            : `Ready with ${productsCreated} product(s).`,
+      });
     }
-
-    const manufacturer = await prisma.manufacturer.findUnique({ where: { id: job.manufacturer_id } });
-    if (!manufacturer || manufacturer.deleted_at) throw new Error("Manufacturer not found");
 
     let imagesCreated = 0;
     let imagesFailed = 0;
-
-    if (skuColumn) {
-      await patchJob(publicId, {
-        status: "importing_images",
-        phase: "importing_images",
-        message: "Importing photos embedded in the spreadsheet…",
-      });
-      const embedded = await ingestEmbeddedImagesFromWorkbook({
-        buffer,
-        fileName: job.original_filename,
-        headerRowIndex: job.header_row_index,
-        skuColumn,
-        catalogId: catalog.id,
-        manufacturerId: job.manufacturer_id,
-        userId: job.user_id,
-        manufacturer,
-        onProgress: (progress) => {
-          void patchJob(publicId, {
-            progress_current: progress.processed,
-            progress_total: Math.max(progress.total, 1),
-            images_created: progress.images_created,
-            images_failed: progress.failed,
-            message:
-              progress.phase === "finalizing"
-                ? "Finishing embedded photo import…"
-                : `Importing embedded photos ${progress.processed} of ${progress.total}…`,
-          });
-        },
-      });
-      if (embedded) {
-        imagesCreated += embedded.images_created;
-        imagesFailed += embedded.upload_failures;
-      }
-    }
 
     await patchJob(publicId, {
       status: "saving_file",
       phase: "saving_file",
       message:
-        buffer.length >= 100 * 1024 * 1024
+        originalBuffer.length >= 100 * 1024 * 1024
           ? "Saving a compact catalog copy. Product photos are imported separately…"
           : "Saving catalog file…",
     });
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const folder = manufacturerImageKitCatalogsFolder(manufacturer);
-    const archive = await prepareCatalogFileForRemoteStore(buffer, job.original_filename);
+    const archive = await prepareCatalogFileForRemoteStore(workBuffer, job.original_filename);
     let catalogFileUrl = "";
     if (archive) {
       try {
@@ -290,6 +281,47 @@ async function processCatalogImport(publicId: string): Promise<void> {
       }
     }
 
+    if (isExcel) {
+      await patchJob(publicId, {
+        status: "importing_images",
+        phase: "importing_images",
+        message: "Reading photos embedded in the spreadsheet…",
+      });
+      try {
+        await createImageKitFolder(catalog.slug, manufacturerImageKitImagesFolder(manufacturer));
+      } catch (folderErr) {
+        console.warn("Catalog image folder create skipped:", folderErr);
+      }
+      const embedded = await ingestEmbeddedImagesFromWorkbook({
+        buffer: originalBuffer,
+        fileName: job.original_filename,
+        headerRowIndex: job.header_row_index,
+        skuColumn,
+        catalogId: catalog.id,
+        catalogSlug: catalog.slug,
+        manufacturerId: job.manufacturer_id,
+        userId: job.user_id,
+        manufacturer,
+        rows,
+        onProgress: (progress) => {
+          void patchJob(publicId, {
+            progress_current: progress.processed,
+            progress_total: Math.max(progress.total, 1),
+            images_created: progress.images_created,
+            images_failed: progress.failed,
+            message:
+              progress.phase === "finalizing"
+                ? "Finishing embedded photo import…"
+                : `Importing embedded photos ${progress.processed} of ${progress.total}…`,
+          });
+        },
+      });
+      if (embedded) {
+        imagesCreated += embedded.images_created;
+        imagesFailed += embedded.upload_failures;
+      }
+    }
+
     const imageColumns = Array.isArray(job.image_columns)
       ? (job.image_columns as unknown[]).map((c) => String(c).trim()).filter(Boolean)
       : [];
@@ -308,7 +340,7 @@ async function processCatalogImport(publicId: string): Promise<void> {
         imageColumns,
         catalogFileUrl: catalogFileUrl || "catalog.xlsx",
         headerRowIndex: job.header_row_index,
-        spreadsheetBuffer: buffer,
+        spreadsheetBuffer: workBuffer,
         manufacturer,
         onProgress: (progress) => {
           void patchJob(publicId, {
@@ -357,7 +389,10 @@ async function processCatalogImport(publicId: string): Promise<void> {
     await patchJob(publicId, {
       status: "completed",
       phase: "completed",
-      message: "Catalog import finished. You can keep working.",
+      message:
+        imagesCreated > 0
+          ? `Catalog import finished. ${productsCreated} product(s), ${imagesCreated} photo(s).`
+          : "Catalog import finished. You can keep working.",
       products_created: productsCreated,
       images_created: imagesCreated,
       images_failed: imagesFailed,

@@ -83,3 +83,36 @@ describe("embedded excel images", () => {
     expect(stripped.length).toBeLessThan(original.length);
   });
 });
+
+describe("catalog image folder path", () => {
+  test("uses the company name for ImageKit folders", async () => {
+    const {
+      defaultManufacturerMediaRoot,
+      manufacturerImageKitCatalogsFolder,
+      manufacturerImageKitCatalogImagesFolder,
+      manufacturerImageKitRoot,
+    } = await import("@/lib/manufacturer-media-path");
+    expect(defaultManufacturerMediaRoot({ id: 1, slug: "toughbuilt", name: "Elite" })).toBe("/Elite");
+    expect(
+      defaultManufacturerMediaRoot({ id: 1, slug: "toughbuilt", name: "Elite Global Solutions" })
+    ).toBe("/Elite-Global-Solutions");
+    expect(defaultManufacturerMediaRoot({ id: 1, slug: "toughbuilt" })).toBe("/toughbuilt");
+    expect(
+      manufacturerImageKitCatalogsFolder({ id: 1, slug: "toughbuilt", name: "Elite" })
+    ).toBe("/Elite/catalogs");
+    expect(
+      manufacturerImageKitCatalogImagesFolder(
+        { id: 1, slug: "toughbuilt", name: "Elite" },
+        "elite_global_solutions_list__1_"
+      )
+    ).toBe("/Elite/images/elite_global_solutions_list__1_");
+    expect(
+      manufacturerImageKitRoot({
+        id: 1,
+        slug: "toughbuilt",
+        name: "Elite",
+        imagekit_media_root: "/toughbuilt",
+      })
+    ).toBe("/toughbuilt");
+  });
+});

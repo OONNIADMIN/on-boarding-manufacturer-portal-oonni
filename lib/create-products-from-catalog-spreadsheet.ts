@@ -13,6 +13,7 @@ export type CreateProductsFromSpreadsheetResult = {
   created: number;
   created_count: number;
   skipped: number;
+  reused_count: number;
 };
 
 const PRODUCT_BATCH = 75;
@@ -33,7 +34,14 @@ export async function createProductsFromCatalogSpreadsheet(params: {
     (params.skuColumn && columnNames.includes(params.skuColumn) ? params.skuColumn : null) ??
     detectSkuColumn(columnNames);
   if (!skuColumn) {
-    return { total_skus: 0, total_requested: 0, created: 0, created_count: 0, skipped: 0 };
+    return {
+      total_skus: 0,
+      total_requested: 0,
+      created: 0,
+      created_count: 0,
+      skipped: 0,
+      reused_count: 0,
+    };
   }
   const rows = rowsToObjects(allRows, params.headerRowIndex);
 
@@ -78,5 +86,6 @@ export async function createProductsFromCatalogSpreadsheet(params: {
     created,
     created_count: created,
     skipped,
+    reused_count: skipped,
   };
 }

@@ -231,9 +231,9 @@ async function processSpreadsheetRows(
             where: {
               sku,
               manufacturer_id: ctx.manufacturerId,
-              catalog_id: ctx.catalogId,
               deleted_at: null,
             },
+            orderBy: { id: "desc" },
           })
         : null;
 
