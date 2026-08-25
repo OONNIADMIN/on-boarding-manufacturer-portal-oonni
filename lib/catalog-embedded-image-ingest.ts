@@ -13,8 +13,45 @@ import {
   parseSpreadsheetRows,
 } from "@/lib/catalog-file-headers";
 import { detectSkuColumn } from "@/lib/catalog-column-detection";
+import { catalogImageStorageKey, createOrReuseImage } from "@/lib/image-record";
 import { extractEmbeddedImagesFromXlsx } from "@/lib/xlsx-embedded-images";
+import { joinUrlsInCell } from "@/lib/remote-image-import";
 import type { CatalogImageIngestProgress, CatalogImageIngestResult } from "@/lib/catalog-image-ingest";
+
+const IMAGE_HEADER_ALIASES = ["image", "images", "imagen", "imagenes", "foto", "fotos", "photo", "photos", "picture"];
+
+export function findCatalogImageColumnIndex(header: string[]): number {
+  for (const alias of IMAGE_HEADER_ALIASES) {
+    const idx = findHeaderColumnIndex(header, alias);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+/** Write the uploaded ImageKit URL into the spreadsheet row that owns that SKU/photo. */
+export function writeImageUrlIntoCatalogRow(
+  rows: string[][],
+  rowIndex: number,
+  colIndex: number,
+  url: string,
+  imageHeaderColIndex = -1
+): void {
+  if (!url || rowIndex < 0) return;
+  const row = rows[rowIndex] ?? [];
+  rows[rowIndex] = row;
+  const targets = new Set<number>([colIndex]);
+  if (imageHeaderColIndex >= 0) targets.add(imageHeaderColIndex);
+  for (const col of targets) {
+    if (col < 0) continue;
+    while (row.length <= col) row.push("");
+    const current = String(row[col] ?? "").trim();
+    if (!current || current === "#VALUE!" || !/^https?:\/\//i.test(current)) {
+      row[col] = url;
+    } else if (current !== url) {
+      row[col] = joinUrlsInCell([current, url], current);
+    }
+  }
+}
 
 const IMPORT_IMAGE_PRE_TRANSFORM = "w-1600,h-1600,c-at_max,q-80";
 const UPLOAD_CONCURRENCY = 3;
@@ -64,6 +101,7 @@ export async function ingestEmbeddedImagesFromWorkbook(params: {
     detectSkuColumn(header.filter(Boolean)) ??
     (findHeaderColumnIndex(header, "sku") >= 0 ? "sku" : null);
   const skuIdx = skuName ? findHeaderColumnIndex(header, skuName) : -1;
+  const imageColIdx = findCatalogImageColumnIndex(header);
 
   const folder = manufacturerImageKitCatalogImagesFolder(params.manufacturer, params.catalogSlug);
   try {
@@ -91,6 +129,7 @@ export async function ingestEmbeddedImagesFromWorkbook(params: {
   let imagesCreated = 0;
   let uploadFailures = 0;
   let rowsSkippedNoProduct = 0;
+  let urlsWritten = 0;
   let processed = 0;
 
   const emit = () => {
@@ -145,23 +184,26 @@ export async function ingestEmbeddedImagesFromWorkbook(params: {
           : null;
         if (!product) rowsSkippedNoProduct++;
 
-        await prisma.image.create({
-          data: {
-            manufacturer_id: params.manufacturerId,
-            user_id: params.userId,
-            product_id: product?.id ?? null,
-            original_filename: uploaded.originalFilename,
-            s3_key: `${uploaded.filePath}#${item.rowIndex}-${item.colIndex}`,
-            s3_url: uploaded.url,
-            imagekit_file_id: uploaded.fileId,
-            file_size: uploaded.fileSize,
-            mime_type: uploaded.mime,
-            width: uploaded.width ?? null,
-            height: uploaded.height ?? null,
-            optimized: 1,
-          },
+        const outcome = await createOrReuseImage({
+          manufacturer_id: params.manufacturerId,
+          user_id: params.userId,
+          product_id: product?.id ?? null,
+          original_filename: uploaded.originalFilename,
+          s3_key: catalogImageStorageKey(
+            uploaded.filePath,
+            product ? `p${product.id}` : `m${params.manufacturerId}`
+          ),
+          s3_url: uploaded.url,
+          imagekit_file_id: uploaded.fileId,
+          file_size: uploaded.fileSize,
+          mime_type: uploaded.mime,
+          width: uploaded.width ?? null,
+          height: uploaded.height ?? null,
+          optimized: 1,
         });
-        imagesCreated++;
+        if (outcome === "created") imagesCreated++;
+        writeImageUrlIntoCatalogRow(rows, item.rowIndex, item.colIndex, uploaded.url, imageColIdx);
+        urlsWritten++;
       } catch (error) {
         console.warn("Embedded image import failed:", sku, error);
         uploadFailures++;
@@ -183,5 +225,6 @@ export async function ingestEmbeddedImagesFromWorkbook(params: {
     images_created: imagesCreated,
     upload_failures: uploadFailures,
     rows_missing_product: rowsSkippedNoProduct,
+    urls_written: urlsWritten,
   };
 }

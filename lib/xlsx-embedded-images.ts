@@ -210,8 +210,8 @@ export async function extractEmbeddedImagesFromXlsx(buffer: Buffer): Promise<Emb
   return out;
 }
 
-/** Remote media library rejects files at 100MB. */
-export const REMOTE_CATALOG_FILE_MAX_BYTES = 100 * 1024 * 1024;
+/** ImageKit rejects non-media uploads (xlsx/csv) above 25MB. */
+export const REMOTE_CATALOG_FILE_MAX_BYTES = 25 * 1024 * 1024;
 
 export async function stripXlsxEmbeddedMedia(buffer: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(buffer);
@@ -256,9 +256,11 @@ export async function prepareCatalogFileForRemoteStore(
     }
   }
 
-  const { parseSpreadsheetRows } = await import("@/lib/catalog-spreadsheet-parse");
+  const { compactSpreadsheetRows, parseSpreadsheetRows } = await import(
+    "@/lib/catalog-spreadsheet-parse"
+  );
   const Papa = (await import("papaparse")).default;
-  const rows = parseSpreadsheetRows(buffer, fileName);
+  const rows = compactSpreadsheetRows(parseSpreadsheetRows(buffer, fileName));
   const csv = Buffer.from(Papa.unparse(rows), "utf8");
   if (csv.length >= REMOTE_CATALOG_FILE_MAX_BYTES) return null;
   return {

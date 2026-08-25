@@ -5,7 +5,9 @@ import {
   parseSpreadsheetRows,
   rowsToObjects,
 } from "@/lib/catalog-file-headers";
-import { detectSkuColumn } from "@/lib/catalog-column-detection";
+import { resolveSkuColumn } from "@/lib/catalog-column-detection";
+import { listCatalogColumnRules } from "@/lib/catalog-column-rules-service";
+import type { CatalogColumnRuleRecord } from "@/lib/catalog-column-validation";
 
 export type CreateProductsFromSpreadsheetResult = {
   total_skus: number;
@@ -23,6 +25,7 @@ export async function createProductsFromCatalogSpreadsheet(params: {
   fileName: string;
   headerRowIndex: number;
   skuColumn?: string | null;
+  columnRules?: CatalogColumnRuleRecord[];
   catalogId: number;
   manufacturerId: number;
   onProgress?: (current: number, total: number) => void | Promise<void>;
@@ -30,9 +33,12 @@ export async function createProductsFromCatalogSpreadsheet(params: {
   const allRows = parseSpreadsheetRows(params.buffer, params.fileName);
   fillMissingSkuHeader(allRows, params.headerRowIndex);
   const columnNames = extractColumnNamesFromRows(allRows, params.headerRowIndex);
-  const skuColumn =
-    (params.skuColumn && columnNames.includes(params.skuColumn) ? params.skuColumn : null) ??
-    detectSkuColumn(columnNames);
+  const columnRules =
+    params.columnRules ?? (await listCatalogColumnRules({ activeOnly: true }).catch(() => []));
+  const skuColumn = resolveSkuColumn(columnNames, {
+    preferred: params.skuColumn,
+    rules: columnRules,
+  });
   if (!skuColumn) {
     return {
       total_skus: 0,

@@ -6,7 +6,7 @@ import { Header } from '@/components'
 import CatalogFilePicker, { type CatalogFileSelection } from '@/components/file-management/CatalogFilePicker'
 import ImageList from '@/components/file-management/ImageList'
 import { authAPI, catalogAPI, catalogColumnRulesAPI, imageAPI } from '@/lib/api'
-import { detectImageUrlColumns, detectSkuColumn } from '@/lib/catalog-column-detection'
+import { detectCatalogMediaUrlColumns, detectSkuColumn } from '@/lib/catalog-column-detection'
 import { User } from '@/types'
 import styles from './page.module.scss'
 
@@ -139,7 +139,7 @@ export default function CatalogsPage() {
         ...new Set(
           [
             ...(selection?.imageColumns ?? []),
-            ...detectImageUrlColumns(
+            ...detectCatalogMediaUrlColumns(
               selection?.headerCells?.length ? selection.headerCells : columnsForUpload,
               skuColForUpload,
               columnRules,

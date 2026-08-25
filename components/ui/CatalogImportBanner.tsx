@@ -22,6 +22,10 @@ function isStorageLimitError(text: string): boolean {
   return /104857600|file size exceeds|invalid file parameter/i.test(text)
 }
 
+function isDuplicatePhotoError(text: string): boolean {
+  return /Unique constraint failed/i.test(text)
+}
+
 function phaseLabel(job: CatalogImportJobView): string {
   if (job.status === 'completed') return job.message || 'Catalog import finished'
   if (job.status === 'failed') {
@@ -29,13 +33,16 @@ function phaseLabel(job: CatalogImportJobView): string {
     if (isStorageLimitError(detail)) {
       return 'This catalog was too large to keep as one file. Upload it again to import the photos.'
     }
+    if (isDuplicatePhotoError(detail)) {
+      return 'Some photos were already in the catalog. Duplicates were skipped — you can keep working.'
+    }
     return detail
   }
   return job.message || 'Processing catalog…'
 }
 
 function percent(job: CatalogImportJobView): number {
-  if (job.status === 'completed') return 100
+  if (job.status === 'completed' || job.status === 'failed') return 100
   if (job.status === 'queued') return 5
   if (job.progress_total > 0) {
     return Math.min(99, Math.round((job.progress_current / job.progress_total) * 100))
@@ -104,7 +111,7 @@ export default function CatalogImportBanner({ userId }: { userId: number }) {
     const now = Date.now()
     const timers: number[] = []
     for (const job of jobs) {
-      if (job.status !== 'completed') continue
+      if (job.status !== 'completed' && job.status !== 'failed') continue
       if (!completedSeenAt.current.has(job.id)) completedSeenAt.current.set(job.id, now)
       const remaining = Math.max(0, COMPLETED_HIDE_MS - (now - (completedSeenAt.current.get(job.id) ?? now)))
       timers.push(window.setTimeout(() => dismiss(job.id), remaining))

@@ -154,6 +154,47 @@ export function countDataRows(rows: string[][], headerRowIndex: number): number 
   return rowsToObjects(rows, headerRowIndex).length;
 }
 
+/**
+ * Keep every named header and any later columns that have values.
+ * Trailing unused columns (no header, no data) are dropped so ImageKit stays under 25MB.
+ */
+export function compactSpreadsheetRows(rows: string[][], headerRowIndex = 0): string[][] {
+  const header = rows[headerRowIndex] ?? [];
+  let maxCol = -1;
+  for (let i = header.length - 1; i >= 0; i--) {
+    if (String(header[i] ?? "").trim()) {
+      maxCol = i;
+      break;
+    }
+  }
+  for (const row of rows) {
+    for (let i = (row?.length ?? 0) - 1; i >= 0; i--) {
+      if (String(row[i] ?? "").trim()) {
+        if (i > maxCol) maxCol = i;
+        break;
+      }
+    }
+  }
+  if (maxCol < 0) return rows.map(() => []);
+  return rows.map((row) => {
+    const next: string[] = [];
+    for (let i = 0; i <= maxCol; i++) next.push(String(row?.[i] ?? "").trim());
+    return next;
+  });
+}
+
+/** Build a compact .xlsx from in-memory rows (used after writing ImageKit URLs back). */
+export function workbookBufferFromRows(rows: string[][], headerRowIndex = 0): Buffer {
+  const compact = compactSpreadsheetRows(rows, headerRowIndex).map((row) =>
+    row.map((cell) => (cell ? cell : undefined))
+  );
+  const worksheet = XLSX.utils.aoa_to_sheet(compact);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Catalog");
+  const raw = XLSX.write(workbook, { type: "buffer", bookType: "xlsx", compression: true });
+  return Buffer.isBuffer(raw) ? raw : Buffer.from(raw as ArrayBuffer);
+}
+
 export async function parseSpreadsheetPreviewFromFile(
   file: File,
   maxRows = MAX_HEADER_PREVIEW_ROWS

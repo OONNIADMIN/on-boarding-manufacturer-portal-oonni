@@ -11,4 +11,6 @@ export {
   rowsToObjects,
   fillMissingSkuHeader,
   looksLikeSkuValue,
+  compactSpreadsheetRows,
+  workbookBufferFromRows,
 } from "./catalog-spreadsheet-parse";

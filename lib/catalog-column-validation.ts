@@ -107,9 +107,9 @@ export function validateCatalogColumns(
 
   if (!activeRules.length) {
     return {
-      valid: false,
-      missing: ["column rules"],
-      message: "No active catalog column rules are configured. Contact your administrator.",
+      valid: true,
+      missing: [],
+      message: "No column guide is configured. You can continue the upload.",
     };
   }
 
@@ -121,11 +121,9 @@ export function validateCatalogColumns(
     return { valid: true, missing: [], message: "" };
   }
 
-  const requiredLabels = activeRules.map((rule) => rule.label).join(", ");
-
   return {
-    valid: false,
+    valid: true,
     missing,
-    message: `Some expected columns were not found: ${missing.join(", ")}. Typical headers include: ${requiredLabels}.`,
+    message: `Some expected columns were not found: ${missing.join(", ")}. You can still upload the file.`,
   };
 }

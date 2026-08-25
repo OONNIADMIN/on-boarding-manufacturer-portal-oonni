@@ -1,9 +1,8 @@
 import type { Manufacturer } from "@prisma/client";
 
 /**
- * ImageKit Media Library folder paths (e.g. `/Elite/images`).
- * Uses the manufacturer company `name` so the folder matches what you see in the dashboard.
- * Override with `imagekit_media_root` if files already live under a legacy path (e.g. `/toughbuilt`).
+ * Media library folder paths from the manufacturer company `name` (not a hardcoded brand).
+ * Override with `imagekit_media_root` if files already live under a legacy path.
  */
 function sanitizePathSegment(s: string): string {
   return s

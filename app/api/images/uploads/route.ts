@@ -5,6 +5,7 @@ import { ok, unauthorized } from "@/lib/api-response";
 import { serializeImageForListJson } from "@/lib/image-list-json";
 import { buildNonAdminImagesWhere } from "@/lib/manufacturer-image-scope";
 import { parseBoundedInt } from "@/lib/bounded-int";
+import { hideImagesMissingFromImageKit } from "@/lib/reconcile-imagekit-images";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     ...visibility,
   };
 
-  const [images, total] = await Promise.all([
+  let [images, total] = await Promise.all([
     prisma.image.findMany({
       where,
       include: { manufacturer: true, product: true },
@@ -34,6 +35,20 @@ export async function GET(req: NextRequest) {
     }),
     prisma.image.count({ where }),
   ]);
+
+  const hidden = await hideImagesMissingFromImageKit(images);
+  if (hidden > 0) {
+    [images, total] = await Promise.all([
+      prisma.image.findMany({
+        where,
+        include: { manufacturer: true, product: true },
+        orderBy: { created_at: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.image.count({ where }),
+    ]);
+  }
 
   return ok({
     total_images: total,

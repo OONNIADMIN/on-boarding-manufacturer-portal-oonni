@@ -13,15 +13,21 @@ import {
 import {
   countDataRows,
   extractColumnNamesFromRows,
+  extractHeaderRowCells,
   fillMissingSkuHeader,
+  findHeaderColumnIndex,
   parseSpreadsheetRows,
+  compactSpreadsheetRows,
+  workbookBufferFromRows,
 } from "@/lib/catalog-file-headers";
 import { createProductsFromCatalogSpreadsheet } from "@/lib/create-products-from-catalog-spreadsheet";
 import { ingestCatalogImagesFromSpreadsheet } from "@/lib/catalog-image-ingest";
 import { ingestEmbeddedImagesFromWorkbook } from "@/lib/catalog-embedded-image-ingest";
-import { detectSkuColumn } from "@/lib/catalog-column-detection";
+import { detectCatalogMediaUrlColumns, resolveSkuColumn } from "@/lib/catalog-column-detection";
+import { listCatalogColumnRules } from "@/lib/catalog-column-rules-service";
 import { sendCatalogUploadNotification } from "@/lib/email";
 import { prepareCatalogFileForRemoteStore, stripXlsxEmbeddedMedia } from "@/lib/xlsx-embedded-images";
+import { isUniqueConstraintError } from "@/lib/image-record";
 
 const running = new Set<string>();
 
@@ -29,6 +35,9 @@ function friendlyCatalogImportError(error: unknown): string {
   const raw = error instanceof Error ? error.message : "Catalog import failed";
   if (/104857600|file size exceeds/i.test(raw) || /invalid file parameter/i.test(raw)) {
     return "The catalog file is too large to store as a single file. Try again — photos are imported from the spreadsheet separately.";
+  }
+  if (/Unique constraint failed/i.test(raw) || (error && typeof error === "object" && "code" in error && (error as { code: string }).code === "P2002")) {
+    return "A photo was already in the catalog. Duplicate photos were skipped so the import could continue.";
   }
   return raw;
 }
@@ -183,7 +192,22 @@ async function processCatalogImport(publicId: string): Promise<void> {
 
     fillMissingSkuHeader(rows, job.header_row_index);
     const columnNames = extractColumnNamesFromRows(rows, job.header_row_index);
-    const skuColumn = job.sku_column || detectSkuColumn(columnNames);
+    const headerCells = extractHeaderRowCells(rows, job.header_row_index);
+    const columnRules = await listCatalogColumnRules({ activeOnly: true }).catch(() => []);
+    const skuColumn = resolveSkuColumn(columnNames, {
+      preferred: job.sku_column,
+      rules: columnRules,
+    });
+    const requestedUrlColumns = Array.isArray(job.image_columns)
+      ? (job.image_columns as unknown[]).map((c) => String(c).trim()).filter(Boolean)
+      : [];
+    const sampleRows = rows.slice(job.header_row_index + 1, job.header_row_index + 11);
+    const urlColumns = [
+      ...new Set([
+        ...requestedUrlColumns,
+        ...detectCatalogMediaUrlColumns(headerCells, skuColumn, undefined, sampleRows),
+      ]),
+    ].filter((name) => findHeaderColumnIndex(headerCells, name) >= 0);
     const dataRows = countDataRows(rows, job.header_row_index);
     const catalogName = job.original_filename.replace(/\.[^.]+$/, "") || "catalog";
     let slug = slugify(catalogName);
@@ -224,6 +248,7 @@ async function processCatalogImport(publicId: string): Promise<void> {
         fileName: job.original_filename,
         headerRowIndex: job.header_row_index,
         skuColumn,
+        columnRules,
         catalogId: catalog.id,
         manufacturerId: job.manufacturer_id,
         onProgress: async (current, total) => {
@@ -246,40 +271,6 @@ async function processCatalogImport(publicId: string): Promise<void> {
 
     let imagesCreated = 0;
     let imagesFailed = 0;
-
-    await patchJob(publicId, {
-      status: "saving_file",
-      phase: "saving_file",
-      message:
-        originalBuffer.length >= 100 * 1024 * 1024
-          ? "Saving a compact catalog copy. Product photos are imported separately…"
-          : "Saving catalog file…",
-    });
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const folder = manufacturerImageKitCatalogsFolder(manufacturer);
-    const archive = await prepareCatalogFileForRemoteStore(workBuffer, job.original_filename);
-    let catalogFileUrl = "";
-    if (archive) {
-      try {
-        const uploaded = await uploadToImageKit(
-          archive.buffer,
-          `${timestamp}_${archive.fileName}`,
-          folder,
-          archive.mimeType
-        );
-        catalogFileUrl = uploaded.url;
-        await prisma.catalog.update({
-          where: { id: catalog.id },
-          data: { catalog_file: uploaded.url },
-        });
-      } catch (storeErr) {
-        console.warn("Catalog file store skipped:", storeErr);
-        await patchJob(publicId, {
-          message: "Catalog data was processed. The original spreadsheet was too large to keep as a single file.",
-        });
-      }
-    }
 
     if (isExcel) {
       await patchJob(publicId, {
@@ -322,41 +313,114 @@ async function processCatalogImport(publicId: string): Promise<void> {
       }
     }
 
-    const imageColumns = Array.isArray(job.image_columns)
-      ? (job.image_columns as unknown[]).map((c) => String(c).trim()).filter(Boolean)
-      : [];
+    const catalogSource = workbookBufferFromRows(rows, job.header_row_index);
+    let catalogFileUrl = "";
 
-    if (skuColumn && imageColumns.length) {
+    if (skuColumn && urlColumns.length) {
       await patchJob(publicId, {
         status: "importing_images",
         phase: "importing_images",
-        message: "Importing product images from URLs…",
+        message: "Importing product files from URLs…",
       });
-      const ingest = await ingestCatalogImagesFromSpreadsheet({
-        catalogId: catalog.id,
-        manufacturerId: job.manufacturer_id,
-        userId: job.user_id,
-        skuColumn,
-        imageColumns,
-        catalogFileUrl: catalogFileUrl || "catalog.xlsx",
-        headerRowIndex: job.header_row_index,
-        spreadsheetBuffer: workBuffer,
-        manufacturer,
-        onProgress: (progress) => {
-          void patchJob(publicId, {
-            progress_current: progress.processed,
-            progress_total: Math.max(progress.total, 1),
-            images_created: imagesCreated + progress.images_created,
-            images_failed: imagesFailed + progress.failed,
-            message:
-              progress.phase === "finalizing"
-                ? "Finishing image import…"
-                : `Importing images ${progress.processed} of ${progress.total}…`,
+      try {
+        const ingest = await ingestCatalogImagesFromSpreadsheet({
+          catalogId: catalog.id,
+          manufacturerId: job.manufacturer_id,
+          userId: job.user_id,
+          skuColumn,
+          imageColumns: urlColumns,
+          catalogFileUrl: "catalog.xlsx",
+          headerRowIndex: job.header_row_index,
+          spreadsheetBuffer: catalogSource,
+          manufacturer,
+          onProgress: (progress) => {
+            void patchJob(publicId, {
+              progress_current: progress.processed,
+              progress_total: Math.max(progress.total, 1),
+              images_created: imagesCreated + progress.images_created,
+              images_failed: imagesFailed + progress.failed,
+              message:
+                progress.phase === "finalizing"
+                  ? "Finishing image import…"
+                  : `Importing images ${progress.processed} of ${progress.total}…`,
+            });
+          },
+        });
+        imagesCreated += ingest.images_created;
+        imagesFailed += ingest.upload_failures;
+        catalogFileUrl = ingest.catalog_file || catalogFileUrl;
+      } catch (ingestErr) {
+        console.warn("Catalog URL image import skipped:", ingestErr);
+        imagesFailed += 1;
+        await patchJob(publicId, {
+          message: "Some product files could not be imported. Saving the catalog file…",
+        });
+      }
+    }
+
+    if (!catalogFileUrl) {
+      await patchJob(publicId, {
+        status: "saving_file",
+        phase: "saving_file",
+        message:
+          imagesCreated > 0
+            ? "Saving catalog file with product photo URLs…"
+            : "Saving catalog file…",
+      });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const folder = manufacturerImageKitCatalogsFolder(manufacturer);
+      const archiveName = job.original_filename.replace(/\.xls$/i, ".xlsx");
+      const archive = await prepareCatalogFileForRemoteStore(catalogSource, archiveName);
+      if (archive) {
+        try {
+          const uploaded = await uploadToImageKit(
+            archive.buffer,
+            `${timestamp}_${archive.fileName}`,
+            folder,
+            archive.mimeType
+          );
+          catalogFileUrl = uploaded.url;
+          await prisma.catalog.update({
+            where: { id: catalog.id },
+            data: { catalog_file: uploaded.url },
           });
-        },
-      });
-      imagesCreated += ingest.images_created;
-      imagesFailed += ingest.upload_failures;
+        } catch (storeErr) {
+          console.warn("Catalog file store skipped:", storeErr);
+          const tooLarge = /26214400|104857600|file size exceeds/i.test(
+            storeErr instanceof Error ? storeErr.message : String(storeErr)
+          );
+          if (tooLarge) {
+            try {
+              const Papa = (await import("papaparse")).default;
+              const csv = Buffer.from(
+                Papa.unparse(compactSpreadsheetRows(rows, job.header_row_index)),
+                "utf8"
+              );
+              if (csv.length < 25 * 1024 * 1024) {
+                const uploaded = await uploadToImageKit(
+                  csv,
+                  `${timestamp}_${archive.fileName.replace(/\.[^.]+$/, "")}.csv`,
+                  folder,
+                  "text/csv"
+                );
+                catalogFileUrl = uploaded.url;
+                await prisma.catalog.update({
+                  where: { id: catalog.id },
+                  data: { catalog_file: uploaded.url },
+                });
+              }
+            } catch (csvErr) {
+              console.warn("Catalog CSV store skipped:", csvErr);
+            }
+          }
+          if (!catalogFileUrl) {
+            await patchJob(publicId, {
+              message:
+                "Photos were imported, but the catalog spreadsheet was too large to store. You can still use the products and photos.",
+            });
+          }
+        }
+      }
     }
 
     try {
@@ -401,6 +465,20 @@ async function processCatalogImport(publicId: string): Promise<void> {
       progress_total: 1,
     });
   } catch (e) {
+    if (isUniqueConstraintError(e)) {
+      console.warn("Catalog import reused existing photos:", e);
+      await patchJob(publicId, {
+        status: "completed",
+        phase: "completed",
+        error: null,
+        message:
+          "Catalog import finished. Photos that were already uploaded were reused so nothing was duplicated.",
+        finished_at: new Date(),
+        progress_current: 1,
+        progress_total: 1,
+      }).catch(() => undefined);
+      return;
+    }
     const message = friendlyCatalogImportError(e);
     console.error("Catalog import job failed:", e);
     await patchJob(publicId, {
@@ -409,6 +487,8 @@ async function processCatalogImport(publicId: string): Promise<void> {
       error: message,
       message,
       finished_at: new Date(),
+      progress_current: 1,
+      progress_total: 1,
     }).catch(() => undefined);
   } finally {
     running.delete(publicId);

@@ -167,7 +167,7 @@ export function joinUrlsInCell(replacements: string[], originalCell: unknown): s
 export function filenameFromUrl(url: URL, fallback: string): string {
   try {
     const last = url.pathname.split("/").filter(Boolean).pop();
-    if (last && /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(last)) {
+    if (last && /\.(jpe?g|png|gif|webp|bmp|svg|mp4|mov|webm|pdf|zip|docx?|xlsx?)$/i.test(last)) {
       return last.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200);
     }
   } catch {
@@ -178,11 +178,24 @@ export function filenameFromUrl(url: URL, fallback: string): string {
 
 export function normalizeMimeType(contentType: string | null, url: URL): string {
   const fromHeader = contentType?.split(";")[0]?.trim().toLowerCase();
-  if (fromHeader && fromHeader.startsWith("image/")) return fromHeader;
+  if (
+    fromHeader &&
+    (fromHeader.startsWith("image/") ||
+      fromHeader.startsWith("video/") ||
+      fromHeader.startsWith("application/") ||
+      fromHeader.startsWith("text/"))
+  ) {
+    return fromHeader;
+  }
   const path = url.pathname.toLowerCase();
   if (path.endsWith(".png")) return "image/png";
   if (path.endsWith(".webp")) return "image/webp";
   if (path.endsWith(".gif")) return "image/gif";
   if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
-  return "image/jpeg";
+  if (path.endsWith(".mp4")) return "video/mp4";
+  if (path.endsWith(".webm")) return "video/webm";
+  if (path.endsWith(".mov")) return "video/quicktime";
+  if (path.endsWith(".pdf")) return "application/pdf";
+  if (path.endsWith(".zip")) return "application/zip";
+  return fromHeader || "application/octet-stream";
 }

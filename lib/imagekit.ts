@@ -272,6 +272,32 @@ export async function deleteFromImageKit(fileId: string): Promise<void> {
   await imagekit.files.delete(fileId);
 }
 
+/**
+ * Whether a Media Library file still exists.
+ * `null` means we could not tell (network/auth) — callers must not delete local rows.
+ */
+export async function imageKitFileExists(fileId: string): Promise<boolean | null> {
+  const id = fileId.trim();
+  if (!id) return false;
+  if (!isImageKitUploadConfigured()) return null;
+
+  try {
+    const auth = Buffer.from(`${requireImageKitPrivateKey()}:`).toString("base64");
+    const res = await fetch(`https://api.imagekit.io/v1/files/${encodeURIComponent(id)}/details`, {
+      method: "GET",
+      headers: { Authorization: `Basic ${auth}` },
+      cache: "no-store",
+    });
+    if (res.ok) return true;
+    if (res.status === 404) return false;
+    console.warn("ImageKit file details unexpected status:", res.status, await res.text());
+    return null;
+  } catch (error) {
+    console.warn("ImageKit file details failed:", error);
+    return null;
+  }
+}
+
 /** Normalized row from ImageKit GET /v1/files (list assets). */
 export interface ImageKitListedFile {
   fileId: string;

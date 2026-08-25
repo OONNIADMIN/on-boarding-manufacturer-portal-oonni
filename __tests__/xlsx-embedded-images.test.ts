@@ -82,37 +82,88 @@ describe("embedded excel images", () => {
     expect(Object.keys(out.files).some((name) => name.startsWith("xl/media/image"))).toBe(false);
     expect(stripped.length).toBeLessThan(original.length);
   });
+
+  test("writes ImageKit URLs into the Image column of the SKU row", async () => {
+    const {
+      parseSpreadsheetRows,
+      workbookBufferFromRows,
+    } = await import("@/lib/catalog-spreadsheet-parse");
+    const { writeImageUrlIntoCatalogRow, findCatalogImageColumnIndex } = await import(
+      "@/lib/catalog-embedded-image-ingest"
+    );
+    const rows = [
+      ["Product #", "Product Description", "Image"],
+      ["020-3-B", "Soup Spoon", ""],
+      ["020-3-ES", "Soup Spoon 2", "#VALUE!"],
+    ];
+    const imageCol = findCatalogImageColumnIndex(rows[0] ?? []);
+    expect(imageCol).toBe(2);
+    const { manufacturerImageKitImagesFolder } = await import("@/lib/manufacturer-media-path");
+    const imagesFolder = manufacturerImageKitImagesFolder({
+      id: 9,
+      slug: "unused-slug",
+      name: "Acme Tools",
+    });
+    const photoUrl = `https://cdn.example.com${imagesFolder}/spoon.png`;
+    writeImageUrlIntoCatalogRow(rows, 1, 2, photoUrl, imageCol);
+    expect(rows[1]?.[0]).toBe("020-3-B");
+    expect(rows[1]?.[2]).toBe(photoUrl);
+    writeImageUrlIntoCatalogRow(rows, 2, 2, `https://cdn.example.com${imagesFolder}/spoon2.png`, imageCol);
+    const buffer = workbookBufferFromRows(rows);
+    const parsed = parseSpreadsheetRows(buffer, "catalog.xlsx");
+    expect(parsed[1]?.[2]).toBe(photoUrl);
+    expect(parsed[2]?.[2]).toContain("spoon2.png");
+  });
+
+  test("rebuilds a wide sparse sheet without unused empty columns", async () => {
+    const { compactSpreadsheetRows, workbookBufferFromRows } = await import(
+      "@/lib/catalog-spreadsheet-parse"
+    );
+    const wide = Array.from({ length: 20 }, () => Array.from({ length: 652 }, () => ""));
+    wide[0][0] = "Product #";
+    wide[0][3] = "Image";
+    wide[1][0] = "020-3-B";
+    wide[1][3] = "https://ik.imagekit.io/demo/spoon.png";
+    const compact = compactSpreadsheetRows(wide, 0);
+    expect(compact[0]?.length).toBe(4);
+    expect(compact[0]?.[0]).toBe("Product #");
+    expect(compact[0]?.[3]).toBe("Image");
+    const buffer = workbookBufferFromRows(wide);
+    expect(buffer.length).toBeLessThan(25 * 1024 * 1024);
+  });
 });
 
 describe("catalog image folder path", () => {
-  test("uses the company name for ImageKit folders", async () => {
+  test("builds folders from the company name, not a hardcoded brand", async () => {
     const {
       defaultManufacturerMediaRoot,
       manufacturerImageKitCatalogsFolder,
       manufacturerImageKitCatalogImagesFolder,
       manufacturerImageKitRoot,
     } = await import("@/lib/manufacturer-media-path");
-    expect(defaultManufacturerMediaRoot({ id: 1, slug: "toughbuilt", name: "Elite" })).toBe("/Elite");
+    expect(defaultManufacturerMediaRoot({ id: 1, slug: "legacy-slug", name: "Acme Tools" })).toBe(
+      "/Acme-Tools"
+    );
     expect(
-      defaultManufacturerMediaRoot({ id: 1, slug: "toughbuilt", name: "Elite Global Solutions" })
-    ).toBe("/Elite-Global-Solutions");
-    expect(defaultManufacturerMediaRoot({ id: 1, slug: "toughbuilt" })).toBe("/toughbuilt");
+      defaultManufacturerMediaRoot({ id: 2, slug: "legacy-slug", name: "Northwind Traders" })
+    ).toBe("/Northwind-Traders");
+    expect(defaultManufacturerMediaRoot({ id: 3, slug: "fallback-slug" })).toBe("/fallback-slug");
     expect(
-      manufacturerImageKitCatalogsFolder({ id: 1, slug: "toughbuilt", name: "Elite" })
-    ).toBe("/Elite/catalogs");
+      manufacturerImageKitCatalogsFolder({ id: 1, slug: "legacy-slug", name: "Acme Tools" })
+    ).toBe("/Acme-Tools/catalogs");
     expect(
       manufacturerImageKitCatalogImagesFolder(
-        { id: 1, slug: "toughbuilt", name: "Elite" },
-        "elite_global_solutions_list__1_"
+        { id: 1, slug: "legacy-slug", name: "Acme Tools" },
+        "spring-catalog"
       )
-    ).toBe("/Elite/images/elite_global_solutions_list__1_");
+    ).toBe("/Acme-Tools/images/spring-catalog");
     expect(
       manufacturerImageKitRoot({
         id: 1,
-        slug: "toughbuilt",
-        name: "Elite",
-        imagekit_media_root: "/toughbuilt",
+        slug: "legacy-slug",
+        name: "Acme Tools",
+        imagekit_media_root: "/custom-root",
       })
-    ).toBe("/toughbuilt");
+    ).toBe("/custom-root");
   });
 });
