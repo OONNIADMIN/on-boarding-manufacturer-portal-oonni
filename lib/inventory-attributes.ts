@@ -414,6 +414,13 @@ function catalogMatch(
   });
 }
 
+export function attributeMatchesCatalog(
+  attr: MappedInventoryAttribute,
+  catalog: AttributeCatalogItem[]
+): boolean {
+  return Boolean(catalog.length && catalogMatch(attr, catalog));
+}
+
 export function attachRequiredCatalogAttributes(
   stored: MappedInventoryAttribute[],
   catalog: AttributeCatalogItem[] | null | undefined

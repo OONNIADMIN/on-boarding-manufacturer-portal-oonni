@@ -16,12 +16,18 @@ declare namespace ExcelJS {
     texts: Array<{ text: string }>;
   }
 
+  interface CellProtection {
+    locked?: boolean;
+    hidden?: boolean;
+  }
+
   interface Cell {
     value?: unknown;
     font?: Font;
     fill?: Fill;
     note?: string | Note;
     alignment?: { wrapText?: boolean; vertical?: string };
+    protection?: CellProtection;
     dataValidation?: {
       type: string;
       allowBlank?: boolean;
@@ -56,6 +62,24 @@ declare namespace ExcelJS {
     getCell(ref: string): Cell;
     getColumn(n: number | string): Column;
     eachRow(cb: (row: Row, rowNumber: number) => void): void;
+    eachRow(opts: { includeEmpty?: boolean }, cb: (row: Row, rowNumber: number) => void): void;
+    protect(
+      password?: string,
+      options?: {
+        selectLockedCells?: boolean;
+        selectUnlockedCells?: boolean;
+        formatCells?: boolean;
+        formatColumns?: boolean;
+        formatRows?: boolean;
+        insertRows?: boolean;
+        insertColumns?: boolean;
+        deleteRows?: boolean;
+        deleteColumns?: boolean;
+        sort?: boolean;
+        autoFilter?: boolean;
+      }
+    ): Promise<void>;
+    unprotect(): void;
   }
 
   class Workbook {

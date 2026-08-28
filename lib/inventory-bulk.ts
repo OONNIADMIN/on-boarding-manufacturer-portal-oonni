@@ -3,14 +3,16 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   mergeInventoryAttributes,
+  mapInventoryAttributes,
   resolveInventoryAttributes,
   isIncompleteAttributeValue,
   isRequiredInventoryAttribute,
 } from "@/lib/inventory-attributes";
 import {
   catalogForProductType,
+  catalogsFromProductTypes,
   loadProductTypeCatalogs,
-  resolveCatalogAttributes,
+  resolveScopedCatalogAttributes,
 } from "@/lib/inventory-attribute-catalog";
 import {
   completenessIssueColumn,
@@ -29,6 +31,7 @@ import {
   resolveVariantImages,
   type InventoryImage,
 } from "@/lib/inventory-crud";
+import { lockExcelSheetForBulkEdit } from "@/lib/excel-sheet-lock";
 import { slugify } from "@/lib/api-response";
 import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
 import {
@@ -125,6 +128,15 @@ export type InventoryBulkImportResult = {
   traide_errors: string[];
 };
 
+export type InventoryBulkProgress = {
+  phase: "reading" | "updating" | "publishing";
+  current: number;
+  total: number;
+  message: string;
+};
+
+type BulkProgressFn = (progress: InventoryBulkProgress) => Promise<void> | void;
+
 type ProductRow = Awaited<ReturnType<typeof prisma.inventoryProduct.findMany>>[number];
 type VariantRow = Awaited<ReturnType<typeof prisma.inventoryVariant.findMany>>[number];
 
@@ -186,24 +198,24 @@ function parseBool(value: string, fallback: boolean): boolean {
   return fallback;
 }
 
-function uniqueAttributeNames(items: Array<{ attributes?: unknown; payload?: unknown }>): string[] {
+function uniqueAttributeNames(items: Array<{ attributes?: unknown }>): string[] {
   const names = new Set<string>();
   for (const item of items) {
-    for (const attr of resolveInventoryAttributes(item)) {
+    for (const attr of mapInventoryAttributes(item.attributes)) {
       if (attr.name) names.add(attr.name);
     }
   }
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 
-function attributeValue(item: { attributes?: unknown; payload?: unknown }, name: string): string {
-  return resolveInventoryAttributes(item).find((attr) => attr.name === name)?.value ?? "";
+function attributeValue(item: { attributes?: unknown }, name: string): string {
+  return mapInventoryAttributes(item.attributes).find((attr) => attr.name === name)?.value ?? "";
 }
 
-function requiredAttributeNames(items: Array<{ attributes?: unknown; payload?: unknown }>): Set<string> {
+function requiredAttributeNames(items: Array<{ attributes?: unknown }>): Set<string> {
   const names = new Set<string>();
   for (const item of items) {
-    for (const attr of resolveInventoryAttributes(item)) {
+    for (const attr of mapInventoryAttributes(item.attributes)) {
       if (isRequiredInventoryAttribute(attr) && attr.name) names.add(attr.name);
     }
   }
@@ -211,7 +223,7 @@ function requiredAttributeNames(items: Array<{ attributes?: unknown; payload?: u
 }
 
 function requiredPaint(
-  item: { attributes?: unknown; payload?: unknown },
+  item: { attributes?: unknown },
   header: string,
   requiredColumns: Set<string>,
   issues?: Map<string, CompletenessIssue>
@@ -219,7 +231,7 @@ function requiredPaint(
   if (PRODUCT_CORE_REQUIRED.has(header) || VARIANT_CORE_REQUIRED.has(header)) {
     return issues?.has(header) ? { missing: true, required: true } : undefined;
   }
-  const attr = resolveInventoryAttributes(item).find((row) => row.name === header);
+  const attr = mapInventoryAttributes(item.attributes).find((row) => row.name === header);
   const required = requiredColumns.has(header) || Boolean(attr && isRequiredInventoryAttribute(attr));
   if (!attr) {
     return required ? { missing: true, required: true } : undefined;
@@ -231,12 +243,22 @@ function requiredPaint(
 
 async function enrichLoadedAttributes(loaded: LoadedInventory): Promise<void> {
   const types = await loadProductTypeCatalogs();
+  const allProductCatalog = catalogsFromProductTypes(types, "product");
+  const allVariantCatalog = catalogsFromProductTypes(types, "variant");
   for (const product of loaded.products) {
     const productCatalog = catalogForProductType(types, product.product_type, "product");
     const variantCatalog = catalogForProductType(types, product.product_type, "variant");
-    (product as { attributes: unknown }).attributes = resolveCatalogAttributes(product, productCatalog);
+    (product as { attributes: unknown }).attributes = resolveScopedCatalogAttributes(
+      product,
+      productCatalog,
+      variantCatalog.length ? variantCatalog : allVariantCatalog
+    );
     for (const variant of loaded.variantsByProduct.get(product.id) ?? []) {
-      (variant as { attributes: unknown }).attributes = resolveCatalogAttributes(variant, variantCatalog);
+      (variant as { attributes: unknown }).attributes = resolveScopedCatalogAttributes(
+        variant,
+        variantCatalog,
+        productCatalog.length ? productCatalog : allProductCatalog
+      );
     }
   }
 }
@@ -259,7 +281,7 @@ async function writeWorkbookBuffer(wb: ExcelJS.Workbook): Promise<Buffer> {
   return excelBuffer(await wb.xlsx.writeBuffer());
 }
 
-function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
+async function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
   const sheet = wb.addWorksheet(INSTRUCTIONS_SHEET);
   sheet.columns = [
     { width: 28 },
@@ -274,10 +296,11 @@ function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
         ? "Leave the ID columns unchanged. Each variant stays grouped under its parent product."
         : "Leave the product ID column unchanged. Variants stay linked even if you edit them in a separate file.",
     ],
-    ["Gray columns", "Locked. Do not edit ID, Status, or Published columns."],
+    ["Header row", "Locked. Column names cannot be edited, renamed, or deleted."],
+    ["Gray columns", "Locked. Do not edit ID, Status, or Published values."],
     ["Orange headers", "This column has completeness issues (empty, N/A, zero, or short text) in at least one row."],
     ["Yellow cells", "This value needs review, matching the completeness report in your catalog."],
-    ["Attributes", "Each attribute name is its own column header."],
+    ["Attributes", "Each attribute name is its own column header. Edit the values, not the header."],
     ["Images", "Separate multiple URLs with |"],
     [
       "Required attributes",
@@ -293,6 +316,19 @@ function addInstructionSheet(wb: ExcelJS.Workbook, kind: InventoryBulkKind) {
     row.getCell(2).alignment = { wrapText: true, vertical: "top" };
     row.height = 28;
   }
+  await sheet.protect("", {
+    selectLockedCells: true,
+    selectUnlockedCells: true,
+    formatCells: false,
+    insertRows: false,
+    insertColumns: false,
+    deleteRows: false,
+    deleteColumns: false,
+  });
+}
+
+function lockedColumnIndexes(headers: string[], locked: Set<string>): number[] {
+  return headers.flatMap((header, index) => (locked.has(header) ? [index + 1] : []));
 }
 
 function styleHeaderRow(
@@ -306,23 +342,24 @@ function styleHeaderRow(
   row.height = 22;
   row.eachCell((cell, colNumber) => {
     const header = headers[colNumber - 1] ?? "";
+    cell.protection = { locked: true };
     if (locked.has(header)) {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LOCKED_FILL } };
-      cell.note = "Locked. Do not change. Required to keep products and variants linked.";
+      cell.note = "Locked header. Do not rename this column. Values in this column cannot be edited.";
       return;
     }
     if (reviewColumns.has(header)) {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REVIEW_HEADER_FILL } };
       cell.font = { bold: true, color: { argb: "FF7C2D12" } };
       cell.note = requiredColumns.has(header)
-        ? "Required attribute. One or more rows are empty, 0, or N/A."
-        : "Needs review: one or more rows have completeness issues in this column.";
+        ? "Locked header. Required attribute. One or more rows are empty, 0, or N/A."
+        : "Locked header. Needs review: one or more rows have completeness issues in this column.";
       return;
     }
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
-    if (requiredColumns.has(header)) {
-      cell.note = "Required attribute. Edit the value, but do not delete this column.";
-    }
+    cell.note = requiredColumns.has(header)
+      ? "Locked header. Required attribute. Edit the value, but do not rename or delete this column."
+      : "Locked header. Do not rename this column.";
   });
 }
 
@@ -444,7 +481,7 @@ async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "OONNI inventory";
   wb.created = new Date();
-  addInstructionSheet(wb, BULK_KIND_PRODUCTS);
+  await addInstructionSheet(wb, BULK_KIND_PRODUCTS);
 
   const data = wb.addWorksheet(DATA_SHEET, { views: [{ state: "frozen", ySplit: 1 }] });
   data.columns = headers.map((header) => ({ header, width: columnWidth(header) }));
@@ -481,6 +518,10 @@ async function buildProductWorkbook(loaded: LoadedInventory): Promise<Buffer> {
   }
 
   styleHeaderRow(data.getRow(1), headers, PRODUCT_LOCKED_SET, reviewColumns, requiredColumns);
+  await lockExcelSheetForBulkEdit(data, {
+    columnCount: headers.length,
+    lockedColumnIndexes: lockedColumnIndexes(headers, PRODUCT_LOCKED_SET),
+  });
   return writeWorkbookBuffer(wb);
 }
 
@@ -502,7 +543,7 @@ async function buildVariantWorkbook(loaded: LoadedInventory): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "OONNI inventory";
   wb.created = new Date();
-  addInstructionSheet(wb, BULK_KIND_VARIANTS);
+  await addInstructionSheet(wb, BULK_KIND_VARIANTS);
 
   const data = wb.addWorksheet(DATA_SHEET, { views: [{ state: "frozen", ySplit: 1 }] });
   data.columns = headers.map((header) => ({ header, width: columnWidth(header) }));
@@ -538,6 +579,10 @@ async function buildVariantWorkbook(loaded: LoadedInventory): Promise<Buffer> {
   }
 
   styleHeaderRow(data.getRow(1), headers, VARIANT_LOCKED_SET, reviewColumns, requiredColumns);
+  await lockExcelSheetForBulkEdit(data, {
+    columnCount: headers.length,
+    lockedColumnIndexes: lockedColumnIndexes(headers, VARIANT_LOCKED_SET),
+  });
   return writeWorkbookBuffer(wb);
 }
 
@@ -652,25 +697,41 @@ export async function importInventoryWorkbook(
   manufacturerId: number,
   userId: number,
   file: Buffer,
-  requestedKind?: InventoryBulkKind
+  requestedKind?: InventoryBulkKind,
+  onProgress?: BulkProgressFn
 ): Promise<InventoryBulkImportResult> {
+  await onProgress?.({
+    phase: "reading",
+    current: 0,
+    total: 1,
+    message: "Reading spreadsheet…",
+  });
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(file);
   const data = wb.getWorksheet(DATA_SHEET) ?? wb.worksheets.find((sheet) => sheet.name !== INSTRUCTIONS_SHEET);
   if (!data) throw new Error("The spreadsheet has no Data sheet.");
+  try {
+    data.unprotect();
+    wb.getWorksheet(INSTRUCTIONS_SHEET)?.unprotect();
+  } catch {
+    /* unprotected sheets are fine */
+  }
   const matrix = readSheetMatrix(data);
   const headers = (matrix[0] ?? []).map((header) => header.trim());
   if (!headers.length) throw new Error("The spreadsheet is missing a header row.");
   const kind = requestedKind ?? detectKind(wb, headers);
   const rows = matrix.slice(1);
-  if (kind === BULK_KIND_VARIANTS) return applyVariantRows(manufacturerId, userId, headers, rows);
-  return applyProductRows(manufacturerId, headers, rows);
+  if (kind === BULK_KIND_VARIANTS) {
+    return applyVariantRows(manufacturerId, userId, headers, rows, onProgress);
+  }
+  return applyProductRows(manufacturerId, headers, rows, onProgress);
 }
 
 async function applyProductRows(
   manufacturerId: number,
   headers: string[],
-  rows: string[][]
+  rows: string[][],
+  onProgress?: BulkProgressFn
 ): Promise<InventoryBulkImportResult> {
   const idIndex = headerIndex(headers, "product_id");
   if (idIndex < 0) throw new Error("Products file must include product_id. Download products again and do not remove that column.");
@@ -680,8 +741,17 @@ async function applyProductRows(
   const errors: string[] = [];
   const updatedIds: number[] = [];
   const categoryOptions = await listStoredCategoryTree();
+  const total = Math.max(rows.length, 1);
 
   for (let i = 0; i < rows.length; i += 1) {
+    if (i === 0 || (i + 1) % 5 === 0 || i + 1 === rows.length) {
+      await onProgress?.({
+        phase: "updating",
+        current: i + 1,
+        total,
+        message: `Updating products ${i + 1} of ${rows.length}…`,
+      });
+    }
     const values = rows[i];
     const line = i + 2;
     const productId = parseInt(values[idIndex] ?? "", 10);
@@ -744,6 +814,12 @@ async function applyProductRows(
     }
   }
 
+  await onProgress?.({
+    phase: "publishing",
+    current: total,
+    total,
+    message: "Publishing product updates…",
+  });
   const traide = await pushInventoryProductsToTraide(manufacturerId, updatedIds);
   return {
     kind: BULK_KIND_PRODUCTS,
@@ -759,7 +835,8 @@ async function applyVariantRows(
   manufacturerId: number,
   userId: number,
   headers: string[],
-  rows: string[][]
+  rows: string[][],
+  onProgress?: BulkProgressFn
 ): Promise<InventoryBulkImportResult> {
   const variantIdIndex = headerIndex(headers, "variant_id");
   const productIdIndex = headerIndex(headers, "product_id");
@@ -774,8 +851,17 @@ async function applyVariantRows(
   const errors: string[] = [];
   const updatedIds: number[] = [];
   const previousImagesById = new Map<number, unknown>();
+  const total = Math.max(rows.length, 1);
 
   for (let i = 0; i < rows.length; i += 1) {
+    if (i === 0 || (i + 1) % 5 === 0 || i + 1 === rows.length) {
+      await onProgress?.({
+        phase: "updating",
+        current: i + 1,
+        total,
+        message: `Updating variants ${i + 1} of ${rows.length}…`,
+      });
+    }
     const values = rows[i];
     const line = i + 2;
     const variantId = parseInt(values[variantIdIndex] ?? "", 10);
@@ -848,6 +934,12 @@ async function applyVariantRows(
     }
   }
 
+  await onProgress?.({
+    phase: "publishing",
+    current: total,
+    total,
+    message: "Publishing variant updates…",
+  });
   const traide = await pushInventoryVariantsToTraide(manufacturerId, updatedIds, {
     previousImagesById,
   });

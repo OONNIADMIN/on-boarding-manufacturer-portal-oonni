@@ -1,21 +1,38 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { catalogAPI, type CatalogImportJobView } from '@/lib/api'
+import { catalogAPI, inventoryAPI, type CatalogImportJobView, type InventoryBulkJobView } from '@/lib/api'
 import {
   forgetCatalogImportJob,
   listRememberedCatalogImportJobs,
 } from '@/lib/catalog-import-jobs-client'
+import {
+  forgetInventoryBulkJob,
+  INVENTORY_BULK_COMPLETE_EVENT,
+  listRememberedInventoryBulkJobs,
+} from '@/lib/inventory-bulk-jobs-client'
 import styles from './CatalogImportBanner.module.scss'
 
-const RUNNING = new Set([
+type BannerJob = {
+  id: string
+  source: 'catalog' | 'inventory'
+  filename: string
+  status: string
+  message: string | null
+  error: string | null
+  progress_current: number
+  progress_total: number
+  created_at: string
+}
+
+const CATALOG_RUNNING = new Set([
   'queued',
   'analyzing',
   'creating_products',
   'saving_file',
   'importing_images',
 ])
-const VISIBLE = new Set([...RUNNING, 'completed', 'failed'])
+const INVENTORY_RUNNING = new Set(['queued', 'reading', 'updating', 'publishing'])
 const COMPLETED_HIDE_MS = 25_000
 
 function isStorageLimitError(text: string): boolean {
@@ -26,10 +43,46 @@ function isDuplicatePhotoError(text: string): boolean {
   return /Unique constraint failed/i.test(text)
 }
 
-function phaseLabel(job: CatalogImportJobView): string {
-  if (job.status === 'completed') return job.message || 'Catalog import finished'
+function isRunning(job: BannerJob): boolean {
+  return job.source === 'catalog' ? CATALOG_RUNNING.has(job.status) : INVENTORY_RUNNING.has(job.status)
+}
+
+function isVisible(job: BannerJob): boolean {
+  return isRunning(job) || job.status === 'completed' || job.status === 'failed'
+}
+
+function fromCatalog(job: CatalogImportJobView): BannerJob {
+  return {
+    id: job.id,
+    source: 'catalog',
+    filename: job.filename,
+    status: job.status,
+    message: job.message,
+    error: job.error,
+    progress_current: job.progress_current,
+    progress_total: job.progress_total,
+    created_at: job.created_at,
+  }
+}
+
+function fromInventory(job: InventoryBulkJobView): BannerJob {
+  return {
+    id: job.id,
+    source: 'inventory',
+    filename: job.filename,
+    status: job.status,
+    message: job.message,
+    error: job.error,
+    progress_current: job.progress_current,
+    progress_total: job.progress_total,
+    created_at: job.created_at,
+  }
+}
+
+function phaseLabel(job: BannerJob): string {
+  if (job.status === 'completed') return job.message || 'Import finished'
   if (job.status === 'failed') {
-    const detail = job.error || job.message || 'Catalog import failed'
+    const detail = job.error || job.message || 'Import failed'
     if (isStorageLimitError(detail)) {
       return 'This catalog was too large to keep as one file. Upload it again to import the photos.'
     }
@@ -38,10 +91,10 @@ function phaseLabel(job: CatalogImportJobView): string {
     }
     return detail
   }
-  return job.message || 'Processing catalog…'
+  return job.message || (job.source === 'inventory' ? 'Applying spreadsheet edits…' : 'Processing catalog…')
 }
 
-function percent(job: CatalogImportJobView): number {
+function percent(job: BannerJob): number {
   if (job.status === 'completed' || job.status === 'failed') return 100
   if (job.status === 'queued') return 5
   if (job.progress_total > 0) {
@@ -50,39 +103,66 @@ function percent(job: CatalogImportJobView): number {
   return 15
 }
 
+function forgetJob(job: BannerJob, userId: number) {
+  if (job.source === 'catalog') forgetCatalogImportJob(job.id, userId)
+  else forgetInventoryBulkJob(job.id, userId)
+}
+
 export default function CatalogImportBanner({ userId }: { userId: number }) {
-  const [jobs, setJobs] = useState<CatalogImportJobView[]>([])
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [jobs, setJobs] = useState<BannerJob[]>([])
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set())
   const completedSeenAt = useRef<Map<string, number>>(new Map())
+  const notifiedComplete = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let cancelled = false
 
     const refresh = async () => {
-      const remembered = listRememberedCatalogImportJobs(userId)
+      const rememberedCatalog = listRememberedCatalogImportJobs(userId)
+      const rememberedInventory = listRememberedInventoryBulkJobs(userId)
       try {
-        const listed = await catalogAPI.listImportJobs()
-        const byId = new Map(listed.map((job) => [job.id, job]))
-        const extra = await Promise.all(
-          remembered
-            .filter((id) => !byId.has(id))
-            .map((id) => catalogAPI.getImportJob(id).catch(() => null))
+        const [catalogListed, inventoryListed] = await Promise.all([
+          catalogAPI.listImportJobs(),
+          inventoryAPI.listBulkJobs(),
+        ])
+        const catalogById = new Map(catalogListed.map((job) => [job.id, fromCatalog(job)]))
+        const inventoryById = new Map(inventoryListed.map((job) => [job.id, fromInventory(job)]))
+        const extraCatalog = await Promise.all(
+          rememberedCatalog
+            .filter((id) => !catalogById.has(id))
+            .map((id) => catalogAPI.getImportJob(id).then(fromCatalog).catch(() => null))
         )
-        for (const job of extra) {
-          if (job) byId.set(job.id, job)
+        const extraInventory = await Promise.all(
+          rememberedInventory
+            .filter((id) => !inventoryById.has(id))
+            .map((id) => inventoryAPI.getBulkJob(id).then(fromInventory).catch(() => null))
+        )
+        for (const job of extraCatalog) {
+          if (job) catalogById.set(job.id, job)
+        }
+        for (const job of extraInventory) {
+          if (job) inventoryById.set(job.id, job)
         }
 
-        const visible: CatalogImportJobView[] = []
-        for (const job of byId.values()) {
-          if (dismissed.has(job.id)) {
-            forgetCatalogImportJob(job.id, userId)
+        const visible: BannerJob[] = []
+        for (const job of [...catalogById.values(), ...inventoryById.values()]) {
+          if (dismissed.has(`${job.source}:${job.id}`)) {
+            forgetJob(job, userId)
             continue
           }
-          if (!VISIBLE.has(job.status)) {
-            forgetCatalogImportJob(job.id, userId)
+          if (!isVisible(job)) {
+            forgetJob(job, userId)
             continue
           }
           visible.push(job)
+          if (
+            job.source === 'inventory' &&
+            job.status === 'completed' &&
+            !notifiedComplete.current.has(job.id)
+          ) {
+            notifiedComplete.current.add(job.id)
+            window.dispatchEvent(new CustomEvent(INVENTORY_BULK_COMPLETE_EVENT, { detail: job }))
+          }
         }
 
         visible.sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -100,11 +180,11 @@ export default function CatalogImportBanner({ userId }: { userId: number }) {
     }
   }, [userId, dismissed])
 
-  const dismiss = (id: string) => {
-    forgetCatalogImportJob(id, userId)
-    completedSeenAt.current.delete(id)
-    setDismissed((prev) => new Set(prev).add(id))
-    setJobs((prev) => prev.filter((job) => job.id !== id))
+  const dismiss = (job: BannerJob) => {
+    forgetJob(job, userId)
+    completedSeenAt.current.delete(`${job.source}:${job.id}`)
+    setDismissed((prev) => new Set(prev).add(`${job.source}:${job.id}`))
+    setJobs((prev) => prev.filter((row) => !(row.source === job.source && row.id === job.id)))
   }
 
   useEffect(() => {
@@ -112,9 +192,10 @@ export default function CatalogImportBanner({ userId }: { userId: number }) {
     const timers: number[] = []
     for (const job of jobs) {
       if (job.status !== 'completed' && job.status !== 'failed') continue
-      if (!completedSeenAt.current.has(job.id)) completedSeenAt.current.set(job.id, now)
-      const remaining = Math.max(0, COMPLETED_HIDE_MS - (now - (completedSeenAt.current.get(job.id) ?? now)))
-      timers.push(window.setTimeout(() => dismiss(job.id), remaining))
+      const key = `${job.source}:${job.id}`
+      if (!completedSeenAt.current.has(key)) completedSeenAt.current.set(key, now)
+      const remaining = Math.max(0, COMPLETED_HIDE_MS - (now - (completedSeenAt.current.get(key) ?? now)))
+      timers.push(window.setTimeout(() => dismiss(job), remaining))
     }
     return () => {
       for (const timer of timers) window.clearTimeout(timer)
@@ -126,14 +207,14 @@ export default function CatalogImportBanner({ userId }: { userId: number }) {
   return (
     <div className={styles.bar} role="status" aria-live="polite">
       {jobs.map((job) => (
-        <div key={job.id} className={styles.item}>
+        <div key={`${job.source}:${job.id}`} className={styles.item}>
           <div className={styles.meta}>
             <strong>{job.filename}</strong>
             <span>{phaseLabel(job)}</span>
             <button
               type="button"
               className={styles.dismiss}
-              onClick={() => dismiss(job.id)}
+              onClick={() => dismiss(job)}
               aria-label="Dismiss progress"
             >
               ×

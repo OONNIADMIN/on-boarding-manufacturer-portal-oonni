@@ -1,5 +1,6 @@
 import {
   attachRequiredCatalogAttributes,
+  attributeMatchesCatalog,
   resolveInventoryAttributes,
   type AttributeCatalogItem,
   type MappedInventoryAttribute,
@@ -52,9 +53,44 @@ export function catalogForProductType(
   return toCatalog(kind === "product" ? node.productAttributes : node.variantAttributes);
 }
 
+/** Union of product or variant attributes across every Traide product type. */
+export function catalogsFromProductTypes(
+  types: NauticalProductTypeNode[],
+  kind: "product" | "variant"
+): AttributeCatalogItem[] {
+  const seen = new Map<string, AttributeCatalogItem>();
+  for (const node of types) {
+    for (const item of toCatalog(kind === "product" ? node.productAttributes : node.variantAttributes)) {
+      const key = item.id || item.name.trim().toLowerCase();
+      if (!seen.has(key)) seen.set(key, item);
+    }
+  }
+  return [...seen.values()];
+}
+
 export function resolveCatalogAttributes(
   source: { attributes?: unknown; payload?: unknown },
   catalog: AttributeCatalogItem[]
 ): MappedInventoryAttribute[] {
   return attachRequiredCatalogAttributes(resolveInventoryAttributes(source), catalog);
+}
+
+/**
+ * Product export/UI should only keep product-type attributes.
+ * Variant export/UI should only keep variant-type attributes.
+ * Stored JSON sometimes mixes both; excludeCatalog drops the other kind.
+ */
+export function resolveScopedCatalogAttributes(
+  source: { attributes?: unknown; payload?: unknown },
+  catalog: AttributeCatalogItem[],
+  excludeCatalog: AttributeCatalogItem[] = []
+): MappedInventoryAttribute[] {
+  const stored = resolveInventoryAttributes(source);
+  const scoped = stored.filter((attr) => {
+    const inCatalog = catalog.length ? attributeMatchesCatalog(attr, catalog) : false;
+    const inExcluded = excludeCatalog.length ? attributeMatchesCatalog(attr, excludeCatalog) : false;
+    if (catalog.length) return inCatalog;
+    return !inExcluded;
+  });
+  return attachRequiredCatalogAttributes(scoped, catalog);
 }
