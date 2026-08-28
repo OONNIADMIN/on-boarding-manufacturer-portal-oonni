@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api-response";
+import { created, err } from "@/lib/api-response";
 import { requireInventoryManufacturer } from "@/lib/inventory-access";
 import { clientIp } from "@/lib/session-cookie";
 import { AUTH_WINDOW_MS, IMPORT_LIMIT } from "@/lib/rate-limit";
@@ -9,17 +9,13 @@ import {
   fileTooLarge,
   rejectIfLimited,
 } from "@/lib/request-limits";
-import { sniffSpreadsheetKind } from "@/lib/upload-file-guard";
+import { safeUploadFileName, sniffSpreadsheetKind, spreadsheetExt } from "@/lib/upload-file-guard";
 import { uploadTooLargeMessage } from "@/lib/upload-limits";
-import {
-  BULK_KIND_PRODUCTS,
-  BULK_KIND_VARIANTS,
-  importInventoryWorkbook,
-  type InventoryBulkKind,
-} from "@/lib/inventory-bulk";
+import { BULK_KIND_PRODUCTS, BULK_KIND_VARIANTS, type InventoryBulkKind } from "@/lib/inventory-bulk";
+import { enqueueInventoryBulkImport } from "@/lib/inventory-bulk-job";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 function parseKind(value: string | null): InventoryBulkKind | undefined {
   const kind = String(value ?? "").trim().toLowerCase();
@@ -49,11 +45,21 @@ export async function POST(req: NextRequest) {
     if (sniffSpreadsheetKind(buffer, file.name) !== "xlsx") {
       return err("Upload an Excel .xlsx file exported from inventory");
     }
-    const kind = parseKind(String(form.get("kind") ?? ""));
-    const result = await importInventoryWorkbook(auth.manufacturerId, auth.userId, buffer, kind);
-    return ok(result);
+    const job = await enqueueInventoryBulkImport({
+      userId: auth.userId,
+      manufacturerId: auth.manufacturerId,
+      buffer,
+      safeFileName: safeUploadFileName(file.name, spreadsheetExt("xlsx")),
+      kind: parseKind(String(form.get("kind") ?? "")),
+    });
+    return created({
+      job_id: job.id,
+      status: job.status,
+      filename: job.filename,
+      message: "File received. You can keep using the catalog while we apply the edits. Progress is in the header.",
+    });
   } catch (e) {
     console.error("inventory import:", e);
-    return err(e instanceof Error ? e.message : "Failed to import inventory", 400);
+    return err(e instanceof Error ? e.message : "Failed to receive inventory file", 400);
   }
 }

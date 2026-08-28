@@ -1,1 +1,1 @@
-export const PORTAL_TITLE = 'Catalog management system'
+export const PORTAL_TITLE = 'Brand Portal'

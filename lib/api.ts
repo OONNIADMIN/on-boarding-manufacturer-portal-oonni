@@ -20,6 +20,7 @@ import type { EntityCompleteness, ProductCompleteness } from '@/lib/inventory-co
 export type { CatalogImageIngestProgress }
 
 import { rememberCatalogImportJob, clearRememberedCatalogImportJobs } from '@/lib/catalog-import-jobs-client'
+import { rememberInventoryBulkJob } from '@/lib/inventory-bulk-jobs-client'
 
 const API_URL = '/api'
 
@@ -69,6 +70,22 @@ export interface CatalogUploadAccepted {
   status: string
   filename: string
   message: string
+}
+
+export interface InventoryBulkJobView {
+  id: string
+  filename: string
+  kind: 'products' | 'variants' | null
+  status: string
+  phase: string
+  message: string | null
+  progress_current: number
+  progress_total: number
+  updated_count: number
+  skipped_count: number
+  error: string | null
+  created_at: string
+  finished_at: string | null
 }
 
 export interface UploadResponse {
@@ -2074,14 +2091,7 @@ export const inventoryAPI = {
     file: File,
     kind?: 'products' | 'variants',
     manufacturerId?: number | null
-  ): Promise<{
-    kind: 'products' | 'variants'
-    updated: number
-    skipped: number
-    errors: string[]
-    traide_synced: number
-    traide_errors: string[]
-  }> {
+  ): Promise<CatalogUploadAccepted> {
     const token = authAPI.getToken()
     if (!token) throw new Error('Authentication required')
     const formData = new FormData()
@@ -2096,7 +2106,25 @@ export const inventoryAPI = {
       const error = await response.json().catch(() => ({}))
       throw new Error(error.detail || 'Could not upload your catalog file')
     }
+    const body = (await response.json()) as CatalogUploadAccepted
+    if (body.job_id) rememberInventoryBulkJob(body.job_id)
+    return body
+  },
+
+  async getBulkJob(jobId: string): Promise<InventoryBulkJobView> {
+    const response = await apiFetch(`${API_URL}/inventory/import-jobs/${encodeURIComponent(jobId)}`)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as { detail?: string }).detail || 'Failed to load import status')
+    }
     return response.json()
+  },
+
+  async listBulkJobs(): Promise<InventoryBulkJobView[]> {
+    const response = await apiFetch(`${API_URL}/inventory/import-jobs`)
+    if (!response.ok) return []
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
   },
 
   async sync(manufacturerId?: number | null): Promise<{

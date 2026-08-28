@@ -35,6 +35,7 @@ import {
   type CompletenessIssueKind,
   type CompletenessStatus,
 } from '@/lib/inventory-completeness'
+import { INVENTORY_BULK_COMPLETE_EVENT } from '@/lib/inventory-bulk-jobs-client'
 import styles from './page.module.scss'
 
 const MANUFACTURER_STORAGE_KEY = 'oonni.inventory.manufacturerId'
@@ -466,6 +467,18 @@ export default function InventoryPage() {
     await loadProducts(pagination.pageIndex + 1, pagination.pageSize, search, sorting)
   }, [loadProducts, pagination.pageIndex, pagination.pageSize, search, sorting])
 
+  useEffect(() => {
+    const onComplete = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string | null }>).detail
+      setVariantsByProduct({})
+      setExpanded({})
+      setNotice(detail?.message || 'Spreadsheet edits were applied to your catalog.')
+      void refreshList()
+    }
+    window.addEventListener(INVENTORY_BULK_COMPLETE_EVENT, onComplete)
+    return () => window.removeEventListener(INVENTORY_BULK_COMPLETE_EVENT, onComplete)
+  }, [refreshList])
+
   const handleExpandedChange: OnChangeFn<ExpandedState> = (next) => {
     const resolved = typeof next === 'function' ? next(expanded) : next
     setExpanded(resolved)
@@ -620,16 +633,10 @@ export default function InventoryPage() {
     setNotice(null)
     try {
       const result = await inventoryAPI.uploadBulk(file, undefined, manufacturerId)
-      const extra = result.errors.length ? ` ${result.errors.slice(0, 3).join(' ')}` : ''
-      const publishedNote = result.traide_errors.length
-        ? ' Some items could not be published yet.'
-        : ''
       setNotice(
-        `Updated ${result.updated} ${result.kind} in your catalog. Skipped ${result.skipped}.${publishedNote}${extra}`
+        result.message ||
+          `Received ${file.name}. Applying spreadsheet edits in the background. Progress is in the header.`
       )
-      setVariantsByProduct({})
-      setExpanded({})
-      await refreshList()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not upload your catalog file')
     } finally {
@@ -805,8 +812,8 @@ export default function InventoryPage() {
               <h2 className={styles.title}>{isAdmin ? 'Items Management' : 'Your catalog'}</h2>
               <p className={styles.subtitle}>
                 {isAdmin
-                  ? 'Search, sort and paginate products. Completeness flags N/A, zeros, short text, and empty fields. Download products or variants separately to bulk-edit; gray ID columns keep the product–variant link. Select a manufacturer, fetch categories, then assign them when you edit a product.'
-                  : 'Review your company’s products, complete missing details, and download a spreadsheet when you need to update many items at once. Assign a category when you edit a product.'}
+                  ? 'Search, sort and paginate products. Completeness flags N/A, zeros, short text, and empty fields. Download products or variants separately to bulk-edit; column headers are locked, and gray ID columns keep the product–variant link. Select a manufacturer, fetch categories, then assign them when you edit a product.'
+                  : 'Review your company’s products, complete missing details, and download a spreadsheet when you need to update many items at once. Column headers in the file are locked. Assign a category when you edit a product.'}
               </p>
             </div>
             <div className={styles.toolbarActions}>
@@ -885,7 +892,7 @@ export default function InventoryPage() {
                 disabled={!manufacturerId || isBulkBusy || isSyncing || isFetchingCategories}
               >
                 <Upload size={16} />
-                Upload edits
+                {isBulkBusy ? 'Uploading…' : 'Upload edits'}
               </button>
               <input
                 ref={bulkFileRef}
