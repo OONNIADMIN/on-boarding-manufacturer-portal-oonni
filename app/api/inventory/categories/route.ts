@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { err, ok } from "@/lib/api-response";
 import { requireInventoryUser } from "@/lib/inventory-access";
-import { listStoredCategoryTree } from "@/lib/traide/services/category-sync";
+import { listStoredCategoryTree } from "@/lib/marketplace/services/category-sync";
 
 export const dynamic = "force-dynamic";
 

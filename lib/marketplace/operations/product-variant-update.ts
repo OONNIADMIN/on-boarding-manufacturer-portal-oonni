@@ -1,20 +1,20 @@
-import { executeTraideMutation } from "@/lib/traide/graphql/client";
-import type { ProductVariantUpdatePayload, TraideProductError } from "@/app/graphql";
-import type { TraideProductVariantUpdateInput } from "@/lib/traide/mappers/variant-input";
+import { executeMarketplaceMutation } from "@/lib/marketplace/graphql/client";
+import type { ProductVariantUpdatePayload, MarketplaceProductError } from "@/app/graphql";
+import type { MarketplaceProductVariantUpdateInput } from "@/lib/marketplace/mappers/variant-input";
 
-function formatVariantError(error: TraideProductError): string {
+function formatVariantError(error: MarketplaceProductError): string {
   const parts = [error.field, error.code, error.message].filter(Boolean);
   return parts.join(": ") || "This variant could not be updated";
 }
 
 export async function productVariantUpdate(
   id: string,
-  input: TraideProductVariantUpdateInput
+  input: MarketplaceProductVariantUpdateInput
 ): Promise<{
   productVariant: ProductVariantUpdatePayload["productVariantUpdate"]["productVariant"];
   errors: string[];
 }> {
-  const data = await executeTraideMutation<ProductVariantUpdatePayload>("productVariantUpdate", {
+  const data = await executeMarketplaceMutation<ProductVariantUpdatePayload>("productVariantUpdate", {
     id,
     input,
   });

@@ -1,12 +1,12 @@
-import { TRAIDE_MUTATION_BATCH_SIZE } from "@/lib/traide/constants";
-import { executeTraideMutation } from "@/lib/traide/graphql/client";
+import { MARKETPLACE_MUTATION_BATCH_SIZE } from "@/lib/marketplace/constants";
+import { executeMarketplaceMutation } from "@/lib/marketplace/graphql/client";
 import type {
   ProductVariantBulkCreatePayload,
-  TraideBulkProductError,
+  MarketplaceBulkProductError,
 } from "@/app/graphql";
-import type { TraideProductVariantBulkCreateInput } from "@/lib/traide/mappers/variant-input";
+import type { MarketplaceProductVariantBulkCreateInput } from "@/lib/marketplace/mappers/variant-input";
 
-function formatBulkError(error: TraideBulkProductError, productId: string): string {
+function formatBulkError(error: MarketplaceBulkProductError, productId: string): string {
   const parts = [
     `product ${productId}`,
     error.index != null ? `variant ${error.index + 1}` : null,
@@ -19,8 +19,8 @@ function formatBulkError(error: TraideBulkProductError, productId: string): stri
 
 export async function productVariantBulkCreate(
   productId: string,
-  variants: TraideProductVariantBulkCreateInput[],
-  batchSize = TRAIDE_MUTATION_BATCH_SIZE
+  variants: MarketplaceProductVariantBulkCreateInput[],
+  batchSize = MARKETPLACE_MUTATION_BATCH_SIZE
 ): Promise<{
   productVariants: ProductVariantBulkCreatePayload["productVariantBulkCreate"]["productVariants"];
   errors: string[];
@@ -34,13 +34,13 @@ export async function productVariantBulkCreate(
 
   for (let offset = 0; offset < variants.length; offset += step) {
     const batch = variants.slice(offset, offset + step);
-    const data = await executeTraideMutation<ProductVariantBulkCreatePayload>("productVariantBulkCreate", {
+    const data = await executeMarketplaceMutation<ProductVariantBulkCreatePayload>("productVariantBulkCreate", {
       product: productId,
       variants: batch,
     });
     productVariants.push(...(data.productVariantBulkCreate.productVariants ?? []));
     for (const error of data.productVariantBulkCreate.bulkProductErrors ?? []) {
-      const shifted: TraideBulkProductError = {
+      const shifted: MarketplaceBulkProductError = {
         ...error,
         index: error.index == null ? error.index : error.index + offset,
       };

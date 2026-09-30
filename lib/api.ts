@@ -1845,8 +1845,8 @@ export type InventoryProductRow = {
   variant_count?: number
   completeness?: ProductCompleteness
   synced_at: string
-  traide_synced?: number
-  traide_errors?: string[]
+  marketplace_synced?: number
+  marketplace_errors?: string[]
 }
 
 export type InventoryAttributeWrite = {
@@ -2014,8 +2014,8 @@ export const inventoryAPI = {
     manufacturerId?: number | null
   ): Promise<{
     variant: InventoryVariantRow
-    traide_synced?: number
-    traide_errors?: string[]
+    marketplace_synced?: number
+    marketplace_errors?: string[]
   }> {
     return inventoryRequest(`/inventory/products/${productId}/variants`, {
       method: 'POST',
@@ -2031,8 +2031,8 @@ export const inventoryAPI = {
     manufacturerId?: number | null
   ): Promise<{
     variant: InventoryVariantRow
-    traide_synced?: number
-    traide_errors?: string[]
+    marketplace_synced?: number
+    marketplace_errors?: string[]
   }> {
     return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
       method: 'PATCH',

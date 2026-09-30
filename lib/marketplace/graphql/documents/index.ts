@@ -1,6 +1,6 @@
 export {
-  TRAIDE_QUERIES,
-  TRAIDE_MUTATIONS,
+  MARKETPLACE_QUERIES,
+  MARKETPLACE_MUTATIONS,
   APPROVED_SELLERS_QUERY,
   CATEGORIES_FOR_TEMPLATE_QUERY,
   GET_ALL_CATEGORIES_QUERY,
@@ -9,9 +9,9 @@ export {
   PRODUCT_TYPES_PAGE_QUERY,
   PRODUCT_BULK_CREATE_MUTATION,
   PRODUCT_VARIANT_BULK_CREATE_MUTATION,
-  type TraideQueryName,
-  type TraideMutationName,
-  type TraideBulkProductError,
+  type MarketplaceQueryName,
+  type MarketplaceMutationName,
+  type MarketplaceBulkProductError,
   type ProductBulkCreatePayload,
   type ProductVariantBulkCreatePayload,
 } from "@/app/graphql";

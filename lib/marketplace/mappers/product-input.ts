@@ -2,8 +2,8 @@ import { LOCAL_INVENTORY_PREFIX } from "@/lib/inventory-access";
 import { asOptionalText, asRecord, asText, decimalString, namedField } from "./json";
 import {
   attributesFromInventorySource,
-  type TraideAttributeCatalogItem,
-  type TraideAttributeInput,
+  type MarketplaceAttributeCatalogItem,
+  type MarketplaceAttributeInput,
 } from "./attribute-input";
 
 const PRODUCT_SUB_STATUSES = new Set(["IN_REVIEW", "APPROVED", "REJECTED", "DISABLED"]);
@@ -15,16 +15,16 @@ function resolveProductSubStatus(value: unknown): string {
   if (PRODUCT_SUB_STATUSES.has(raw)) return raw;
   return "IN_REVIEW";
 }
-export const TRAIDE_EXTERNAL_SOURCE = "oonni-manufacturer-portal";
+export const MARKETPLACE_EXTERNAL_SOURCE = "oonni-manufacturer-portal";
 
-export type TraideProductBulkCreateInput = {
+export type MarketplaceProductBulkCreateInput = {
   name: string;
   slug: string;
   description: string;
   descriptionHtml: string;
   category?: string;
   productType: string;
-  attributes: TraideAttributeInput[];
+  attributes: MarketplaceAttributeInput[];
   chargeTaxes: boolean;
   collections: string[];
   currency: string;
@@ -48,14 +48,14 @@ export type TraideProductBulkCreateInput = {
   dimensions?: { length: string; width: string; height: string };
 };
 
-/** Fields accepted by Traide `ProductInput` (productUpdate). Bulk-create-only keys are omitted. */
-export type TraideProductUpdateInput = {
+/** Fields accepted by Marketplace `ProductInput` (productUpdate). Bulk-create-only keys are omitted. */
+export type MarketplaceProductUpdateInput = {
   name: string;
   slug: string;
   description: string;
   descriptionHtml: string;
   category?: string;
-  attributes: TraideAttributeInput[];
+  attributes: MarketplaceAttributeInput[];
   currency: string;
   seo: { title: string; description: string };
 };
@@ -64,8 +64,8 @@ export type ProductTypeLookup = {
   id: string;
   slug: string;
   name: string;
-  productAttributes?: TraideAttributeCatalogItem[];
-  variantAttributes?: TraideAttributeCatalogItem[];
+  productAttributes?: MarketplaceAttributeCatalogItem[];
+  variantAttributes?: MarketplaceAttributeCatalogItem[];
 };
 
 export type InventoryProductLike = {
@@ -91,7 +91,7 @@ export type InventoryProductLike = {
   dimensions: unknown;
 };
 
-export function isLocalTraideId(id: string | null | undefined): boolean {
+export function isLocalMarketplaceId(id: string | null | undefined): boolean {
   return Boolean(id?.startsWith(LOCAL_INVENTORY_PREFIX));
 }
 
@@ -111,13 +111,13 @@ export function resolveProductExternalId(product: InventoryProductLike): string 
     asOptionalText(product.external_id) ||
     asOptionalText(payload?.externalId) ||
     asOptionalText(payload?.external_id) ||
-    (isLocalTraideId(product.nautical_id) ? product.nautical_id : null)
+    (isLocalMarketplaceId(product.nautical_id) ? product.nautical_id : null)
   );
 }
 
 export function resolveProductExternalSource(product: InventoryProductLike): string {
   const payload = asRecord(product.payload);
-  return asOptionalText(payload?.externalSource) || asOptionalText(payload?.external_source) || TRAIDE_EXTERNAL_SOURCE;
+  return asOptionalText(payload?.externalSource) || asOptionalText(payload?.external_source) || MARKETPLACE_EXTERNAL_SOURCE;
 }
 
 export function resolveProductTypeId(
@@ -158,7 +158,7 @@ function resolveCategoryId(
   return match?.id;
 }
 
-function dimensionsInput(value: unknown): TraideProductBulkCreateInput["dimensions"] | undefined {
+function dimensionsInput(value: unknown): MarketplaceProductBulkCreateInput["dimensions"] | undefined {
   const rec = asRecord(value);
   if (!rec) return undefined;
   if (rec.length == null && rec.width == null && rec.height == null) return undefined;
@@ -176,7 +176,7 @@ export function toProductBulkCreateInput(
     productTypes: ProductTypeLookup[];
     categories?: Array<{ id: string; slug: string; name: string }>;
   }
-): { input: TraideProductBulkCreateInput; productType: ProductTypeLookup | null } | { error: string } {
+): { input: MarketplaceProductBulkCreateInput; productType: ProductTypeLookup | null } | { error: string } {
   const productTypeId = resolveProductTypeId(product, options.productTypes);
   if (!productTypeId) {
     return { error: `Product ${product.id} is missing a product type` };
@@ -190,7 +190,7 @@ export function toProductBulkCreateInput(
   const productType = options.productTypes.find((item) => item.id === productTypeId) ?? null;
   const payload = asRecord(product.payload);
   const category = resolveCategoryId(product, options.categories ?? []);
-  const input: TraideProductBulkCreateInput = {
+  const input: MarketplaceProductBulkCreateInput = {
     name: product.name,
     slug: product.slug,
     description: product.description ?? "",
@@ -233,14 +233,14 @@ export function toProductUpdateInput(
     productTypes: ProductTypeLookup[];
     categories?: Array<{ id: string; slug: string; name: string }>;
   }
-): { id: string; input: TraideProductUpdateInput } | { error: string } {
-  if (isLocalTraideId(product.nautical_id) || !asText(product.nautical_id)) {
+): { id: string; input: MarketplaceProductUpdateInput } | { error: string } {
+  if (isLocalMarketplaceId(product.nautical_id) || !asText(product.nautical_id)) {
     return { error: `Product ${product.id} is not published in your catalog yet` };
   }
   const mapped = toProductBulkCreateInput(product, options);
   if ("error" in mapped) return mapped;
   const { input } = mapped;
-  const update: TraideProductUpdateInput = {
+  const update: MarketplaceProductUpdateInput = {
     name: input.name,
     slug: input.slug,
     description: input.description,

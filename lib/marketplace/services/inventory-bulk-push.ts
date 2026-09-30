@@ -1,30 +1,30 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { TRAIDE_MUTATION_BATCH_SIZE } from "@/lib/traide/constants";
-import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/traide/graphql/client";
-import type { TraideProductBulkCreateInput } from "@/lib/traide/mappers/product-input";
+import { MARKETPLACE_MUTATION_BATCH_SIZE } from "@/lib/marketplace/constants";
+import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/marketplace/graphql/client";
+import type { MarketplaceProductBulkCreateInput } from "@/lib/marketplace/mappers/product-input";
 import {
-  isLocalTraideId,
+  isLocalMarketplaceId,
   resolveProductTypeId,
   toProductBulkCreateInput,
   toProductUpdateInput,
   type InventoryProductLike,
-} from "@/lib/traide/mappers/product-input";
-import type { TraideProductVariantBulkCreateInput } from "@/lib/traide/mappers/variant-input";
-import { toVariantBulkCreateInput, toVariantUpdateInput, type InventoryVariantLike } from "@/lib/traide/mappers/variant-input";
-import { attributesForVariantUpdate } from "@/lib/traide/mappers/attribute-input";
-import { productBulkCreate } from "@/lib/traide/operations/product-bulk-create";
-import { productUpdate } from "@/lib/traide/operations/product-update";
-import { fetchAllNauticalProductTypes } from "@/lib/traide/operations/product-types";
-import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
+} from "@/lib/marketplace/mappers/product-input";
+import type { MarketplaceProductVariantBulkCreateInput } from "@/lib/marketplace/mappers/variant-input";
+import { toVariantBulkCreateInput, toVariantUpdateInput, type InventoryVariantLike } from "@/lib/marketplace/mappers/variant-input";
+import { attributesForVariantUpdate } from "@/lib/marketplace/mappers/attribute-input";
+import { productBulkCreate } from "@/lib/marketplace/operations/product-bulk-create";
+import { productUpdate } from "@/lib/marketplace/operations/product-update";
+import { fetchAllNauticalProductTypes } from "@/lib/marketplace/operations/product-types";
+import { resolveManufacturerSellerId } from "@/lib/marketplace/operations/sellers";
 import { loadCategoryLookup } from "@/lib/inventory-categories";
-import { productVariantBulkCreate } from "@/lib/traide/operations/variant-bulk-create";
-import { productVariantUpdate } from "@/lib/traide/operations/product-variant-update";
-import { pushVariantImagesForIds } from "@/lib/traide/services/variant-images-push";
+import { productVariantBulkCreate } from "@/lib/marketplace/operations/variant-bulk-create";
+import { productVariantUpdate } from "@/lib/marketplace/operations/product-variant-update";
+import { pushVariantImagesForIds } from "@/lib/marketplace/services/variant-images-push";
 
-export type TraidePushResult = {
-  traide_synced: number;
-  traide_errors: string[];
+export type MarketplacePushResult = {
+  marketplace_synced: number;
+  marketplace_errors: string[];
 };
 
 const PRODUCT_SELECT = {
@@ -50,8 +50,8 @@ const PRODUCT_SELECT = {
   dimensions: true,
 } satisfies Prisma.InventoryProductSelect;
 
-function emptyPush(): TraidePushResult {
-  return { traide_synced: 0, traide_errors: [] };
+function emptyPush(): MarketplacePushResult {
+  return { marketplace_synced: 0, marketplace_errors: [] };
 }
 
 function asJson(value: unknown): Prisma.InputJsonValue {
@@ -89,13 +89,13 @@ async function resolveSellerForPush(manufacturerId: number): Promise<string> {
   return sellerId;
 }
 
-export async function pushInventoryProductsToTraide(
+export async function pushInventoryProductsToMarketplace(
   manufacturerId: number,
   productIds: number[]
-): Promise<TraidePushResult> {
+): Promise<MarketplacePushResult> {
   if (!productIds.length) return emptyPush();
   if (!getNauticalConfig()) {
-    return { traide_synced: 0, traide_errors: [nauticalNotConfiguredMessage()] };
+    return { marketplace_synced: 0, marketplace_errors: [nauticalNotConfiguredMessage()] };
   }
 
   const errors: string[] = [];
@@ -107,11 +107,11 @@ export async function pushInventoryProductsToTraide(
     });
     const productTypes = await fetchAllNauticalProductTypes();
     const categories = await loadCategoryLookup();
-    const toCreate: Array<{ row: InventoryProductLike; input: TraideProductBulkCreateInput }> = [];
+    const toCreate: Array<{ row: InventoryProductLike; input: MarketplaceProductBulkCreateInput }> = [];
     let synced = 0;
 
     for (const product of products) {
-      if (!isLocalTraideId(product.nautical_id) && product.nautical_id) {
+      if (!isLocalMarketplaceId(product.nautical_id) && product.nautical_id) {
         const result = toProductUpdateInput(product, { sellerId, productTypes, categories });
         if ("error" in result) {
           errors.push(result.error);
@@ -151,7 +151,7 @@ export async function pushInventoryProductsToTraide(
     if (toCreate.length) {
       const response = await productBulkCreate(
         toCreate.map((item) => item.input),
-        TRAIDE_MUTATION_BATCH_SIZE
+        MARKETPLACE_MUTATION_BATCH_SIZE
       );
       errors.push(...response.errors);
       synced += Math.max(0, toCreate.length - response.errors.length);
@@ -187,23 +187,23 @@ export async function pushInventoryProductsToTraide(
     }
 
     return {
-      traide_synced: synced,
-      traide_errors: errors.slice(0, 50),
+      marketplace_synced: synced,
+      marketplace_errors: errors.slice(0, 50),
     };
   } catch (e) {
     errors.push(e instanceof Error ? e.message : "Could not publish products to your catalog");
-    return { traide_synced: 0, traide_errors: errors.slice(0, 50) };
+    return { marketplace_synced: 0, marketplace_errors: errors.slice(0, 50) };
   }
 }
 
-export async function pushInventoryVariantsToTraide(
+export async function pushInventoryVariantsToMarketplace(
   manufacturerId: number,
   variantIds: number[],
   options?: { previousImagesById?: Map<number, unknown> }
-): Promise<TraidePushResult> {
+): Promise<MarketplacePushResult> {
   if (!variantIds.length) return emptyPush();
   if (!getNauticalConfig()) {
-    return { traide_synced: 0, traide_errors: [nauticalNotConfiguredMessage()] };
+    return { marketplace_synced: 0, marketplace_errors: [nauticalNotConfiguredMessage()] };
   }
 
   const errors: string[] = [];
@@ -220,12 +220,12 @@ export async function pushInventoryVariantsToTraide(
     let rows = variants;
     const localParentIds = [
       ...new Set(
-        rows.filter((variant) => isLocalTraideId(variant.product.nautical_id)).map((variant) => variant.product.id)
+        rows.filter((variant) => isLocalMarketplaceId(variant.product.nautical_id)).map((variant) => variant.product.id)
       ),
     ];
     if (localParentIds.length) {
-      const parentPush = await pushInventoryProductsToTraide(manufacturerId, localParentIds);
-      errors.push(...parentPush.traide_errors);
+      const parentPush = await pushInventoryProductsToMarketplace(manufacturerId, localParentIds);
+      errors.push(...parentPush.marketplace_errors);
       rows = await prisma.inventoryVariant.findMany({
         where: {
           id: { in: variantIds },
@@ -238,14 +238,14 @@ export async function pushInventoryVariantsToTraide(
     const productTypes = await fetchAllNauticalProductTypes();
     const grouped = new Map<
       string,
-      Array<{ row: InventoryVariantLike; input: TraideProductVariantBulkCreateInput }>
+      Array<{ row: InventoryVariantLike; input: MarketplaceProductVariantBulkCreateInput }>
     >();
 
     for (const variant of rows) {
       const typeId = resolveProductTypeId(variant.product, productTypes);
       const catalog = productTypes.find((item) => item.id === typeId)?.variantAttributes ?? [];
 
-      if (!isLocalTraideId(variant.nautical_id) && variant.nautical_id) {
+      if (!isLocalMarketplaceId(variant.nautical_id) && variant.nautical_id) {
         const result = toVariantUpdateInput(variant, { sellerId, catalog });
         if ("error" in result) {
           errors.push(result.error);
@@ -289,7 +289,7 @@ export async function pushInventoryVariantsToTraide(
       const response = await productVariantBulkCreate(
         productId,
         items.map((item) => item.input),
-        TRAIDE_MUTATION_BATCH_SIZE
+        MARKETPLACE_MUTATION_BATCH_SIZE
       );
       errors.push(...response.errors);
       synced += Math.max(0, items.length - response.errors.length);
@@ -346,9 +346,9 @@ export async function pushInventoryVariantsToTraide(
     );
     errors.push(...imageErrors);
 
-    return { traide_synced: synced, traide_errors: errors.slice(0, 50) };
+    return { marketplace_synced: synced, marketplace_errors: errors.slice(0, 50) };
   } catch (e) {
     errors.push(e instanceof Error ? e.message : "Could not publish variants to your catalog");
-    return { traide_synced: synced, traide_errors: errors.slice(0, 50) };
+    return { marketplace_synced: synced, marketplace_errors: errors.slice(0, 50) };
   }
 }

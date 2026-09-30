@@ -3,7 +3,7 @@ const path = require('path')
 
 const nextConfig = {
   reactStrictMode: true,
-  // Keep Prisma on the Node runtime so new models (e.g. TraideCategory) are not dropped by webpack.
+  // Keep Prisma on the Node runtime so new models (e.g. MarketplaceCategory) are not dropped by webpack.
   serverExternalPackages: ['@prisma/client', '@prisma/adapter-pg'],
   // standalone for production / Docker images; skip in local `next dev` on Windows
   ...(process.env.NODE_ENV === 'production' || process.env.DOCKER_BUILD === '1'

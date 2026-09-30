@@ -1,4 +1,4 @@
-import { executeTraideMutation } from "@/lib/traide/graphql/client";
+import { executeMarketplaceMutation } from "@/lib/marketplace/graphql/client";
 import type { ProductVariantImageAssignPayload } from "@/app/graphql";
 
 export async function productVariantImageAssign(
@@ -6,7 +6,7 @@ export async function productVariantImageAssign(
   variantId: string,
   countryCode = "US"
 ): Promise<{ errors: string[] }> {
-  const data = await executeTraideMutation<ProductVariantImageAssignPayload>("productVariantImageAssign", {
+  const data = await executeMarketplaceMutation<ProductVariantImageAssignPayload>("productVariantImageAssign", {
     imageId,
     variantId,
     countryCode,

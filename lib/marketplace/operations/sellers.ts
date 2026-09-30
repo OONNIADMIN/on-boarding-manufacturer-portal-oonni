@@ -1,4 +1,4 @@
-import { executeTraideQuery } from "@/lib/traide/graphql/client";
+import { executeMarketplaceQuery } from "@/lib/marketplace/graphql/client";
 
 type ApprovedSellerNode = {
   id: string;
@@ -23,7 +23,7 @@ function pickApprovedSeller(nodes: ApprovedSellerNode[], search: string): string
 export async function searchApprovedSellerId(search: string): Promise<string | null> {
   const query = search.trim();
   if (!query) return null;
-  const data = await executeTraideQuery<{
+  const data = await executeMarketplaceQuery<{
     sellers: { edges: Array<{ node: ApprovedSellerNode }> };
   }>("approvedSellers", { search: query });
   return pickApprovedSeller(

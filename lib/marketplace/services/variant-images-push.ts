@@ -1,22 +1,22 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { LOCAL_INVENTORY_PREFIX } from "@/lib/inventory-access";
-import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/traide/graphql/client";
+import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/marketplace/graphql/client";
 import {
   collectImageRecords,
   imageMatchKey,
-  isTraideImageId,
+  isMarketplaceImageId,
   parseVariantImages,
   toInventoryImages,
-  type TraideVariantImageInput,
-} from "@/lib/traide/mappers/variant-images";
-import { productImageBulkDelete } from "@/lib/traide/operations/product-image-bulk-delete";
-import { productImageCreate } from "@/lib/traide/operations/product-image-create";
-import { orderedTraideImageIds, productImageReorder } from "@/lib/traide/operations/product-image-reorder";
-import { productVariantImageAssign } from "@/lib/traide/operations/variant-image-assign";
+  type MarketplaceVariantImageInput,
+} from "@/lib/marketplace/mappers/variant-images";
+import { productImageBulkDelete } from "@/lib/marketplace/operations/product-image-bulk-delete";
+import { productImageCreate } from "@/lib/marketplace/operations/product-image-create";
+import { orderedMarketplaceImageIds, productImageReorder } from "@/lib/marketplace/operations/product-image-reorder";
+import { productVariantImageAssign } from "@/lib/marketplace/operations/variant-image-assign";
 import { normalizeInventoryImages } from "@/lib/inventory-crud";
 
-const TRAIDE_IMAGE_COUNTRY_CODE = "US";
+const MARKETPLACE_IMAGE_COUNTRY_CODE = "US";
 
 function isLocalId(id: string | null | undefined): boolean {
   return Boolean(id?.startsWith(LOCAL_INVENTORY_PREFIX));
@@ -26,19 +26,19 @@ function asJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? [])) as Prisma.InputJsonValue;
 }
 
-function imageIds(images: TraideVariantImageInput[]): string[] {
-  return images.map((image) => image.id).filter((id): id is string => Boolean(id) && isTraideImageId(id));
+function imageIds(images: MarketplaceVariantImageInput[]): string[] {
+  return images.map((image) => image.id).filter((id): id is string => Boolean(id) && isMarketplaceImageId(id));
 }
 
-function recoverTraideImageId(
-  image: TraideVariantImageInput,
-  known: TraideVariantImageInput[]
+function recoverMarketplaceImageId(
+  image: MarketplaceVariantImageInput,
+  known: MarketplaceVariantImageInput[]
 ): string | null {
-  if (image.id && isTraideImageId(image.id)) return image.id;
+  if (image.id && isMarketplaceImageId(image.id)) return image.id;
   const key = imageMatchKey(image.url);
   const match = known.find(
     (row) =>
-      Boolean(row.id && isTraideImageId(row.id)) &&
+      Boolean(row.id && isMarketplaceImageId(row.id)) &&
       (row.url === image.url || imageMatchKey(row.url) === key)
   );
   return match?.id ?? null;
@@ -49,11 +49,11 @@ function recoveryImagesFromVariant(variant: {
   payload: unknown;
   nautical_id: string | null;
   product: { payload: unknown };
-}): TraideVariantImageInput[] {
+}): MarketplaceVariantImageInput[] {
   const fromColumn = collectImageRecords(variant.images);
   const fromVariantPayload = collectImageRecords(variant.payload);
   const nested = (variant.product.payload as { variants?: unknown } | null)?.variants;
-  const fromProductVariants: TraideVariantImageInput[] = [];
+  const fromProductVariants: MarketplaceVariantImageInput[] = [];
   if (Array.isArray(nested) && variant.nautical_id) {
     const match = nested.find((item) => {
       if (!item || typeof item !== "object") return false;
@@ -65,11 +65,11 @@ function recoveryImagesFromVariant(variant: {
 }
 
 /**
- * Same Traide flow as middleware `product_images_create` + `product_variant_images_assign`:
+ * Same Marketplace flow as middleware `product_images_create` + `product_variant_images_assign`:
  * create images on the parent product from URLs, then assign those image IDs to the variant.
- * Local ImageKit URLs are always persisted; Traide CDN URLs are never written back over DAM urls.
+ * Local ImageKit URLs are always persisted; Marketplace CDN URLs are never written back over DAM urls.
  */
-export async function pushVariantImagesToTraide(
+export async function pushVariantImagesToMarketplace(
   variantId: number,
   previousImages?: unknown
 ): Promise<{ errors: string[] }> {
@@ -88,11 +88,11 @@ export async function pushVariantImagesToTraide(
   }
 
   const productId = variant.product.nautical_id;
-  const traideVariantId = variant.nautical_id;
+  const marketplaceVariantId = variant.nautical_id;
   if (!productId || isLocalId(productId)) {
     return { errors: [`Variant ${variant.id} parent product is not in your catalog yet. Save the product first.`] };
   }
-  if (!traideVariantId || isLocalId(traideVariantId)) {
+  if (!marketplaceVariantId || isLocalId(marketplaceVariantId)) {
     return { errors: [`Variant ${variant.id} is not in your catalog yet. Save the variant first.`] };
   }
 
@@ -102,14 +102,14 @@ export async function pushVariantImagesToTraide(
   ];
   const intended = parseVariantImages(variant.images, known).map((image) => ({
     ...image,
-    id: recoverTraideImageId(image, known),
+    id: recoverMarketplaceImageId(image, known),
   }));
   const previousIds = imageIds(parseVariantImages(previousImages ?? [], previousImages ?? []));
   const errors: string[] = [];
-  const persisted: TraideVariantImageInput[] = [];
+  const persisted: MarketplaceVariantImageInput[] = [];
 
   for (const image of intended) {
-    if (image.id && isTraideImageId(image.id)) {
+    if (image.id && isMarketplaceImageId(image.id)) {
       persisted.push(image);
       continue;
     }
@@ -132,8 +132,8 @@ export async function pushVariantImagesToTraide(
       try {
         const assigned = await productVariantImageAssign(
           result.imageId,
-          traideVariantId,
-          TRAIDE_IMAGE_COUNTRY_CODE
+          marketplaceVariantId,
+          MARKETPLACE_IMAGE_COUNTRY_CODE
         );
         if (assigned.errors.length) {
           errors.push(`Variant ${variant.id} assign ${image.url}: ${assigned.errors.join("; ")}`);
@@ -178,9 +178,9 @@ export async function pushVariantImagesToTraide(
       select: { images: true },
     });
     const imagesIds = [
-      ...orderedTraideImageIds(persisted),
-      ...siblings.flatMap((row) => orderedTraideImageIds(normalizeInventoryImages(row.images))),
-      ...orderedTraideImageIds(normalizeInventoryImages(productImages?.images)),
+      ...orderedMarketplaceImageIds(persisted),
+      ...siblings.flatMap((row) => orderedMarketplaceImageIds(normalizeInventoryImages(row.images))),
+      ...orderedMarketplaceImageIds(normalizeInventoryImages(productImages?.images)),
     ].filter((id, index, all) => all.indexOf(id) === index);
     if (imagesIds.length >= 2) {
       const reordered = await productImageReorder(productId, imagesIds);
@@ -203,7 +203,7 @@ export async function pushVariantImagesForIds(
 ): Promise<string[]> {
   const errors: string[] = [];
   for (const variantId of variantIds) {
-    const result = await pushVariantImagesToTraide(variantId, previousById?.get(variantId));
+    const result = await pushVariantImagesToMarketplace(variantId, previousById?.get(variantId));
     errors.push(...result.errors);
   }
   return errors;

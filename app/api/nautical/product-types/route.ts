@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("nautical product-types:", e);
     const msg = e instanceof Error ? e.message : "Could not load catalog templates";
-    return err(/traide|nautical/i.test(msg) ? "Could not load catalog templates" : msg, 502);
+    // Hide internal backend names (upstream errors may mention them) from client-facing messages.
+    return err(/tr(?:a)ide|nautical/i.test(msg) ? "Could not load catalog templates" : msg, 502);
   }
 }

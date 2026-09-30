@@ -1,5 +1,5 @@
 /**
- * Coerce stored inventory attributes into Traide AttributeValueInput,
+ * Coerce stored inventory attributes into Marketplace AttributeValueInput,
  * matching oonni-integration-middleware `build_attribute_graphql_payload`.
  *
  * Mutation payload keys by inputType:
@@ -14,7 +14,7 @@ import type { MappedInventoryAttribute } from "@/lib/inventory-attributes";
 import { resolveInventoryAttributes } from "@/lib/inventory-attributes";
 import { asOptionalText, asRecord, asText } from "./json";
 
-export type TraideAttributeInput = {
+export type MarketplaceAttributeInput = {
   id: string;
   values?: string[];
   plainText?: string;
@@ -25,7 +25,7 @@ export type TraideAttributeInput = {
   currency?: string;
 };
 
-export type TraideAttributeCatalogItem = {
+export type MarketplaceAttributeCatalogItem = {
   id: string;
   name: string;
   slug?: string | null;
@@ -117,8 +117,8 @@ function metricUnitFromSlug(slug: string | null | undefined): string | undefined
 
 function lookupCatalogItem(
   attr: MappedInventoryAttribute,
-  catalog: TraideAttributeCatalogItem[]
-): TraideAttributeCatalogItem | undefined {
+  catalog: MarketplaceAttributeCatalogItem[]
+): MarketplaceAttributeCatalogItem | undefined {
   const existing = asOptionalText(attr.id);
   if (existing) {
     const byId = catalog.find((item) => item.id === existing);
@@ -140,10 +140,10 @@ function selectValues(value: string, multiselect: boolean): string[] {
   return parts.length ? parts : ["N/A"];
 }
 
-export function toTraideAttributeInput(
+export function toMarketplaceAttributeInput(
   attr: MappedInventoryAttribute,
-  catalog: TraideAttributeCatalogItem[] = []
-): TraideAttributeInput | null {
+  catalog: MarketplaceAttributeCatalogItem[] = []
+): MarketplaceAttributeInput | null {
   const catalogItem = lookupCatalogItem(attr, catalog);
   const id = asOptionalText(attr.id) || catalogItem?.id || null;
   if (!id) return null;
@@ -160,7 +160,7 @@ export function toTraideAttributeInput(
     return { id, boolean: parseBoolean(value) };
   }
   if (inputType === "NUMERIC" || inputType === "METRIC" || inputType === "MONEY") {
-    const payload: TraideAttributeInput = { id, amount: formatAmount(value) };
+    const payload: MarketplaceAttributeInput = { id, amount: formatAmount(value) };
     if (inputType === "MONEY") payload.currency = "USD";
     if (inputType === "METRIC") {
       const unit = metricUnitFromSlug(catalogItem?.slug || attr.slug);
@@ -178,8 +178,8 @@ export function toTraideAttributeInput(
 
 export function attributesFromInventorySource(
   source: { attributes?: unknown; payload?: unknown },
-  catalog: TraideAttributeCatalogItem[] = []
-): TraideAttributeInput[] {
+  catalog: MarketplaceAttributeCatalogItem[] = []
+): MarketplaceAttributeInput[] {
   const stored = resolveInventoryAttributes(source);
   const payloadAttrs = resolveInventoryAttributes({
     attributes: asRecord(source.payload)?.attributes,
@@ -216,12 +216,12 @@ export function attributesFromInventorySource(
   }
 
   return rows
-    .map((attr) => toTraideAttributeInput(attr, catalog))
-    .filter((attr): attr is TraideAttributeInput => Boolean(attr));
+    .map((attr) => toMarketplaceAttributeInput(attr, catalog))
+    .filter((attr): attr is MarketplaceAttributeInput => Boolean(attr));
 }
 
 /** Nautical productVariantUpdate persists NUMERIC only with float amounts. */
-export function attributesForVariantUpdate(attributes: TraideAttributeInput[]): TraideAttributeInput[] {
+export function attributesForVariantUpdate(attributes: MarketplaceAttributeInput[]): MarketplaceAttributeInput[] {
   return attributes.map((attr) => {
     if (attr.amount == null || attr.amount === "") return attr;
     const num = Number(attr.amount);

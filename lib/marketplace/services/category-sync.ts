@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { fetchAllNauticalCategories } from "@/lib/traide/operations/categories";
+import { fetchAllNauticalCategories } from "@/lib/marketplace/operations/categories";
 import { flattenStoredCategoryTree, type StoredCategoryRow } from "@/lib/inventory-categories";
 
 function asJson(value: unknown): Prisma.InputJsonValue {
@@ -14,7 +14,7 @@ export type CategorySyncResult = {
   removed: number;
 };
 
-export async function syncTraideCategories(): Promise<CategorySyncResult> {
+export async function syncMarketplaceCategories(): Promise<CategorySyncResult> {
   const records = await fetchAllNauticalCategories();
   const now = new Date();
   const seen = records.map((row) => row.id);
@@ -23,7 +23,7 @@ export async function syncTraideCategories(): Promise<CategorySyncResult> {
     const chunk = records.slice(i, i + UPSERT_CHUNK);
     await Promise.all(
       chunk.map((row) =>
-        prisma.traideCategory.upsert({
+        prisma.marketplaceCategory.upsert({
           where: { nautical_id: row.id },
           create: {
             nautical_id: row.id,
@@ -51,7 +51,7 @@ export async function syncTraideCategories(): Promise<CategorySyncResult> {
     );
   }
 
-  const stored = await prisma.traideCategory.findMany({
+  const stored = await prisma.marketplaceCategory.findMany({
     select: { id: true, nautical_id: true, parent_id: true, parent_nautical_id: true },
   });
   const byNauticalId = new Map(stored.map((row) => [row.nautical_id, row]));
@@ -64,7 +64,7 @@ export async function syncTraideCategories(): Promise<CategorySyncResult> {
           : undefined;
       const nextParentId = parent?.id ?? null;
       if (nextParentId === row.parent_id) return Promise.resolve();
-      return prisma.traideCategory.update({
+      return prisma.marketplaceCategory.update({
         where: { id: row.id },
         data: { parent_id: nextParentId },
       });
@@ -73,7 +73,7 @@ export async function syncTraideCategories(): Promise<CategorySyncResult> {
 
   let removed = 0;
   if (seen.length) {
-    const result = await prisma.traideCategory.updateMany({
+    const result = await prisma.marketplaceCategory.updateMany({
       where: { nautical_id: { notIn: seen }, deleted_at: null },
       data: { deleted_at: now },
     });
@@ -84,7 +84,7 @@ export async function syncTraideCategories(): Promise<CategorySyncResult> {
 }
 
 export async function listStoredCategoryTree(): Promise<ReturnType<typeof flattenStoredCategoryTree>> {
-  const rows: StoredCategoryRow[] = await prisma.traideCategory.findMany({
+  const rows: StoredCategoryRow[] = await prisma.marketplaceCategory.findMany({
     where: { deleted_at: null },
     select: {
       id: true,

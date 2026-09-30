@@ -1,4 +1,4 @@
-import { executeTraideQuery } from "@/lib/traide/graphql/client";
+import { executeMarketplaceQuery } from "@/lib/marketplace/graphql/client";
 
 export type NauticalMetadataEntry = { key?: string | null; value?: string | null };
 
@@ -64,7 +64,7 @@ export async function fetchCategoriesForTemplateSearch(
   const q = searchName.trim();
   if (!q) return [];
   try {
-    const data = await executeTraideQuery<{
+    const data = await executeMarketplaceQuery<{
       categories: { edges: { node: NauticalCategoryNode }[] };
     }>("categoriesForTemplate", { search: q });
     return flattenNauticalCategoryTree(data.categories.edges.map((edge) => edge.node));
@@ -79,7 +79,7 @@ export async function fetchAllNauticalCategories(): Promise<NauticalCategoryReco
   let afterCursor: string | null = null;
 
   for (;;) {
-    const data: CategoriesConnection = await executeTraideQuery<CategoriesConnection>(
+    const data: CategoriesConnection = await executeMarketplaceQuery<CategoriesConnection>(
       "allCategories",
       { afterCursor }
     );

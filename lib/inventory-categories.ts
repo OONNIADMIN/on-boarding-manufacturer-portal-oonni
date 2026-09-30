@@ -94,7 +94,7 @@ export async function resolveCategoryJson(input: {
       : null;
 
   if (categoryId) {
-    const row = await prisma.traideCategory.findFirst({
+    const row = await prisma.marketplaceCategory.findFirst({
       where: { nautical_id: categoryId, deleted_at: null },
       select: { nautical_id: true, slug: true, name: true },
     });
@@ -104,7 +104,7 @@ export async function resolveCategoryJson(input: {
 
   const name = input.categoryName?.trim() || null;
   if (name) {
-    const rows = await prisma.traideCategory.findMany({
+    const rows = await prisma.marketplaceCategory.findMany({
       where: { deleted_at: null },
       select: { id: true, nautical_id: true, parent_id: true, name: true, slug: true },
     });
@@ -124,7 +124,7 @@ export async function resolveCategoryJson(input: {
 export type CategoryLookup = { id: string; slug: string; name: string };
 
 export async function loadCategoryLookup(): Promise<CategoryLookup[]> {
-  const rows = await prisma.traideCategory.findMany({
+  const rows = await prisma.marketplaceCategory.findMany({
     where: { deleted_at: null },
     select: { nautical_id: true, slug: true, name: true },
   });

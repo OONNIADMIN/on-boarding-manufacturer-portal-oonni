@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
   if (!manufacturerId) return err("Manufacturer ID is required", 400);
 
   if (!getNauticalConfig()) {
-    return err("Traide integration is not configured.", 503);
+    return err(" integration is not configured.", 503);
   }
 
   try {
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
     return ok(result);
   } catch (e) {
     console.error("inventory sync:", e);
-    const message = e instanceof Error ? e.message : "Failed to sync inventory from Traide";
+    const message = e instanceof Error ? e.message : "Failed to sync inventory from the marketplace";
     return err(message, 502);
   }
 }

@@ -1,7 +1,7 @@
-import { executeTraideMutation } from "@/lib/traide/graphql/client";
+import { executeMarketplaceMutation } from "@/lib/marketplace/graphql/client";
 import type { ProductImageCreatePayload } from "@/app/graphql";
 
-export type TraideProductImageCreateInput = {
+export type MarketplaceProductImageCreateInput = {
   url: string;
   product: string;
   transferImageOwnership: boolean;
@@ -9,12 +9,12 @@ export type TraideProductImageCreateInput = {
   externalSource: string;
 };
 
-export async function productImageCreate(input: TraideProductImageCreateInput): Promise<{
+export async function productImageCreate(input: MarketplaceProductImageCreateInput): Promise<{
   imageId: string | null;
   url: string | null;
   errors: string[];
 }> {
-  const data = await executeTraideMutation<ProductImageCreatePayload>("productImageCreate", { input });
+  const data = await executeMarketplaceMutation<ProductImageCreatePayload>("productImageCreate", { input });
   const errors = (data.productImageCreate.productErrors ?? [])
     .map((error) => [error.field, error.code, error.message].filter(Boolean).join(": "))
     .filter(Boolean);

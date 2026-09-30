@@ -8,8 +8,8 @@ import { prisma } from "@/lib/db";
 import { LOCAL_INVENTORY_PREFIX } from "@/lib/inventory-access";
 import { persistInventoryAttributes } from "@/lib/inventory-attributes";
 import { normalizeInventoryImages } from "@/lib/inventory-crud";
-import { executeTraideQuery } from "@/lib/traide/graphql/client";
-import { resolveManufacturerSellerId } from "@/lib/traide/operations/sellers";
+import { executeMarketplaceQuery } from "@/lib/marketplace/graphql/client";
+import { resolveManufacturerSellerId } from "@/lib/marketplace/operations/sellers";
 
 export { INVENTORY_PRODUCTS_QUERY, APPROVED_SELLERS_QUERY } from "@/app/graphql";
 
@@ -119,7 +119,7 @@ export async function fetchNauticalInventoryProducts(sellerId: string): Promise<
   const maxPages = 50;
 
   for (let page = 0; page < maxPages; page += 1) {
-    const data: ProductsConnection = await executeTraideQuery<ProductsConnection>("inventoryProducts", {
+    const data: ProductsConnection = await executeMarketplaceQuery<ProductsConnection>("inventoryProducts", {
       first: 100,
       after,
       seller: sellerId,

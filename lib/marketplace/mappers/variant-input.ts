@@ -2,14 +2,14 @@ import { asOptionalText, asRecord, asText, decimalString } from "./json";
 import {
   attributesForVariantUpdate,
   attributesFromInventorySource,
-  type TraideAttributeCatalogItem,
-  type TraideAttributeInput,
+  type MarketplaceAttributeCatalogItem,
+  type MarketplaceAttributeInput,
 } from "./attribute-input";
-import { isLocalTraideId, TRAIDE_EXTERNAL_SOURCE, type InventoryProductLike } from "./product-input";
+import { isLocalMarketplaceId, MARKETPLACE_EXTERNAL_SOURCE, type InventoryProductLike } from "./product-input";
 
-export type TraideProductVariantBulkCreateInput = {
+export type MarketplaceProductVariantBulkCreateInput = {
   name: string;
-  attributes: TraideAttributeInput[];
+  attributes: MarketplaceAttributeInput[];
   currency: string;
   isDigital: boolean;
   isPriceOverrideAllowed: boolean;
@@ -45,12 +45,12 @@ function variantExternalId(variant: InventoryVariantLike): string | null {
   return (
     asOptionalText(payload?.externalId) ||
     asOptionalText(payload?.external_id) ||
-    (isLocalTraideId(variant.nautical_id) ? variant.nautical_id : null) ||
+    (isLocalMarketplaceId(variant.nautical_id) ? variant.nautical_id : null) ||
     asOptionalText(variant.sku)
   );
 }
 
-function dimensionsInput(value: unknown): TraideProductVariantBulkCreateInput["dimensions"] | undefined {
+function dimensionsInput(value: unknown): MarketplaceProductVariantBulkCreateInput["dimensions"] | undefined {
   const rec = asRecord(value);
   if (!rec) return undefined;
   if (rec.length == null && rec.width == null && rec.height == null) return undefined;
@@ -65,14 +65,14 @@ export function toVariantBulkCreateInput(
   variant: InventoryVariantLike,
   options: {
     sellerId: string;
-    catalog: TraideAttributeCatalogItem[];
+    catalog: MarketplaceAttributeCatalogItem[];
   }
-): { input: TraideProductVariantBulkCreateInput } | { error: string } {
+): { input: MarketplaceProductVariantBulkCreateInput } | { error: string } {
   const sku = asOptionalText(variant.sku);
   if (!sku) {
     return { error: `Variant ${variant.id} is missing SKU` };
   }
-  if (isLocalTraideId(variant.product.nautical_id)) {
+  if (isLocalMarketplaceId(variant.product.nautical_id)) {
     return {
       error: `Variant ${variant.id} parent product is not in your catalog yet. Save the product first.`,
     };
@@ -83,7 +83,7 @@ export function toVariantBulkCreateInput(
   }
   const payload = asRecord(variant.payload);
   const productPayload = asRecord(variant.product.payload);
-  const input: TraideProductVariantBulkCreateInput = {
+  const input: MarketplaceProductVariantBulkCreateInput = {
     name: variant.name,
     attributes: attributesFromInventorySource(variant, options.catalog),
     currency: variant.product.currency || asText(productPayload?.currency, "USD"),
@@ -100,7 +100,7 @@ export function toVariantBulkCreateInput(
     externalSource:
       asOptionalText(payload?.externalSource) ||
       asOptionalText(payload?.external_source) ||
-      TRAIDE_EXTERNAL_SOURCE,
+      MARKETPLACE_EXTERNAL_SOURCE,
     seller: options.sellerId,
     trackInventory: true,
     ...(dimensionsInput(variant.dimensions) ? { dimensions: dimensionsInput(variant.dimensions) } : {}),
@@ -108,11 +108,11 @@ export function toVariantBulkCreateInput(
   return { input };
 }
 
-/** Fields accepted by Traide `ProductVariantInput` (productVariantUpdate). */
-export type TraideProductVariantUpdateInput = {
+/** Fields accepted by Marketplace `ProductVariantInput` (productVariantUpdate). */
+export type MarketplaceProductVariantUpdateInput = {
   name: string;
   sku: string;
-  attributes: TraideAttributeInput[];
+  attributes: MarketplaceAttributeInput[];
   seo: { title: string; description: string };
 };
 
@@ -120,10 +120,10 @@ export function toVariantUpdateInput(
   variant: InventoryVariantLike,
   options: {
     sellerId: string;
-    catalog: TraideAttributeCatalogItem[];
+    catalog: MarketplaceAttributeCatalogItem[];
   }
-): { id: string; input: TraideProductVariantUpdateInput } | { error: string } {
-  if (isLocalTraideId(variant.nautical_id) || !asText(variant.nautical_id)) {
+): { id: string; input: MarketplaceProductVariantUpdateInput } | { error: string } {
+  if (isLocalMarketplaceId(variant.nautical_id) || !asText(variant.nautical_id)) {
     return { error: `Variant ${variant.id} is not published in your catalog yet` };
   }
   const mapped = toVariantBulkCreateInput(variant, options);

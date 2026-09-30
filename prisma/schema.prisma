@@ -196,8 +196,8 @@ model CatalogColumnRule {
   @@map("catalog_column_rules")
 }
 
-/// Traide/Nautical category tree. parent_id is a self-relation so children nest under their parent.
-model TraideCategory {
+/// Marketplace/Nautical category tree. parent_id is a self-relation so children nest under their parent.
+model MarketplaceCategory {
   id                 Int       @id @default(autoincrement())
   nautical_id        String    @unique @db.VarChar(255)
   parent_id          Int?
@@ -212,13 +212,13 @@ model TraideCategory {
   updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
   deleted_at         DateTime? @db.Timestamptz
 
-  parent   TraideCategory?  @relation("CategoryTree", fields: [parent_id], references: [id], onDelete: SetNull)
-  children TraideCategory[] @relation("CategoryTree")
+  parent   MarketplaceCategory?  @relation("CategoryTree", fields: [parent_id], references: [id], onDelete: SetNull)
+  children MarketplaceCategory[] @relation("CategoryTree")
 
   @@index([parent_id])
   @@index([slug])
   @@index([deleted_at])
-  @@map("traide_categories")
+  @@map("marketplace_categories")
 }
 
 /// Background catalog spreadsheet import (large Excel/CSV). File bytes live on disk until the job finishes.

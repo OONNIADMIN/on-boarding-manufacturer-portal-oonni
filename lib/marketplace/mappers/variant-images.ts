@@ -4,15 +4,15 @@ const LOCAL_ID_PREFIX = "local:";
 const PRODUCT_IMAGE_GLOBAL_ID_PREFIX = "UHJvZHVjdEltYWdlOg";
 const PRODUCT_MEDIA_GLOBAL_ID_PREFIX = "UHJvZHVjdE1lZGlhOg";
 
-export type TraideVariantImageInput = {
+export type MarketplaceVariantImageInput = {
   url: string;
   source: string;
   code: string;
   id?: string | null;
 };
 
-/** Any Traide GraphQL image/media id. Do not require ProductImage: only — create can return ProductMedia:. */
-export function isTraideImageId(value: string | null | undefined): boolean {
+/** Any Marketplace GraphQL image/media id. Do not require ProductImage: only — create can return ProductMedia:. */
+export function isMarketplaceImageId(value: string | null | undefined): boolean {
   const text = String(value ?? "").trim();
   if (!text || text.startsWith(LOCAL_ID_PREFIX) || /^https?:\/\//i.test(text)) return false;
   return (
@@ -22,8 +22,8 @@ export function isTraideImageId(value: string | null | undefined): boolean {
   );
 }
 
-export function isTraideProductImageId(value: string | null | undefined): boolean {
-  return isTraideImageId(value);
+export function isMarketplaceProductImageId(value: string | null | undefined): boolean {
+  return isMarketplaceImageId(value);
 }
 
 export function imageMatchKey(url: string): string {
@@ -72,7 +72,7 @@ function urlsFromText(raw: string): string[] {
  * Parse variant images the same way oonni-integration-middleware `parse_variant_images` does:
  * list of urls, list of `{ url }`, or a string split on `;`, `,`, `|`.
  */
-export function parseVariantImages(raw: unknown, existing: unknown = []): TraideVariantImageInput[] {
+export function parseVariantImages(raw: unknown, existing: unknown = []): MarketplaceVariantImageInput[] {
   const previous = Array.isArray(existing)
     ? existing.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
     : [];
@@ -100,7 +100,7 @@ export function parseVariantImages(raw: unknown, existing: unknown = []): Traide
   }
 
   const seen = new Set<string>();
-  const normalized: TraideVariantImageInput[] = [];
+  const normalized: MarketplaceVariantImageInput[] = [];
   for (const url of parsedUrls) {
     const key = imageMatchKey(url);
     if (seen.has(key || url)) continue;
@@ -109,7 +109,7 @@ export function parseVariantImages(raw: unknown, existing: unknown = []): Traide
     const fromRaw = Array.isArray(raw) ? findImageRecord(raw, url) : undefined;
     const rawId = fromRaw?.id == null ? "" : String(fromRaw.id);
     const matchId = match?.id == null ? "" : String(match.id);
-    const id = isTraideImageId(rawId) ? rawId : isTraideImageId(matchId) ? matchId : null;
+    const id = isMarketplaceImageId(rawId) ? rawId : isMarketplaceImageId(matchId) ? matchId : null;
     normalized.push({
       url,
       source: String(match?.source ?? match?.externalSource ?? "imagekit"),
@@ -129,8 +129,8 @@ function findImageRecord(items: unknown[], url: string): Record<string, unknown>
   );
 }
 
-/** Recover Traide image ids from a GraphQL node (`images` / `media`) or a stored JSON column. */
-export function collectImageRecords(raw: unknown): TraideVariantImageInput[] {
+/** Recover Marketplace image ids from a GraphQL node (`images` / `media`) or a stored JSON column. */
+export function collectImageRecords(raw: unknown): MarketplaceVariantImageInput[] {
   if (raw == null) return [];
   if (Array.isArray(raw) || typeof raw === "string") return parseVariantImages(raw, raw);
   if (typeof raw === "object") {
@@ -142,6 +142,6 @@ export function collectImageRecords(raw: unknown): TraideVariantImageInput[] {
   return [];
 }
 
-export function toInventoryImages(images: TraideVariantImageInput[]): Array<{ id: string | null; url: string }> {
+export function toInventoryImages(images: MarketplaceVariantImageInput[]): Array<{ id: string | null; url: string }> {
   return images.map((image) => ({ id: image.id ?? null, url: image.url }));
 }

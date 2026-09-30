@@ -112,6 +112,39 @@ export function kickInventoryBulkImport(publicId: string): void {
   void processInventoryBulkImport(publicId);
 }
 
+// Jobs run inside this Node process, so a server restart orphans any job that
+// was active: it stays "queued"/"publishing" in the DB forever and the UI shows
+// it as stuck. Mark such jobs as failed so the user can retry the upload.
+// The age threshold avoids racing a job that was enqueued a moment ago.
+const ORPHANED_AFTER_MS = 2 * 60 * 1000;
+const ORPHANED_JOB_MESSAGE =
+  "The import was interrupted by a server restart. Please upload the file again.";
+
+export async function failOrphanedInventoryBulkJobs(userId: number): Promise<void> {
+  const staleBefore = new Date(Date.now() - ORPHANED_AFTER_MS);
+  const candidates = await prisma.inventoryBulkJob.findMany({
+    where: {
+      user_id: userId,
+      status: { in: [...INVENTORY_BULK_ACTIVE_STATUSES] },
+      updated_at: { lt: staleBefore },
+    },
+    select: { public_id: true },
+  });
+  const orphaned = candidates.filter((job) => !running.has(job.public_id));
+  if (!orphaned.length) return;
+
+  await prisma.inventoryBulkJob.updateMany({
+    where: { public_id: { in: orphaned.map((job) => job.public_id) } },
+    data: {
+      status: "failed",
+      phase: "failed",
+      error: ORPHANED_JOB_MESSAGE,
+      message: ORPHANED_JOB_MESSAGE,
+      finished_at: new Date(),
+    },
+  });
+}
+
 async function patchJob(
   publicId: string,
   data: Parameters<typeof prisma.inventoryBulkJob.update>[0]["data"]
@@ -157,7 +190,7 @@ async function processInventoryBulkImport(publicId: string): Promise<void> {
     );
 
     const extra = result.errors.length ? ` ${result.errors.slice(0, 2).join(" ")}` : "";
-    const publishedNote = result.traide_errors.length
+    const publishedNote = result.marketplace_errors.length
       ? " Some items could not be published yet."
       : "";
     await patchJob(publicId, {

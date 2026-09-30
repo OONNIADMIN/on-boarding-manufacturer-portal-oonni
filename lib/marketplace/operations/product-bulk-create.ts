@@ -1,9 +1,9 @@
-import { TRAIDE_MUTATION_BATCH_SIZE } from "@/lib/traide/constants";
-import { executeTraideMutation } from "@/lib/traide/graphql/client";
-import type { ProductBulkCreatePayload, TraideBulkProductError } from "@/app/graphql";
-import type { TraideProductBulkCreateInput } from "@/lib/traide/mappers/product-input";
+import { MARKETPLACE_MUTATION_BATCH_SIZE } from "@/lib/marketplace/constants";
+import { executeMarketplaceMutation } from "@/lib/marketplace/graphql/client";
+import type { ProductBulkCreatePayload, MarketplaceBulkProductError } from "@/app/graphql";
+import type { MarketplaceProductBulkCreateInput } from "@/lib/marketplace/mappers/product-input";
 
-function formatBulkError(error: TraideBulkProductError): string {
+function formatBulkError(error: MarketplaceBulkProductError): string {
   const parts = [
     error.index != null ? `item ${error.index + 1}` : null,
     error.field,
@@ -14,8 +14,8 @@ function formatBulkError(error: TraideBulkProductError): string {
 }
 
 export async function productBulkCreate(
-  products: TraideProductBulkCreateInput[],
-  batchSize = TRAIDE_MUTATION_BATCH_SIZE
+  products: MarketplaceProductBulkCreateInput[],
+  batchSize = MARKETPLACE_MUTATION_BATCH_SIZE
 ): Promise<{
   products: ProductBulkCreatePayload["productBulkCreate"]["products"];
   errors: string[];
@@ -26,12 +26,12 @@ export async function productBulkCreate(
 
   for (let offset = 0; offset < products.length; offset += step) {
     const batch = products.slice(offset, offset + step);
-    const data = await executeTraideMutation<ProductBulkCreatePayload>("productBulkCreate", {
+    const data = await executeMarketplaceMutation<ProductBulkCreatePayload>("productBulkCreate", {
       products: batch,
     });
     created.push(...(data.productBulkCreate.products ?? []));
     for (const error of data.productBulkCreate.bulkProductErrors ?? []) {
-      const shifted: TraideBulkProductError = {
+      const shifted: MarketplaceBulkProductError = {
         ...error,
         index: error.index == null ? error.index : error.index + offset,
       };

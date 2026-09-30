@@ -2,13 +2,13 @@ export {
   getNauticalConfig,
   nauticalGraphql,
   nauticalNotConfiguredMessage,
-  executeTraideQuery,
-  executeTraideMutation,
-  TRAIDE_QUERIES,
-  TRAIDE_MUTATIONS,
+  executeMarketplaceQuery,
+  executeMarketplaceMutation,
+  MARKETPLACE_QUERIES,
+  MARKETPLACE_MUTATIONS,
 } from "./graphql";
 
-export { TRAIDE_MUTATION_BATCH_SIZE } from "./constants";
+export { MARKETPLACE_MUTATION_BATCH_SIZE } from "./constants";
 
 export {
   fetchAllNauticalProductTypes,
@@ -33,21 +33,21 @@ export { productVariantUpdate } from "./operations/product-variant-update";
 export { productImageCreate } from "./operations/product-image-create";
 export { productVariantImageAssign } from "./operations/variant-image-assign";
 export { productImageBulkDelete } from "./operations/product-image-bulk-delete";
-export { productImageReorder, orderedTraideImageIds } from "./operations/product-image-reorder";
+export { productImageReorder, orderedMarketplaceImageIds } from "./operations/product-image-reorder";
 
 export {
-  syncTraideCategories,
+  syncMarketplaceCategories,
   listStoredCategoryTree,
   type CategorySyncResult,
 } from "./services/category-sync";
 
 export {
-  pushInventoryProductsToTraide,
-  pushInventoryVariantsToTraide,
-  type TraidePushResult,
+  pushInventoryProductsToMarketplace,
+  pushInventoryVariantsToMarketplace,
+  type MarketplacePushResult,
 } from "./services/inventory-bulk-push";
 
 export {
-  pushVariantImagesToTraide,
+  pushVariantImagesToMarketplace,
   pushVariantImagesForIds,
 } from "./services/variant-images-push";

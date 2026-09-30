@@ -8,7 +8,7 @@ import {
 import {
   fetchAllNauticalProductTypes,
   type NauticalProductTypeNode,
-} from "@/lib/traide/operations/product-types";
+} from "@/lib/marketplace/operations/product-types";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -53,7 +53,7 @@ export function catalogForProductType(
   return toCatalog(kind === "product" ? node.productAttributes : node.variantAttributes);
 }
 
-/** Union of product or variant attributes across every Traide product type. */
+/** Union of product or variant attributes across every Marketplace product type. */
 export function catalogsFromProductTypes(
   types: NauticalProductTypeNode[],
   kind: "product" | "variant"

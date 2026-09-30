@@ -9,7 +9,7 @@ import {
   resolveCatalogAttributes,
 } from "@/lib/inventory-attribute-catalog";
 import { ensureVariantImagesInImageKit } from "@/lib/inventory-variant-dam";
-import { pushInventoryVariantsToTraide } from "@/lib/traide/services/inventory-bulk-push";
+import { pushInventoryVariantsToMarketplace } from "@/lib/marketplace/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   });
 
-  const traide = await pushInventoryVariantsToTraide(auth.manufacturerId, [variant.id], {
+  const marketplace = await pushInventoryVariantsToMarketplace(auth.manufacturerId, [variant.id], {
     previousImagesById: new Map([[variant.id, previousImages]]),
   });
   const refreshed =
@@ -88,8 +88,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   return ok({
     variant: refreshed,
-    traide_synced: traide.traide_synced,
-    traide_errors: [...dam.errors, ...traide.traide_errors],
+    marketplace_synced: marketplace.marketplace_synced,
+    marketplace_errors: [...dam.errors, ...marketplace.marketplace_errors],
   });
 }
 

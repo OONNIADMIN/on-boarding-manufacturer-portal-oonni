@@ -1,12 +1,12 @@
 import {
   PRODUCT_BULK_CREATE_MUTATION,
   type ProductBulkCreatePayload,
-  type TraideBulkProductError,
+  type MarketplaceBulkProductError,
 } from "./product-bulk-create";
 import {
   PRODUCT_UPDATE_MUTATION,
   type ProductUpdatePayload,
-  type TraideProductError,
+  type MarketplaceProductError,
 } from "./product-update";
 import {
   PRODUCT_VARIANT_BULK_CREATE_MUTATION,
@@ -50,11 +50,11 @@ export {
   type ProductVariantImageAssignPayload,
   type ProductImageBulkDeletePayload,
   type ProductImageReorderPayload,
-  type TraideBulkProductError,
-  type TraideProductError,
+  type MarketplaceBulkProductError,
+  type MarketplaceProductError,
 };
 
-export const TRAIDE_MUTATIONS = {
+export const MARKETPLACE_MUTATIONS = {
   productBulkCreate: PRODUCT_BULK_CREATE_MUTATION,
   productUpdate: PRODUCT_UPDATE_MUTATION,
   productVariantBulkCreate: PRODUCT_VARIANT_BULK_CREATE_MUTATION,
@@ -65,4 +65,4 @@ export const TRAIDE_MUTATIONS = {
   productImageReorder: PRODUCT_IMAGE_REORDER_MUTATION,
 } as const;
 
-export type TraideMutationName = keyof typeof TRAIDE_MUTATIONS;
+export type MarketplaceMutationName = keyof typeof MARKETPLACE_MUTATIONS;

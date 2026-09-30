@@ -3,7 +3,7 @@
  *
  * Canonical row (what we persist):
  *   { id, name, slug, inputType, value, values }
- * - id / inputType / slug come from Traide (AssignedAttribute.attribute)
+ * - id / inputType / slug come from Marketplace (AssignedAttribute.attribute)
  * - value is the display/Excel scalar
  * - values keeps the original assigned options when present
  *

@@ -1,16 +1,16 @@
 export {
-  TRAIDE_QUERIES,
+  MARKETPLACE_QUERIES,
   APPROVED_SELLERS_QUERY,
   CATEGORIES_FOR_TEMPLATE_QUERY,
   GET_ALL_CATEGORIES_QUERY,
   INVENTORY_PRODUCTS_QUERY,
   PRODUCT_TYPE_BY_ID_QUERY,
   PRODUCT_TYPES_PAGE_QUERY,
-  type TraideQueryName,
+  type MarketplaceQueryName,
 } from "./queries";
 
 export {
-  TRAIDE_MUTATIONS,
+  MARKETPLACE_MUTATIONS,
   PRODUCT_BULK_CREATE_MUTATION,
   PRODUCT_UPDATE_MUTATION,
   PRODUCT_VARIANT_BULK_CREATE_MUTATION,
@@ -27,7 +27,7 @@ export {
   type ProductVariantImageAssignPayload,
   type ProductImageBulkDeletePayload,
   type ProductImageReorderPayload,
-  type TraideBulkProductError,
-  type TraideProductError,
-  type TraideMutationName,
+  type MarketplaceBulkProductError,
+  type MarketplaceProductError,
+  type MarketplaceMutationName,
 } from "./mutations";

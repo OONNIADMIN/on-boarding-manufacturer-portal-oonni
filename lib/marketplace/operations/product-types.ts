@@ -1,4 +1,4 @@
-import { executeTraideQuery } from "@/lib/traide/graphql/client";
+import { executeMarketplaceQuery } from "@/lib/marketplace/graphql/client";
 
 export type NauticalProductTypeNode = {
   id: string;
@@ -33,7 +33,7 @@ export async function fetchAllNauticalProductTypes(): Promise<NauticalProductTyp
   let afterCursor: string | null = null;
 
   for (;;) {
-    const data: ProductTypesConnection = await executeTraideQuery<ProductTypesConnection>(
+    const data: ProductTypesConnection = await executeMarketplaceQuery<ProductTypesConnection>(
       "productTypesPage",
       { afterCursor }
     );
@@ -51,12 +51,12 @@ export async function fetchAllNauticalProductTypes(): Promise<NauticalProductTyp
 
 export async function fetchNauticalProductTypeById(id: string): Promise<NauticalProductTypeNode | null> {
   try {
-    const data = await executeTraideQuery<{ productType: NauticalProductTypeNode | null }>("productTypeById", {
+    const data = await executeMarketplaceQuery<{ productType: NauticalProductTypeNode | null }>("productTypeById", {
       id,
     });
     if (data.productType) return data.productType;
   } catch {
-    /* Some Traide deployments omit productType(id); fall back to the list. */
+    /* Some Marketplace deployments omit productType(id); fall back to the list. */
   }
   const all = await fetchAllNauticalProductTypes();
   return all.find((node) => node.id === id) ?? null;

@@ -13,7 +13,7 @@ export {
   PRODUCT_TYPES_PAGE_QUERY,
 };
 
-export const TRAIDE_QUERIES = {
+export const MARKETPLACE_QUERIES = {
   inventoryProducts: INVENTORY_PRODUCTS_QUERY,
   approvedSellers: APPROVED_SELLERS_QUERY,
   productTypesPage: PRODUCT_TYPES_PAGE_QUERY,
@@ -22,4 +22,4 @@ export const TRAIDE_QUERIES = {
   allCategories: GET_ALL_CATEGORIES_QUERY,
 } as const;
 
-export type TraideQueryName = keyof typeof TRAIDE_QUERIES;
+export type MarketplaceQueryName = keyof typeof MARKETPLACE_QUERIES;

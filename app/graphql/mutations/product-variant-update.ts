@@ -1,4 +1,4 @@
-import type { TraideProductError } from "./product-update";
+import type { MarketplaceProductError } from "./product-update";
 
 export const PRODUCT_VARIANT_UPDATE_MUTATION = `
 mutation ($id: ID!, $input: ProductVariantInput!) {
@@ -29,6 +29,6 @@ export type ProductVariantUpdatePayload = {
       seoTitle?: string | null;
       seoDescription?: string | null;
     } | null;
-    productErrors: TraideProductError[];
+    productErrors: MarketplaceProductError[];
   };
 };

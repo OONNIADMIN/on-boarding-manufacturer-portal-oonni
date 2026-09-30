@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { slugify } from "@/lib/api-response";
 import { mergeInventoryAttributes, persistInventoryAttributes } from "@/lib/inventory-attributes";
-import { parseVariantImages, toInventoryImages } from "@/lib/traide/mappers/variant-images";
+import { parseVariantImages, toInventoryImages } from "@/lib/marketplace/mappers/variant-images";
 
 export type AttributeInput = {
   name: string;
