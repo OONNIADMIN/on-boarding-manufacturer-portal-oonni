@@ -50,6 +50,8 @@ model User {
   invitation_token            String?   @unique @db.VarChar(255)
   invitation_token_expires_at DateTime? @db.Timestamptz
   password_set_at             DateTime? @db.Timestamptz
+  /// Marketplace GraphQL staff user id. Empty until the manufacturer sets their password.
+  nautical_user_id            String?   @db.VarChar(255)
   created_at                  DateTime  @default(now()) @db.Timestamptz
   updated_at                  DateTime  @default(now()) @updatedAt @db.Timestamptz
   deleted_at                  DateTime? @db.Timestamptz
@@ -277,11 +279,13 @@ model InventoryBulkJob {
   @@map("inventory_bulk_jobs")
 }
 
-/// Unexpected application errors. Users see a generic support message; admins review these rows.
+/// Application logs. Users see a generic support message for errors; admins review error and OK rows.
 model SystemErrorLog {
   id              Int      @id @default(autoincrement())
   public_id       String   @unique @db.VarChar(16)
   source          String   @db.VarChar(120)
+  /// "error" or "ok"
+  level           String   @default("error") @db.VarChar(16)
   message         String   @db.Text
   stack           String?  @db.Text
   path            String?  @db.VarChar(500)
@@ -291,5 +295,6 @@ model SystemErrorLog {
 
   @@index([created_at])
   @@index([source])
+  @@index([level])
   @@map("system_error_logs")
 }

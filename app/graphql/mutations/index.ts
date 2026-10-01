@@ -48,10 +48,35 @@ import {
   type MarketplaceStaffError,
 } from "./staff-create";
 import {
+  STAFF_UPDATE_MUTATION,
+  type StaffUpdatePayload,
+} from "./staff-update";
+import {
   SELLER_USER_MAPPING_CREATE_MUTATION,
   type SellerUserMappingCreatePayload,
 } from "./seller-user-mapping-create";
+import {
+  SELLER_WITH_OWNER_CREATE_MUTATION,
+  type SellerWithOwnerCreatePayload,
+} from "./seller-with-owner-create";
+import {
+  PERMISSION_GROUP_UPDATE_MUTATION,
+  type PermissionGroupUpdatePayload,
+} from "./permission-group-update";
 import { TOKEN_CREATE_MUTATION, type TokenCreatePayload } from "./token-create";
+import {
+  AGREEMENT_CREATE_MUTATION,
+  type AgreementCreatePayload,
+  type MarketplaceAgreementError,
+} from "./agreement-create";
+import {
+  SELLER_AGREEMENT_ASSIGN_MUTATION,
+  type SellerAgreementAssignPayload,
+} from "./seller-agreement-assign";
+import {
+  SELLER_AGREEMENT_ACKNOWLEDGE_MUTATION,
+  type SellerAgreementAcknowledgePayload,
+} from "./seller-agreement-acknowledge";
 
 export {
   PRODUCT_BULK_CREATE_MUTATION,
@@ -65,8 +90,14 @@ export {
   SELLER_SHELL_CREATE_MUTATION,
   PRIVATE_METADATA_UPDATE_MUTATION,
   STAFF_CREATE_MUTATION,
+  STAFF_UPDATE_MUTATION,
   SELLER_USER_MAPPING_CREATE_MUTATION,
+  SELLER_WITH_OWNER_CREATE_MUTATION,
+  PERMISSION_GROUP_UPDATE_MUTATION,
   TOKEN_CREATE_MUTATION,
+  AGREEMENT_CREATE_MUTATION,
+  SELLER_AGREEMENT_ASSIGN_MUTATION,
+  SELLER_AGREEMENT_ACKNOWLEDGE_MUTATION,
   type ProductBulkCreatePayload,
   type ProductUpdatePayload,
   type ProductVariantBulkCreatePayload,
@@ -83,8 +114,15 @@ export {
   type MarketplaceMetadataError,
   type StaffCreatePayload,
   type MarketplaceStaffError,
+  type StaffUpdatePayload,
   type SellerUserMappingCreatePayload,
+  type SellerWithOwnerCreatePayload,
+  type PermissionGroupUpdatePayload,
   type TokenCreatePayload,
+  type AgreementCreatePayload,
+  type MarketplaceAgreementError,
+  type SellerAgreementAssignPayload,
+  type SellerAgreementAcknowledgePayload,
 };
 
 export const MARKETPLACE_MUTATIONS = {
@@ -99,7 +137,13 @@ export const MARKETPLACE_MUTATIONS = {
   sellerShellCreate: SELLER_SHELL_CREATE_MUTATION,
   privateMetadataUpdate: PRIVATE_METADATA_UPDATE_MUTATION,
   staffCreate: STAFF_CREATE_MUTATION,
+  staffUpdate: STAFF_UPDATE_MUTATION,
   sellerUserMappingCreate: SELLER_USER_MAPPING_CREATE_MUTATION,
+  sellerWithOwnerCreate: SELLER_WITH_OWNER_CREATE_MUTATION,
+  permissionGroupUpdate: PERMISSION_GROUP_UPDATE_MUTATION,
+  agreementCreate: AGREEMENT_CREATE_MUTATION,
+  sellerAgreementAssign: SELLER_AGREEMENT_ASSIGN_MUTATION,
+  sellerAgreementAcknowledge: SELLER_AGREEMENT_ACKNOWLEDGE_MUTATION,
 } as const;
 
 export type MarketplaceMutationName = keyof typeof MARKETPLACE_MUTATIONS;

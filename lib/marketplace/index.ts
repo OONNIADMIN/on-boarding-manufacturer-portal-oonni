@@ -4,6 +4,7 @@ export {
   nauticalNotConfiguredMessage,
   executeMarketplaceQuery,
   executeMarketplaceMutation,
+  createMarketplaceUserAccessToken,
   MARKETPLACE_QUERIES,
   MARKETPLACE_MUTATIONS,
 } from "./graphql";
@@ -27,9 +28,13 @@ export {
 export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operations/sellers";
 export {
   ensureMarketplaceSeller,
-  provisionMarketplaceManufacturer,
-  provisionMarketplaceStaffForSeller,
+  provisionMarketplaceUserOnPasswordSet,
+  persistMarketplaceStaffUserId,
+  loadMarketplaceStaffUserId,
+  isMarketplaceProvisionComplete,
   splitPersonName,
+  isSellerAdminGroupName,
+  resolveSellerAdminGroupId,
 } from "./operations/seller-provision";
 
 export { productBulkCreate } from "./operations/product-bulk-create";

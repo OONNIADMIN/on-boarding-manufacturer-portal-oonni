@@ -53,6 +53,8 @@ export function nauticalNotConfiguredMessage(): string {
 
 export type GraphqlCallOptions = {
   preserveTechnicalError?: boolean;
+  accessToken?: string;
+  authorizationScheme?: "Bearer" | "JWT";
 };
 
 function graphqlMessages(errors: Array<{ message?: string | null }>): string {
@@ -73,22 +75,17 @@ export function formatMarketplaceUserError(error: unknown): string {
   return firstLine.length > 160 ? fallback : firstLine;
 }
 
-async function loginMarketplace(url: string): Promise<string> {
-  const cached = globalForMarketplaceAuth.marketplaceLoginToken;
-  const expiresAt = globalForMarketplaceAuth.marketplaceLoginTokenExpiresAt ?? 0;
-  if (cached && Date.now() < expiresAt) return cached;
-
-  const credentials = marketplaceLoginCredentials();
-  if (!credentials) {
-    throw new Error(nauticalNotConfiguredMessage());
-  }
-
+async function requestMarketplaceAccessToken(
+  url: string,
+  email: string,
+  password: string
+): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       query: TOKEN_CREATE_MUTATION,
-      variables: { email: credentials.email, password: credentials.password },
+      variables: { email, password },
     }),
     cache: "no-store",
   });
@@ -120,9 +117,37 @@ async function loginMarketplace(url: string): Promise<string> {
     throw new Error(detail || "Marketplace login failed");
   }
 
+  return token;
+}
+
+async function loginMarketplace(url: string): Promise<string> {
+  const cached = globalForMarketplaceAuth.marketplaceLoginToken;
+  const expiresAt = globalForMarketplaceAuth.marketplaceLoginTokenExpiresAt ?? 0;
+  if (cached && Date.now() < expiresAt) return cached;
+
+  const credentials = marketplaceLoginCredentials();
+  if (!credentials) {
+    throw new Error(nauticalNotConfiguredMessage());
+  }
+
+  const token = await requestMarketplaceAccessToken(
+    url,
+    credentials.email,
+    credentials.password
+  );
   globalForMarketplaceAuth.marketplaceLoginToken = token;
   globalForMarketplaceAuth.marketplaceLoginTokenExpiresAt = Date.now() + LOGIN_TOKEN_TTL_MS;
   return token;
+}
+
+/** Authenticate a newly-created seller owner so agreement acceptance is attributed to that user. */
+export async function createMarketplaceUserAccessToken(
+  email: string,
+  password: string
+): Promise<string> {
+  const cfg = getNauticalConfig();
+  if (!cfg) throw new Error(nauticalNotConfiguredMessage());
+  return requestMarketplaceAccessToken(cfg.url, email, password);
 }
 
 async function resolveMarketplaceToken(cfg: MarketplaceConfig): Promise<string> {
@@ -140,12 +165,12 @@ export async function nauticalGraphql<T>(
     throw new Error(nauticalNotConfiguredMessage());
   }
 
-  const token = await resolveMarketplaceToken(cfg);
+  const token = options?.accessToken?.trim() || (await resolveMarketplaceToken(cfg));
   const res = await fetch(cfg.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `${options?.authorizationScheme ?? "Bearer"} ${token}`,
     },
     body: JSON.stringify({ query, variables }),
     cache: "no-store",

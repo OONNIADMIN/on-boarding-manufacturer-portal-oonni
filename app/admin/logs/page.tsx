@@ -48,7 +48,7 @@ export default function AdminErrorLogsPage() {
         setTotal(data.total)
         setTotalPages(data.total_pages)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load error logs')
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load logs')
       } finally {
         if (!cancelled) setIsLoading(false)
       }
@@ -79,7 +79,7 @@ export default function AdminErrorLogsPage() {
     <main className={styles.main}>
       <div className={styles.container}>
         <Header
-          subtitle="Unexpected errors reported to users"
+          subtitle="Successful operations and unexpected errors"
           user={user}
           showNavigation
           currentPage="logs"
@@ -88,9 +88,10 @@ export default function AdminErrorLogsPage() {
         <div className={styles.content}>
           <header className={styles.pageHeader}>
             <div>
-              <h1 className={styles.pageTitle}>Error logs</h1>
+              <h1 className={styles.pageTitle}>Logs</h1>
               <p className={styles.pageDescription}>
-                Technical details stay here. Users see a generic English message and this support link:{' '}
+                Successful operations are marked OK. Errors keep the technical detail here. Users see a
+                generic English message and this support link:{' '}
                 <a href={SUPPORT_CONTACT_URL} target="_blank" rel="noopener noreferrer">
                   {SUPPORT_CONTACT_URL}
                 </a>
@@ -115,13 +116,14 @@ export default function AdminErrorLogsPage() {
             {isLoading ? (
               <p className={styles.empty}>Loading logs…</p>
             ) : logs.length === 0 ? (
-              <p className={styles.empty}>No error logs yet.</p>
+              <p className={styles.empty}>No logs yet.</p>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
                       <th>When</th>
+                      <th>Status</th>
                       <th>Reference</th>
                       <th>Source</th>
                       <th>User</th>
@@ -133,6 +135,11 @@ export default function AdminErrorLogsPage() {
                       <Fragment key={log.id}>
                         <tr className={styles.row} onClick={() => setExpanded((id) => (id === log.id ? null : log.id))}>
                           <td>{new Date(log.created_at).toLocaleString()}</td>
+                          <td>
+                            <span className={log.level === 'ok' ? styles.levelOk : styles.levelError}>
+                              {log.level === 'ok' ? 'OK' : 'Error'}
+                            </span>
+                          </td>
                           <td className={styles.mono}>{log.id}</td>
                           <td>{log.source}</td>
                           <td>{log.user_email || log.user_name || '—'}</td>
@@ -140,8 +147,14 @@ export default function AdminErrorLogsPage() {
                         </tr>
                         {expanded === log.id ? (
                           <tr className={styles.detailRow}>
-                            <td colSpan={5}>
-                              <pre className={styles.stack}>{log.stack || 'No stack trace stored.'}</pre>
+                            <td colSpan={6}>
+                              <pre className={styles.stack}>
+                                {log.level === 'ok'
+                                  ? log.path
+                                    ? `Path: ${log.path}`
+                                    : 'Completed successfully.'
+                                  : log.stack || 'No stack trace stored.'}
+                              </pre>
                             </td>
                           </tr>
                         ) : null}

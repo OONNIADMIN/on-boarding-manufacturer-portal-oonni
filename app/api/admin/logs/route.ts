@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
         user_name: row.user_id ? userById.get(row.user_id)?.name ?? null : null,
         manufacturer_id: row.manufacturer_id,
         created_at: row.created_at.toISOString(),
+        level: row.level,
       })),
       total,
       page,

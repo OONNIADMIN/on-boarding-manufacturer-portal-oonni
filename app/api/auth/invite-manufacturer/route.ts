@@ -5,8 +5,7 @@ import { sendManufacturerInvitation } from "@/lib/email";
 import { created, err, unauthorized } from "@/lib/api-response";
 import { slugify } from "@/lib/slugify";
 import { ensureManufacturerImageKitFolders } from "@/lib/imagekit";
-import { provisionMarketplaceManufacturer } from "@/lib/marketplace/operations/seller-provision";
-import { unexpectedError } from "@/lib/error-log";
+import { unexpectedError, recordSystemOk, recordSystemError } from "@/lib/error-log";
 
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAdmin(req);
@@ -40,21 +39,6 @@ export async function POST(req: NextRequest) {
 
     await ensureManufacturerImageKitFolders(manufacturer);
 
-    try {
-      await provisionMarketplaceManufacturer({
-        manufacturer,
-        email: emailNorm,
-        name: name.trim(),
-      });
-    } catch (marketplaceError) {
-      return unexpectedError(marketplaceError, {
-        source: "invite-manufacturer-marketplace",
-        path: "/api/auth/invite-manufacturer",
-        userId: user?.id ?? null,
-        manufacturerId: manufacturer.id,
-      });
-    }
-
     const token = generateInvitationToken();
     const expiresAt = getInvitationTokenExpiry();
 
@@ -72,8 +56,33 @@ export async function POST(req: NextRequest) {
       include: { role: true, manufacturer: true },
     });
 
+    recordSystemOk(
+      `Manufacturer invitation created for ${emailNorm}; marketplace user id left empty until password is set`,
+      {
+        source: "invite-manufacturer",
+        path: "/api/auth/invite-manufacturer",
+        userId: newUser.id,
+        manufacturerId: manufacturer.id,
+      }
+    );
+
     const emailSent = await sendManufacturerInvitation(emailNorm, name.trim(), token);
-    if (!emailSent) console.error("[invite-manufacturer] Email not sent for", emailNorm);
+    if (!emailSent) {
+      console.error("[invite-manufacturer] Email not sent for", emailNorm);
+      recordSystemError("Invitation email was not sent", {
+        source: "invite-manufacturer",
+        path: "/api/auth/invite-manufacturer",
+        userId: newUser.id,
+        manufacturerId: manufacturer.id,
+      });
+    } else {
+      recordSystemOk(`Invitation email sent to ${emailNorm}`, {
+        source: "invite-manufacturer",
+        path: "/api/auth/invite-manufacturer",
+        userId: newUser.id,
+        manufacturerId: manufacturer.id,
+      });
+    }
 
     return created({
       id: newUser.id,

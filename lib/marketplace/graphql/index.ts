@@ -1,6 +1,7 @@
 export {
   executeMarketplaceMutation,
   executeMarketplaceQuery,
+  createMarketplaceUserAccessToken,
   getNauticalConfig,
   nauticalGraphql,
   nauticalNotConfiguredMessage,

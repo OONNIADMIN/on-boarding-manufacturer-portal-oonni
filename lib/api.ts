@@ -2163,6 +2163,7 @@ export const inventoryAPI = {
 export type SystemErrorLogRow = {
   id: string
   source: string
+  level: 'error' | 'ok'
   message: string
   stack: string | null
   path: string | null
@@ -2193,7 +2194,7 @@ export const systemLogsAPI = {
     })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
-      throw new Error(error.detail || 'Failed to load error logs')
+      throw new Error(error.detail || 'Failed to load logs')
     }
     return response.json()
   },
