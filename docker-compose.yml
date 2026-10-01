@@ -38,6 +38,9 @@ services:
     image: oonni-portal:production
     container_name: oonni_portal_app
     restart: unless-stopped
+    # Bound memory so a heavy catalog import degrades (job fails) instead of
+    # freezing the host; the Node heap cap leaves room for buffers/workers.
+    mem_limit: 2g
     env_file:
       - .env
     ports:
@@ -46,6 +49,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: "--max-old-space-size=1536"
       # Must come from .env — host `db`, port `5432`, password URL-encoded if it has special chars.
       DATABASE_URL: "${DATABASE_URL}"
       JWT_SECRET: ${JWT_SECRET}

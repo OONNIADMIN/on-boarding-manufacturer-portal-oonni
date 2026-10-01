@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
+import { existsSync } from "fs";
 import { mkdir, unlink, writeFile, readFile } from "fs/promises";
 import os from "os";
 import path from "path";
+import { backgroundJobQueue } from "@/lib/background-job-queue";
 import { prisma } from "@/lib/db";
 import {
   importInventoryWorkbook,
@@ -104,17 +106,17 @@ export async function enqueueInventoryBulkImport(params: {
     },
   });
 
-  void processInventoryBulkImport(publicId);
+  kickInventoryBulkImport(publicId);
   return serializeInventoryBulkJob(job);
 }
 
 export function kickInventoryBulkImport(publicId: string): void {
-  void processInventoryBulkImport(publicId);
+  backgroundJobQueue.enqueue(publicId, () => processInventoryBulkImport(publicId));
 }
 
 // Jobs run inside this Node process, so a server restart orphans any job that
-// was active: it stays "queued"/"publishing" in the DB forever and the UI shows
-// it as stuck. Mark such jobs as failed so the user can retry the upload.
+// was active. On the polling endpoint: re-enqueue jobs that never started and
+// still have their file on disk; mark the rest as failed so the user retries.
 // The age threshold avoids racing a job that was enqueued a moment ago.
 const ORPHANED_AFTER_MS = 2 * 60 * 1000;
 const ORPHANED_JOB_MESSAGE =
@@ -128,13 +130,23 @@ export async function failOrphanedInventoryBulkJobs(userId: number): Promise<voi
       status: { in: [...INVENTORY_BULK_ACTIVE_STATUSES] },
       updated_at: { lt: staleBefore },
     },
-    select: { public_id: true },
+    select: { public_id: true, status: true, storage_path: true },
   });
-  const orphaned = candidates.filter((job) => !running.has(job.public_id));
-  if (!orphaned.length) return;
+
+  const toFail: string[] = [];
+  for (const job of candidates) {
+    if (backgroundJobQueue.has(job.public_id)) continue;
+    if (job.status === "queued" && existsSync(job.storage_path)) {
+      // Nothing was processed yet and the file survived — safe to resume.
+      kickInventoryBulkImport(job.public_id);
+    } else {
+      toFail.push(job.public_id);
+    }
+  }
+  if (!toFail.length) return;
 
   await prisma.inventoryBulkJob.updateMany({
-    where: { public_id: { in: orphaned.map((job) => job.public_id) } },
+    where: { public_id: { in: toFail } },
     data: {
       status: "failed",
       phase: "failed",

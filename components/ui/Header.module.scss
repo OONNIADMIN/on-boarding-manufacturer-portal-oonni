@@ -167,19 +167,21 @@
   flex-shrink: 0;
 }
 
-// Navigation Bar
+// Navigation Bar — horizontal menu styled like the sidebar mock:
+// off-white surface, dark-teal labels with outline icons, and a soft
+// rounded pill on the active item.
 .navigation {
-  background: $white;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 0.5rem $spacing-xl;
+  background: $oonni-bg-light;
+  border-top: none;
+  border-bottom: 1px solid rgba(0, 51, 51, 0.08);
+  padding: 0.55rem $spacing-xl;
   margin-top: auto;
   box-shadow: none;
 }
 
 .navigationFlat {
-  background: $white;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: $oonni-bg-light;
+  border-top: none;
 }
 
 .navContent {
@@ -193,49 +195,44 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .navLink {
   @include flex-center;
-  gap: 0.4rem;
-  padding: 0.2rem 0.45rem;
+  gap: 0.55rem;
+  padding: 0.5rem 1rem;
   background: transparent;
   border: none;
-  border-radius: 0;
-  color: $gray-600;
-  font-size: 0.8rem;
-  font-weight: $font-weight-normal;
+  border-radius: 10px;
+  color: $oonni-teal;
+  font-size: 0.875rem;
+  font-weight: $font-weight-medium;
   text-decoration: none;
   transition: all $transition-base;
   cursor: pointer;
   position: relative;
 
   &:hover {
-    color: $gray-800;
-    background: transparent;
+    color: $oonni-teal;
+    background: rgba(0, 51, 51, 0.06);
   }
 
   &.active {
     color: $oonni-teal;
-    font-weight: $font-weight-medium;
+    font-weight: $font-weight-semibold;
+    background: $oonni-bg;
   }
 
-  &:not(:last-child)::after {
-    content: '';
-    width: 1px;
-    height: 0.8rem;
-    background: $gray-300;
-    position: absolute;
-    right: -0.1rem;
-    top: 50%;
-    transform: translateY(-50%);
+  &:focus-visible {
+    outline: 2px solid rgba(0, 51, 51, 0.45);
+    outline-offset: 2px;
   }
 
   svg {
-    width: 0.82rem;
-    height: 0.82rem;
+    width: 1.1rem;
+    height: 1.1rem;
     flex-shrink: 0;
     opacity: 0.9;
   }
@@ -266,11 +263,11 @@
   }
 
   .navLinks {
-    gap: 0;
+    gap: 0.35rem;
   }
 
   .navLink {
-    padding: 0.3rem 0.5rem;
+    padding: 0.4rem 0.75rem;
     font-size: $font-size-xs;
   }
 }
@@ -310,9 +307,5 @@
     width: 100%;
     justify-content: flex-start;
     padding: $spacing-sm;
-
-    &:not(:last-child)::after {
-      display: none;
-    }
   }
 }

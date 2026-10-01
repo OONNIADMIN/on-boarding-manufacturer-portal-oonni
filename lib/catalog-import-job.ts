@@ -1,7 +1,10 @@
 import { randomUUID } from "crypto";
+import { existsSync } from "fs";
 import { mkdir, unlink, writeFile, readFile } from "fs/promises";
 import os from "os";
 import path from "path";
+import { backgroundJobQueue } from "@/lib/background-job-queue";
+import { parseSpreadsheetRowsOffThread } from "@/lib/spreadsheet-parse-worker";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { slugify } from "@/lib/api-response";
@@ -16,7 +19,6 @@ import {
   extractHeaderRowCells,
   fillMissingSkuHeader,
   findHeaderColumnIndex,
-  parseSpreadsheetRows,
   compactSpreadsheetRows,
   workbookBufferFromRows,
 } from "@/lib/catalog-file-headers";
@@ -136,12 +138,63 @@ export async function enqueueCatalogImport(params: {
     },
   });
 
-  void processCatalogImport(publicId);
+  kickCatalogImport(publicId);
   return serializeImportJob(job);
 }
 
 export function kickCatalogImport(publicId: string): void {
-  void processCatalogImport(publicId);
+  backgroundJobQueue.enqueue(publicId, () => processCatalogImport(publicId));
+}
+
+export const CATALOG_IMPORT_ACTIVE_STATUSES = [
+  "queued",
+  "analyzing",
+  "creating_products",
+  "saving_file",
+  "importing_images",
+] as const;
+
+// Jobs run inside this Node process, so a server restart orphans any job that
+// was active. On the polling endpoint: re-enqueue jobs that never started and
+// still have their file on disk; mark the rest as failed so the user retries.
+// The age threshold avoids racing a job enqueued a moment ago.
+const ORPHANED_AFTER_MS = 2 * 60 * 1000;
+const ORPHANED_JOB_MESSAGE =
+  "The import was interrupted by a server restart. Please upload the file again.";
+
+export async function recoverOrphanedCatalogImportJobs(userId: number): Promise<void> {
+  const staleBefore = new Date(Date.now() - ORPHANED_AFTER_MS);
+  const candidates = await prisma.catalogImportJob.findMany({
+    where: {
+      user_id: userId,
+      status: { in: [...CATALOG_IMPORT_ACTIVE_STATUSES] },
+      updated_at: { lt: staleBefore },
+    },
+    select: { public_id: true, status: true, storage_path: true },
+  });
+
+  const toFail: string[] = [];
+  for (const job of candidates) {
+    if (backgroundJobQueue.has(job.public_id)) continue;
+    if (job.status === "queued" && existsSync(job.storage_path)) {
+      // Nothing was processed yet and the file survived — safe to resume.
+      kickCatalogImport(job.public_id);
+    } else {
+      toFail.push(job.public_id);
+    }
+  }
+  if (!toFail.length) return;
+
+  await prisma.catalogImportJob.updateMany({
+    where: { public_id: { in: toFail } },
+    data: {
+      status: "failed",
+      phase: "failed",
+      error: ORPHANED_JOB_MESSAGE,
+      message: ORPHANED_JOB_MESSAGE,
+      finished_at: new Date(),
+    },
+  });
 }
 
 async function patchJob(
@@ -182,7 +235,7 @@ async function processCatalogImport(publicId: string): Promise<void> {
         ? await stripXlsxEmbeddedMedia(originalBuffer)
         : originalBuffer;
 
-    const rows = parseSpreadsheetRows(workBuffer, job.original_filename);
+    const rows = await parseSpreadsheetRowsOffThread(workBuffer, job.original_filename);
     if (!rows.length) throw new Error("The uploaded file is empty");
     if (job.header_row_index >= rows.length) {
       throw new Error(
