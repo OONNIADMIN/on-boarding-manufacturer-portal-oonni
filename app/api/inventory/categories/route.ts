@@ -13,6 +13,6 @@ export async function GET(req: NextRequest) {
     const categories = await listStoredCategoryTree();
     return ok({ categories, total: categories.length });
   } catch (e) {
-    return err(e instanceof Error ? e.message : "Failed to load categories", 500);
+    return err("Failed to load categories", 500, e);
   }
 }

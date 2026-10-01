@@ -49,10 +49,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("Create products from catalog error:", e);
-    const message =
-      e instanceof Error && e.message.includes("Could not download the catalog file")
-        ? e.message
-        : "Failed to create products";
-    return err(message, 500);
+    return err("Failed to create products", 500, e);
   }
 }

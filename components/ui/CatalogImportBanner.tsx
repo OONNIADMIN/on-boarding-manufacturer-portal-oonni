@@ -12,6 +12,7 @@ import {
   listRememberedInventoryBulkJobs,
 } from '@/lib/inventory-bulk-jobs-client'
 import styles from './CatalogImportBanner.module.scss'
+import SupportContactText from './SupportContactText'
 
 type BannerJob = {
   id: string
@@ -210,7 +211,9 @@ export default function CatalogImportBanner({ userId }: { userId: number }) {
         <div key={`${job.source}:${job.id}`} className={styles.item}>
           <div className={styles.meta}>
             <strong>{job.filename}</strong>
-            <span>{phaseLabel(job)}</span>
+            <span>
+              <SupportContactText text={phaseLabel(job)} />
+            </span>
             <button
               type="button"
               className={styles.dismiss}

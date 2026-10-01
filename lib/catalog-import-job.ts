@@ -30,10 +30,12 @@ import { listCatalogColumnRules } from "@/lib/catalog-column-rules-service";
 import { sendCatalogUploadNotification } from "@/lib/email";
 import { prepareCatalogFileForRemoteStore, stripXlsxEmbeddedMedia } from "@/lib/xlsx-embedded-images";
 import { isUniqueConstraintError } from "@/lib/image-record";
+import { recordSystemError } from "@/lib/error-log";
+import { publicSupportMessage } from "@/lib/support";
 
 const running = new Set<string>();
 
-function friendlyCatalogImportError(error: unknown): string {
+function expectedCatalogImportMessage(error: unknown): string | null {
   const raw = error instanceof Error ? error.message : "Catalog import failed";
   if (/104857600|file size exceeds/i.test(raw) || /invalid file parameter/i.test(raw)) {
     return "The catalog file is too large to store as a single file. Try again — photos are imported from the spreadsheet separately.";
@@ -41,7 +43,10 @@ function friendlyCatalogImportError(error: unknown): string {
   if (/Unique constraint failed/i.test(raw) || (error && typeof error === "object" && "code" in error && (error as { code: string }).code === "P2002")) {
     return "A photo was already in the catalog. Duplicate photos were skipped so the import could continue.";
   }
-  return raw;
+  if (/uploaded file is empty/i.test(raw) || /Header row .+ is outside/i.test(raw) || /Manufacturer not found/i.test(raw)) {
+    return raw;
+  }
+  return null;
 }
 
 export type CatalogImportJobStatus =
@@ -532,8 +537,23 @@ async function processCatalogImport(publicId: string): Promise<void> {
       }).catch(() => undefined);
       return;
     }
-    const message = friendlyCatalogImportError(e);
-    console.error("Catalog import job failed:", e);
+    const expected = expectedCatalogImportMessage(e);
+    const failedJob = expected
+      ? null
+      : await prisma.catalogImportJob.findUnique({
+          where: { public_id: publicId },
+          select: { user_id: true, manufacturer_id: true },
+        });
+    const message = expected
+      ? expected
+      : publicSupportMessage(
+          recordSystemError(e, {
+            source: "catalog-import",
+            userId: failedJob?.user_id,
+            manufacturerId: failedJob?.manufacturer_id,
+          })
+        );
+    if (!expected) console.error("Catalog import job failed:", e);
     await patchJob(publicId, {
       status: "failed",
       phase: "failed",

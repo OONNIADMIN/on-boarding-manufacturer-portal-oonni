@@ -2160,3 +2160,42 @@ export const inventoryAPI = {
   },
 }
 
+export type SystemErrorLogRow = {
+  id: string
+  source: string
+  message: string
+  stack: string | null
+  path: string | null
+  user_id: number | null
+  user_email: string | null
+  user_name: string | null
+  manufacturer_id: number | null
+  created_at: string
+}
+
+export const systemLogsAPI = {
+  async list(params?: { page?: number; limit?: number; q?: string }): Promise<{
+    logs: SystemErrorLogRow[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const search = new URLSearchParams()
+    if (params?.page) search.set('page', String(params.page))
+    if (params?.limit) search.set('limit', String(params.limit))
+    if (params?.q?.trim()) search.set('q', params.q.trim())
+    const qs = search.toString()
+    const response = await apiFetch(`${API_URL}/admin/logs${qs ? `?${qs}` : ''}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to load error logs')
+    }
+    return response.json()
+  },
+}
+

@@ -99,8 +99,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const hint = imageKitUploadFailureMessage(e);
     if (hint) return err(hint, 503);
-    console.error("nautical catalog-template:", e);
-    const msg = e instanceof Error ? e.message : "Failed to download template from ImageKit";
-    return err(msg, 502);
+    return err("Failed to download template from ImageKit", 502, e);
   }
 }

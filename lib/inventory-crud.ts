@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { slugify } from "@/lib/api-response";
+import { slugify } from "@/lib/slugify";
 import { mergeInventoryAttributes, persistInventoryAttributes } from "@/lib/inventory-attributes";
 import { parseVariantImages, toInventoryImages } from "@/lib/marketplace/mappers/variant-images";
 

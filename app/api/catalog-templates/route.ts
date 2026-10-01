@@ -36,8 +36,6 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const hint = catalogDamTemplateListErrorMessage(e);
     if (hint) return err(hint, 503);
-    console.error("catalog-templates list:", e);
-    const msg = e instanceof Error ? e.message : "Failed to load catalog templates";
-    return err(msg, 502);
+    return err("Failed to load catalog templates", 502, e);
   }
 }

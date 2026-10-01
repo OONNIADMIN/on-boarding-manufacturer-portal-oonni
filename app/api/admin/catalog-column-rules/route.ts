@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest) {
     return ok({ rules: saved, message: "Catalog column rules updated" });
   } catch (e) {
     console.error("Admin update catalog column rules error:", e);
-    return err(e instanceof Error ? e.message : "Failed to update catalog column rules", 500);
+    return err("Failed to update catalog column rules", 500, e);
   }
 }
 

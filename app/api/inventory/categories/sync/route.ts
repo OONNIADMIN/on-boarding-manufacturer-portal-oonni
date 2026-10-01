@@ -26,6 +26,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("Failed to fetch Marketplace categories", e);
-    return err(e instanceof Error ? e.message : "Failed to fetch categories", 500);
+    return err("Failed to fetch categories", 500, e);
   }
 }

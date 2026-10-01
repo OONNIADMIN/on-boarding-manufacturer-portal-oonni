@@ -4,6 +4,8 @@ import { mkdir, unlink, writeFile, readFile } from "fs/promises";
 import os from "os";
 import path from "path";
 import { backgroundJobQueue } from "@/lib/background-job-queue";
+import { recordSystemError } from "@/lib/error-log";
+import { publicSupportMessage } from "@/lib/support";
 import { prisma } from "@/lib/db";
 import {
   importInventoryWorkbook,
@@ -218,8 +220,18 @@ async function processInventoryBulkImport(publicId: string): Promise<void> {
       finished_at: new Date(),
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to apply spreadsheet edits";
     console.error("inventory bulk job failed:", e);
+    const failedJob = await prisma.inventoryBulkJob.findUnique({
+      where: { public_id: publicId },
+      select: { user_id: true, manufacturer_id: true },
+    });
+    const message = publicSupportMessage(
+      recordSystemError(e, {
+        source: "inventory-bulk-import",
+        userId: failedJob?.user_id,
+        manufacturerId: failedJob?.manufacturer_id,
+      })
+    );
     await patchJob(publicId, {
       status: "failed",
       phase: "failed",
