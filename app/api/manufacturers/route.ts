@@ -2,9 +2,11 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { effectiveManufacturerId, isAdminUser, requireAdmin, requireAuth } from "@/lib/auth";
 import { ok, created, err, unauthorized, forbidden } from "@/lib/api-response";
-import { slugify } from "@/lib/api-response";
+import { slugify } from "@/lib/slugify";
 import { ensureManufacturerImageKitFolders } from "@/lib/imagekit";
 import { parseBoundedInt } from "@/lib/bounded-int";
+import { ensureMarketplaceSeller } from "@/lib/marketplace/operations/seller-provision";
+import { recordSystemError } from "@/lib/error-log";
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth(req);
@@ -52,9 +54,19 @@ export async function POST(req: NextRequest) {
       data: { name: name.trim(), slug, thumbnail: thumbnail ?? null },
     });
     await ensureManufacturerImageKitFolders(mfr);
-    return created(mfr);
+    try {
+      await ensureMarketplaceSeller(mfr);
+    } catch (marketplaceError) {
+      recordSystemError(marketplaceError, {
+        source: "create-manufacturer-marketplace",
+        path: "/api/manufacturers",
+        manufacturerId: mfr.id,
+      });
+    }
+    const createdManufacturer = await prisma.manufacturer.findUnique({ where: { id: mfr.id } });
+    return created(createdManufacturer ?? mfr);
   } catch (e) {
     console.error("Create manufacturer error:", e);
-    return err("Failed to create manufacturer", 500);
+    return err("Failed to create manufacturer", 500, e);
   }
 }

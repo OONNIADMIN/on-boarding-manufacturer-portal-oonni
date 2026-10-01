@@ -5,8 +5,10 @@
 import {
   MARKETPLACE_MUTATIONS,
   MARKETPLACE_QUERIES,
+  TOKEN_CREATE_MUTATION,
   type MarketplaceMutationName,
   type MarketplaceQueryName,
+  type TokenCreatePayload,
 } from "@/app/graphql";
 
 export type MarketplaceConfig = {
@@ -14,17 +16,39 @@ export type MarketplaceConfig = {
   token: string;
 };
 
+const LOGIN_TOKEN_TTL_MS = 4 * 60 * 1000;
+
+const globalForMarketplaceAuth = globalThis as unknown as {
+  marketplaceLoginToken?: string;
+  marketplaceLoginTokenExpiresAt?: number;
+};
+
+function staticMarketplaceToken(): string {
+  return (
+    process.env.NAUTICAL_BEARER_TOKEN?.trim() ||
+    process.env.NAUTICAL_KEY_BEARER?.trim() ||
+    ""
+  );
+}
+
+function marketplaceLoginCredentials(): { email: string; password: string } | null {
+  const email = process.env.NAUTICAL_USERNAME?.trim();
+  const password = process.env.NAUTICAL_PASSWORD;
+  if (!email || !password) return null;
+  return { email, password };
+}
+
 export function getNauticalConfig(): MarketplaceConfig | null {
   const url = process.env.NAUTICAL_API_URL?.trim();
-  const token =
-    process.env.NAUTICAL_BEARER_TOKEN?.trim() ||
-    process.env.NAUTICAL_KEY_BEARER?.trim();
-  if (!url || !token) return null;
-  return { url, token };
+  if (!url) return null;
+  const token = staticMarketplaceToken();
+  if (token) return { url, token };
+  if (marketplaceLoginCredentials()) return { url, token: "" };
+  return null;
 }
 
 export function nauticalNotConfiguredMessage(): string {
-  return "Nautical integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN (or NAUTICAL_KEY_BEARER) on the server.";
+  return "Marketplace integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN (or NAUTICAL_KEY_BEARER), or NAUTICAL_USERNAME and NAUTICAL_PASSWORD, on the server.";
 }
 
 /** Short user-facing catalog error. Raw GraphQL/HTTP payloads stay in server logs. */
@@ -41,6 +65,63 @@ export function formatMarketplaceUserError(error: unknown): string {
   return firstLine.length > 160 ? fallback : firstLine;
 }
 
+async function loginMarketplace(url: string): Promise<string> {
+  const cached = globalForMarketplaceAuth.marketplaceLoginToken;
+  const expiresAt = globalForMarketplaceAuth.marketplaceLoginTokenExpiresAt ?? 0;
+  if (cached && Date.now() < expiresAt) return cached;
+
+  const credentials = marketplaceLoginCredentials();
+  if (!credentials) {
+    throw new Error(nauticalNotConfiguredMessage());
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: TOKEN_CREATE_MUTATION,
+      variables: { email: credentials.email, password: credentials.password },
+    }),
+    cache: "no-store",
+  });
+
+  const text = await res.text().catch(() => "");
+  if (!res.ok) {
+    console.error("Marketplace login HTTP error", res.status, text.slice(0, 4000));
+    throw new Error(`Marketplace login HTTP ${res.status}`);
+  }
+
+  let body: {
+    data?: TokenCreatePayload;
+    errors?: Array<{ message: string }>;
+  };
+  try {
+    body = JSON.parse(text) as typeof body;
+  } catch {
+    console.error("Marketplace login returned non-JSON", text.slice(0, 4000));
+    throw new Error("Marketplace login failed");
+  }
+  const accountErrors = body.data?.tokenCreate?.accountErrors ?? [];
+  const token = body.data?.tokenCreate?.token?.trim();
+  if (body.errors?.length || accountErrors.length || !token) {
+    const detail = [
+      ...(body.errors ?? []).map((item) => item.message),
+      ...accountErrors.map((item) => item.message).filter(Boolean),
+    ].join("; ");
+    console.error("Marketplace login failed", detail || text.slice(0, 4000));
+    throw new Error(detail || "Marketplace login failed");
+  }
+
+  globalForMarketplaceAuth.marketplaceLoginToken = token;
+  globalForMarketplaceAuth.marketplaceLoginTokenExpiresAt = Date.now() + LOGIN_TOKEN_TTL_MS;
+  return token;
+}
+
+async function resolveMarketplaceToken(cfg: MarketplaceConfig): Promise<string> {
+  if (cfg.token) return cfg.token;
+  return loginMarketplace(cfg.url);
+}
+
 export async function nauticalGraphql<T>(
   query: string,
   variables?: Record<string, unknown>
@@ -50,11 +131,12 @@ export async function nauticalGraphql<T>(
     throw new Error(nauticalNotConfiguredMessage());
   }
 
+  const token = await resolveMarketplaceToken(cfg);
   const res = await fetch(cfg.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${cfg.token}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ query, variables }),
     cache: "no-store",

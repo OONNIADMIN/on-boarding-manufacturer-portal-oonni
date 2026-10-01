@@ -25,6 +25,12 @@ export {
 } from "./operations/categories";
 
 export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operations/sellers";
+export {
+  ensureMarketplaceSeller,
+  provisionMarketplaceManufacturer,
+  provisionMarketplaceStaffForSeller,
+  splitPersonName,
+} from "./operations/seller-provision";
 
 export { productBulkCreate } from "./operations/product-bulk-create";
 export { productUpdate } from "./operations/product-update";

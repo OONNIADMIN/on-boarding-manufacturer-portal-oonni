@@ -5,9 +5,11 @@ import { sendManufacturerInvitation } from "@/lib/email";
 import { ok, err, unauthorized, notFound, tooManyRequests } from "@/lib/api-response";
 import { clientIp } from "@/lib/session-cookie";
 import { AUTH_WINDOW_MS, RESEND_INVITE_LIMIT, consumeRateLimit } from "@/lib/rate-limit";
+import { provisionMarketplaceManufacturer } from "@/lib/marketplace/operations/seller-provision";
+import { unexpectedError } from "@/lib/error-log";
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAdmin(req);
+  const { user: admin, error } = await requireAdmin(req);
   if (error) return unauthorized(error);
 
   const ip = clientIp(req);
@@ -33,6 +35,23 @@ export async function POST(req: NextRequest) {
       return err("Only manufacturer users can have their invitation resent", 400);
     }
 
+    if (user.manufacturer) {
+      try {
+        await provisionMarketplaceManufacturer({
+          manufacturer: user.manufacturer,
+          email: user.email,
+          name: user.name,
+        });
+      } catch (marketplaceError) {
+        return unexpectedError(marketplaceError, {
+          source: "resend-invitation-marketplace",
+          path: "/api/auth/resend-invitation",
+          userId: admin?.id ?? user.id,
+          manufacturerId: user.manufacturer.id,
+        });
+      }
+    }
+
     const token = generateInvitationToken();
     const expiresAt = getInvitationTokenExpiry();
 
@@ -53,7 +72,10 @@ export async function POST(req: NextRequest) {
       email: user.email,
     });
   } catch (e) {
-    console.error("Resend invitation error:", e);
-    return err("Failed to resend invitation", 500);
+    return unexpectedError(e, {
+      source: "resend-invitation",
+      path: "/api/auth/resend-invitation",
+      userId: admin?.id ?? null,
+    });
   }
 }
