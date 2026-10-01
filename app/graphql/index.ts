@@ -6,7 +6,9 @@ export {
   INVENTORY_PRODUCTS_QUERY,
   PRODUCT_TYPE_BY_ID_QUERY,
   PRODUCT_TYPES_PAGE_QUERY,
+  SELLER_STAFF_USERS_QUERY,
   type MarketplaceQueryName,
+  type SellerStaffUsersPayload,
 } from "./queries";
 
 export {

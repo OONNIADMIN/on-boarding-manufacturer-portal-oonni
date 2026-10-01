@@ -13,16 +13,19 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const executeMarketplaceMutation = vi.fn();
+const executeMarketplaceQuery = vi.fn();
 const getNauticalConfig = vi.fn(() => ({ url: "https://marketplace.example/graphql", token: "token" }));
 
 vi.mock("@/lib/marketplace/graphql/client", () => ({
   executeMarketplaceMutation: (...args: unknown[]) => executeMarketplaceMutation(...args),
+  executeMarketplaceQuery: (...args: unknown[]) => executeMarketplaceQuery(...args),
   getNauticalConfig: () => getNauticalConfig(),
 }));
 
 describe("marketplace seller provision", () => {
   beforeEach(() => {
     executeMarketplaceMutation.mockReset();
+    executeMarketplaceQuery.mockReset();
     getNauticalConfig.mockReturnValue({ url: "https://marketplace.example/graphql", token: "token" });
   });
 
@@ -31,9 +34,6 @@ describe("marketplace seller provision", () => {
     expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("staffCreate");
     expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("sellerUserMappingCreate");
     expect(Object.keys(MARKETPLACE_MUTATIONS)).not.toContain("agreementCommissionCreate");
-    expect(MARKETPLACE_MUTATIONS.sellerShellCreate).toContain("sellerShellCreate");
-    expect(MARKETPLACE_MUTATIONS.privateMetadataUpdate).toContain("privateMetadataUpdate");
-    expect(MARKETPLACE_MUTATIONS.privateMetadataUpdate).toContain("MetadataInput");
   });
 
   it("splits a full name into first and last names", () => {
@@ -43,9 +43,6 @@ describe("marketplace seller provision", () => {
 
   it("does not create a second marketplace seller when the manufacturer already has one", async () => {
     const { ensureMarketplaceSeller } = await import("@/lib/marketplace/operations/seller-provision");
-    executeMarketplaceMutation.mockResolvedValue({
-      privateMetadataUpdate: { metadataErrors: [] },
-    });
 
     const sellerId = await ensureMarketplaceSeller({
       id: 9,
@@ -54,8 +51,28 @@ describe("marketplace seller provision", () => {
     });
 
     expect(sellerId).toBe("U2VsbGVyOjQy");
+    expect(executeMarketplaceMutation).not.toHaveBeenCalled();
+  });
+
+  it("fails when staffCreate returns errors even if a user payload is present", async () => {
+    const { provisionMarketplaceStaffForSeller } = await import("@/lib/marketplace/operations/seller-provision");
+    executeMarketplaceMutation.mockResolvedValue({
+      staffCreate: {
+        user: { id: "VXNlcjox", email: "ada@example.com" },
+        staffErrors: [{ field: "sellerId", code: "INVALID", message: "Seller assignment failed" }],
+      },
+    });
+
+    await expect(
+      provisionMarketplaceStaffForSeller({
+        sellerId: "U2VsbGVyOjEw",
+        email: "ada@example.com",
+        name: "Ada Lovelace",
+        companyName: "Acme",
+      })
+    ).rejects.toThrow(/Seller assignment failed/);
     expect(executeMarketplaceMutation).toHaveBeenCalledTimes(1);
-    expect(executeMarketplaceMutation.mock.calls[0][0]).toBe("privateMetadataUpdate");
+    expect(executeMarketplaceMutation.mock.calls[0][0]).toBe("staffCreate");
   });
 
   it("creates a seller, stores the id, then creates staff and mapping", async () => {
@@ -85,6 +102,14 @@ describe("marketplace seller provision", () => {
       }
       throw new Error(`unexpected mutation ${name}`);
     });
+    executeMarketplaceQuery.mockResolvedValue({
+      seller: {
+        id: "U2VsbGVyOjEw",
+        sellerusers: {
+          edges: [{ node: { id: "bWFwcGluZzox", isDefault: true, user: { id: "VXNlcjox", email: "ada@example.com" } } }],
+        },
+      },
+    });
 
     const manufacturer = { id: 3, name: "Acme", nautical_seller_id: null };
     const result = await provisionMarketplaceManufacturer({
@@ -104,17 +129,6 @@ describe("marketplace seller provision", () => {
       "staffCreate",
       "sellerUserMappingCreate",
     ]);
-    expect(executeMarketplaceMutation.mock.calls[1][1]).toEqual({
-      id: "U2VsbGVyOjEw",
-      input: [{ key: "brand", value: "true" }],
-    });
-    expect(executeMarketplaceMutation.mock.calls[2][1]).toMatchObject({
-      input: {
-        email: "ada@example.com",
-        firstName: "Ada",
-        lastName: "Lovelace",
-        sellerId: "U2VsbGVyOjEw",
-      },
-    });
+    expect(executeMarketplaceQuery).toHaveBeenCalledWith("sellerStaffUsers", { id: "U2VsbGVyOjEw" }, expect.anything());
   });
 });

@@ -1,14 +1,20 @@
 import { prisma } from "@/lib/db";
-import { executeMarketplaceMutation, getNauticalConfig } from "@/lib/marketplace/graphql/client";
+import {
+  executeMarketplaceMutation,
+  executeMarketplaceQuery,
+  getNauticalConfig,
+} from "@/lib/marketplace/graphql/client";
 import type {
   PrivateMetadataUpdatePayload,
   SellerShellCreatePayload,
+  SellerStaffUsersPayload,
   SellerUserMappingCreatePayload,
   StaffCreatePayload,
 } from "@/app/graphql";
 
 const BRAND_PRIVATE_METADATA_KEY = "brand";
 const BRAND_PRIVATE_METADATA_VALUE = "true";
+const TECHNICAL = { preserveTechnicalError: true } as const;
 
 export type ManufacturerSellerRecord = {
   id: number;
@@ -38,11 +44,15 @@ export function splitPersonName(fullName: string): { firstName: string; lastName
 }
 
 async function setSellerBrandPrivateMetadata(sellerId: string): Promise<void> {
-  const data = await executeMarketplaceMutation<PrivateMetadataUpdatePayload>("privateMetadataUpdate", {
-    id: sellerId,
-    input: [{ key: BRAND_PRIVATE_METADATA_KEY, value: BRAND_PRIVATE_METADATA_VALUE }],
-  });
-  const errors = data.privateMetadataUpdate.metadataErrors ?? [];
+  const data = await executeMarketplaceMutation<PrivateMetadataUpdatePayload>(
+    "privateMetadataUpdate",
+    {
+      id: sellerId,
+      input: [{ key: BRAND_PRIVATE_METADATA_KEY, value: BRAND_PRIVATE_METADATA_VALUE }],
+    },
+    TECHNICAL
+  );
+  const errors = data.privateMetadataUpdate?.metadataErrors ?? [];
   if (errors.length) {
     throw new Error(joinMutationErrors(errors) || "Failed to set seller private metadata");
   }
@@ -51,10 +61,7 @@ async function setSellerBrandPrivateMetadata(sellerId: string): Promise<void> {
 /** Create the marketplace seller once and store its id. Re-invites skip seller creation. */
 export async function ensureMarketplaceSeller(manufacturer: ManufacturerSellerRecord): Promise<string> {
   const existing = manufacturer.nautical_seller_id?.trim();
-  if (existing) {
-    await setSellerBrandPrivateMetadata(existing);
-    return existing;
-  }
+  if (existing) return existing;
 
   if (!getNauticalConfig()) {
     throw new Error("Marketplace integration is not configured.");
@@ -65,12 +72,14 @@ export async function ensureMarketplaceSeller(manufacturer: ManufacturerSellerRe
     throw new Error("Manufacturer name is required to create a marketplace seller.");
   }
 
-  const data = await executeMarketplaceMutation<SellerShellCreatePayload>("sellerShellCreate", {
-    name: companyName,
-  });
+  const data = await executeMarketplaceMutation<SellerShellCreatePayload>(
+    "sellerShellCreate",
+    { name: companyName },
+    TECHNICAL
+  );
   const payload = data.sellerShellCreate;
-  const errors = payload.sellerErrors ?? [];
-  const sellerId = payload.seller?.id?.trim();
+  const errors = payload?.sellerErrors ?? [];
+  const sellerId = payload?.seller?.id?.trim();
   if (errors.length || !sellerId) {
     throw new Error(joinMutationErrors(errors) || "Marketplace seller could not be created.");
   }
@@ -92,37 +101,72 @@ async function createOrReuseStaffUser(input: {
   companyName: string;
   sellerId: string;
 }): Promise<string> {
-  const data = await executeMarketplaceMutation<StaffCreatePayload>("staffCreate", {
-    input: {
-      email: input.email,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      companyName: input.companyName,
-      sellerId: input.sellerId,
-      isActive: true,
+  const data = await executeMarketplaceMutation<StaffCreatePayload>(
+    "staffCreate",
+    {
+      input: {
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        companyName: input.companyName,
+        sellerId: input.sellerId,
+        isActive: true,
+      },
     },
-  });
+    TECHNICAL
+  );
   const payload = data.staffCreate;
-  const createdId = payload.user?.id?.trim();
-  if (createdId) return createdId;
+  if (!payload) {
+    throw new Error("Marketplace staffCreate returned no payload.");
+  }
 
   const errors = payload.staffErrors ?? [];
-  const duplicate = errors.find((error) => isAlreadyExistsError(error.code, error.message));
-  const reusedId = duplicate?.users?.find((id) => Boolean(id?.trim()))?.trim();
-  if (reusedId) return reusedId;
-
-  throw new Error(joinMutationErrors(errors) || "Marketplace staff user could not be created.");
+  const createdId = payload.user?.id?.trim() ?? "";
+  if (errors.length) {
+    const duplicate = errors.find((error) => isAlreadyExistsError(error.code, error.message));
+    const reusedId = duplicate?.users?.find((id) => Boolean(id?.trim()))?.trim();
+    if (reusedId) return reusedId;
+    throw new Error(joinMutationErrors(errors) || "Marketplace staff user could not be created.");
+  }
+  if (!createdId) {
+    throw new Error("Marketplace staff user could not be created.");
+  }
+  return createdId;
 }
 
 async function mapStaffUserToSeller(sellerId: string, userId: string): Promise<void> {
-  const data = await executeMarketplaceMutation<SellerUserMappingCreatePayload>("sellerUserMappingCreate", {
-    input: { seller: sellerId, user: userId },
-  });
+  const data = await executeMarketplaceMutation<SellerUserMappingCreatePayload>(
+    "sellerUserMappingCreate",
+    { input: { seller: sellerId, user: userId } },
+    TECHNICAL
+  );
   const payload = data.sellerUserMappingCreate;
+  if (!payload) {
+    throw new Error("Marketplace sellerUserMappingCreate returned no payload.");
+  }
   const errors = payload.sellerErrors ?? [];
-  if (payload.ok || payload.sellerUser?.id) return;
-  if (errors.length && errors.every((error) => isAlreadyExistsError(error.code, error.message))) return;
-  throw new Error(joinMutationErrors(errors) || "Marketplace seller user mapping could not be created.");
+  if (errors.length) {
+    if (errors.every((error) => isAlreadyExistsError(error.code, error.message))) return;
+    throw new Error(joinMutationErrors(errors) || "Marketplace seller user mapping could not be created.");
+  }
+  if (!payload.ok && !payload.sellerUser?.id) {
+    throw new Error("Marketplace seller user mapping could not be created.");
+  }
+}
+
+async function assertSellerHasMappedUser(sellerId: string, staffUserId: string, email: string): Promise<void> {
+  const data = await executeMarketplaceQuery<SellerStaffUsersPayload>("sellerStaffUsers", { id: sellerId }, TECHNICAL);
+  const mapped = (data.seller?.sellerusers?.edges ?? []).some((edge) => {
+    const user = edge.node?.user;
+    if (!user) return false;
+    if (user.id === staffUserId) return true;
+    return (user.email ?? "").trim().toLowerCase() === email.trim().toLowerCase();
+  });
+  if (!mapped) {
+    throw new Error(
+      `Marketplace staff user was created but is not mapped to the seller (${email}).`
+    );
+  }
 }
 
 export async function provisionMarketplaceStaffForSeller(options: {
@@ -140,6 +184,7 @@ export async function provisionMarketplaceStaffForSeller(options: {
     sellerId: options.sellerId,
   });
   await mapStaffUserToSeller(options.sellerId, userId);
+  await assertSellerHasMappedUser(options.sellerId, userId, options.email);
   return userId;
 }
 

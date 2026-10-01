@@ -51,6 +51,14 @@ export function nauticalNotConfiguredMessage(): string {
   return "Marketplace integration is not configured. Set NAUTICAL_API_URL and NAUTICAL_BEARER_TOKEN (or NAUTICAL_KEY_BEARER), or NAUTICAL_USERNAME and NAUTICAL_PASSWORD, on the server.";
 }
 
+export type GraphqlCallOptions = {
+  preserveTechnicalError?: boolean;
+};
+
+function graphqlMessages(errors: Array<{ message?: string | null }>): string {
+  return errors.map((error) => error.message?.trim()).filter(Boolean).join("; ");
+}
+
 /** Short user-facing catalog error. Raw GraphQL/HTTP payloads stay in server logs. */
 export function formatMarketplaceUserError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -124,7 +132,8 @@ async function resolveMarketplaceToken(cfg: MarketplaceConfig): Promise<string> 
 
 export async function nauticalGraphql<T>(
   query: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  options?: GraphqlCallOptions
 ): Promise<T> {
   const cfg = getNauticalConfig();
   if (!cfg) {
@@ -142,10 +151,14 @@ export async function nauticalGraphql<T>(
     cache: "no-store",
   });
 
+  const throwError = (technical: string) => {
+    throw new Error(options?.preserveTechnicalError ? technical : formatMarketplaceUserError(technical));
+  };
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     console.error("Marketplace HTTP error", res.status, text.slice(0, 4000));
-    throw new Error(formatMarketplaceUserError(`Nautical HTTP ${res.status}: ${text}`));
+    throwError(`Marketplace HTTP ${res.status}: ${text}`);
   }
 
   const body = (await res.json()) as {
@@ -154,25 +167,28 @@ export async function nauticalGraphql<T>(
   };
 
   if (body.errors?.length) {
+    const technical = graphqlMessages(body.errors);
     console.error("Marketplace GraphQL errors", body.errors);
-    throw new Error(formatMarketplaceUserError(body.errors.map((e) => e.message).join("; ")));
+    throwError(technical || "Marketplace GraphQL error");
   }
   if (body.data == null) {
-    throw new Error(formatMarketplaceUserError("This change could not be saved to your catalog."));
+    throwError("Marketplace returned no data");
   }
-  return body.data;
+  return body.data as T;
 }
 
 export async function executeMarketplaceQuery<T>(
   name: MarketplaceQueryName,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  options?: GraphqlCallOptions
 ): Promise<T> {
-  return nauticalGraphql<T>(MARKETPLACE_QUERIES[name], variables);
+  return nauticalGraphql<T>(MARKETPLACE_QUERIES[name], variables, options);
 }
 
 export async function executeMarketplaceMutation<T>(
   name: MarketplaceMutationName,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  options?: GraphqlCallOptions
 ): Promise<T> {
-  return nauticalGraphql<T>(MARKETPLACE_MUTATIONS[name], variables);
+  return nauticalGraphql<T>(MARKETPLACE_MUTATIONS[name], variables, options);
 }
