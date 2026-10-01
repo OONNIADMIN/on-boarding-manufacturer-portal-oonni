@@ -46,14 +46,6 @@ export default function ProfilePage() {
       })
   }, [router])
 
-  const handleBackToDashboard = () => {
-    if (user && authAPI.isAdmin(user)) {
-      router.push('/dashboard')
-    } else {
-      router.push('/catalogs')
-    }
-  }
-
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
     const token = authAPI.getToken()
@@ -122,9 +114,6 @@ export default function ProfilePage() {
         <Header
           subtitle="Manage your account information"
           user={user}
-          showBackButton={true}
-          backButtonText="Back to Dashboard"
-          onBackClick={handleBackToDashboard}
           showNavigation={true}
           currentPage="profile"
         />

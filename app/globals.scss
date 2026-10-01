@@ -72,6 +72,48 @@ button {
   cursor: pointer;
 }
 
+// Dashboard layout: when the Header renders its navigation as the fixed left
+// sidebar (.oonni-sidebar-nav, see components/ui/Header.module.scss), push the
+// page body right so content never sits under it. The sidebar collapses back
+// into the page flow below the md breakpoint, so the offset is desktop-only.
+@media (min-width: #{$breakpoint-md + 1px}) {
+  body:has(.oonni-sidebar-nav) {
+    padding-left: 250px;
+  }
+}
+
+// Same inset on every page of the dashboard session (content after the
+// header). Matches Historical: $spacing-xl on all sides, slightly tighter
+// on smaller screens. Consecutive blocks share one gap instead of stacking.
+.oonni-app-header:has(.oonni-sidebar-nav) ~ * {
+  box-sizing: border-box;
+  padding: $spacing-xl;
+}
+
+.oonni-app-header:has(.oonni-sidebar-nav) ~ * + * {
+  padding-top: 0;
+}
+
+@media (max-width: #{$breakpoint-md}) {
+  .oonni-app-header:has(.oonni-sidebar-nav) ~ * {
+    padding: $spacing-lg;
+  }
+
+  .oonni-app-header:has(.oonni-sidebar-nav) ~ * + * {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: #{$breakpoint-sm}) {
+  .oonni-app-header:has(.oonni-sidebar-nav) ~ * {
+    padding: $spacing-md;
+  }
+
+  .oonni-app-header:has(.oonni-sidebar-nav) ~ * + * {
+    padding-top: 0;
+  }
+}
+
 // Scrollbar styling
 ::-webkit-scrollbar {
   width: 8px;

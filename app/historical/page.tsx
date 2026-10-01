@@ -43,23 +43,12 @@ export default function HistoricalPage() {
         setIsLoading(false)
     }, [router])
 
-    const handleBackToDashboard = () => {
-        if (user && authAPI.isAdmin(user)) {
-          router.push('/dashboard')
-        } else {
-          router.push('/onboard/template')
-        }
-      }
-
     return (
         <main className={styles.main}>
         <div className={styles.container}>
             <Header
             subtitle="See your files information"
             user={user}
-            showBackButton={true}
-            backButtonText="Back to Dashboard"
-            onBackClick={handleBackToDashboard}
             showNavigation={true}
             currentPage="historical"
             />

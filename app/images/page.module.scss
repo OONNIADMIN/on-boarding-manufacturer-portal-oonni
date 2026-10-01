@@ -31,7 +31,7 @@
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
-  padding: $spacing-xl;
+  padding: 0;
 }
 
 .errorMessage {
@@ -499,7 +499,7 @@
 // Responsive Design
 @include respond-to('lg') {
   .content {
-    padding: $spacing-lg;
+    padding: 0;
   }
 
   .imagesTable {
@@ -554,7 +554,7 @@
 
 @include respond-to('sm') {
   .content {
-    padding: $spacing-md;
+    padding: 0;
   }
 
   .controls {

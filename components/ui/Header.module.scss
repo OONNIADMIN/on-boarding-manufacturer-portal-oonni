@@ -5,21 +5,48 @@
 @use '../../styles/variables' as *;
 @use '../../styles/mixins' as *;
 
+$header-bar-height: 72px;
+
 .header {
-  background-color: $oonni-teal;
+  background-color: $white;
   padding: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+
+  // Keeps page content from jumping under the fixed top bar.
+  &::before {
+    content: '';
+    display: block;
+    height: $header-bar-height;
+    flex-shrink: 0;
+  }
 }
 
 .headerContent {
-  max-width: 1400px;
-  width: 100%;
-  margin: 0 auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+  height: $header-bar-height;
+  min-height: $header-bar-height;
   @include flex-between;
   gap: $spacing-md;
-  padding: $spacing-md $spacing-xl;
+  padding: 0 $spacing-xl;
+  color: $gray-900;
+  background-color: $white;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: #{$breakpoint-md + 1px}) {
+  :global(body:has(.oonni-sidebar-nav)) .headerContent {
+    left: 250px;
+  }
 }
 
 .logo {
@@ -32,8 +59,8 @@
   font-size: $portal-title-size;
   font-weight: $font-weight-semibold;
   line-height: $portal-title-line-height;
-  color: rgb(216, 199, 155) !important;
-  margin: 0 0 $spacing-xs 0;
+  color: $gray-900 !important;
+  margin: 0;
 }
 
 .titleWithIcon {
@@ -41,19 +68,21 @@
   align-items: center;
   gap: 0.5rem;
   line-height: 1.2;
+  color: $gray-900;
 
   svg {
     width: 1rem;
     height: 1rem;
     flex-shrink: 0;
-    opacity: 0.95;
+    color: $gray-900;
+    opacity: 1;
   }
 }
 
 .subtitle {
   font-size: $font-size-sm;
-  color: $white;
-  opacity: 0.9;
+  color: $gray-900;
+  opacity: 0.8;
   margin: 0;
 }
 
@@ -71,7 +100,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.45rem;
-  color: $white;
+  color: $gray-900;
   text-align: right;
 }
 
@@ -79,12 +108,13 @@
   width: 1.3rem;
   height: 1.3rem;
   flex-shrink: 0;
+  color: $gray-900;
 }
 
 .welcomeText {
   font-size: $font-size-sm;
   font-weight: $font-weight-normal;
-  color: $white;
+  color: $gray-900;
   white-space: nowrap;
   text-align: right;
 }
@@ -96,10 +126,11 @@
   padding: 0;
   border-radius: $radius-full;
   @include flex-center;
+  color: $gray-900;
   transition: all $transition-base;
 
   &:hover:not(.disabled) {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.06);
     transform: scale(1.05);
   }
 
@@ -111,26 +142,7 @@
   svg {
     width: 1.25rem;
     height: 1.25rem;
-  }
-}
-
-.homeButton {
-  @include button-ghost;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  border-radius: $radius-full;
-  @include flex-center;
-  transition: all $transition-base;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
-  }
-
-  svg {
-    width: 1.25rem;
-    height: 1.25rem;
+    color: $gray-900;
   }
 }
 
@@ -144,7 +156,7 @@
   border: none;
   border-radius: $radius-sm;
   background: transparent;
-  color: $white;
+  color: $gray-900;
   font-size: $font-size-sm;
   font-weight: $font-weight-normal;
   font-family: inherit;
@@ -152,11 +164,11 @@
   transition: background $transition-base;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.06);
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.65);
+    outline: 2px solid rgba(0, 0, 0, 0.45);
     outline-offset: 2px;
   }
 }
@@ -165,50 +177,87 @@
   width: 1.15rem;
   height: 1.15rem;
   flex-shrink: 0;
+  color: $gray-900;
 }
 
-// Navigation Bar — horizontal menu styled like the sidebar mock:
-// off-white surface, dark-teal labels with outline icons, and a soft
-// rounded pill on the active item.
+// Navigation — report-dashboard layout: the menu is a fixed left sidebar
+// (off-white surface, dark-teal labels, rounded pill on the active item,
+// brand block on teal at the top). The page body is pushed right via the
+// plain `.oonni-sidebar-nav` class + a body:has() rule in app/globals.scss.
+// Below the md breakpoint it falls back to an in-flow horizontal bar.
+$sidebar-width: 250px;
+
+// Hide the top-bar logo on desktop when the sidebar (which has its own
+// brand block) is shown; it comes back on small screens.
+.logoHiddenDesktop {
+  display: none;
+}
+
 .navigation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: $sidebar-width;
+  display: flex;
+  flex-direction: column;
   background: $oonni-bg-light;
-  border-top: none;
-  border-bottom: 1px solid rgba(0, 51, 51, 0.08);
-  padding: 0.55rem $spacing-xl;
-  margin-top: auto;
+  border-right: 1px solid rgba(0, 51, 51, 0.08);
+  padding: 0;
+  margin: 0;
   box-shadow: none;
+  overflow-y: auto;
+  z-index: 50;
 }
 
 .navigationFlat {
   background: $oonni-bg-light;
-  border-top: none;
+}
+
+.navBrand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $oonni-teal;
+  box-sizing: border-box;
+  height: $header-bar-height;
+  min-height: $header-bar-height;
+  padding: 0 1rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0, 51, 51, 0.2);
+
+  img {
+    height: 2.25rem;
+    width: auto;
+    object-fit: contain;
+  }
 }
 
 .navContent {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
+  display: block;
+  padding: 1.25rem 0.9rem;
 }
 
 .navLinks {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
 }
 
 .navLink {
-  @include flex-center;
-  gap: 0.55rem;
-  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.9rem;
   background: transparent;
   border: none;
   border-radius: 10px;
   color: $oonni-teal;
   font-size: 0.875rem;
   font-weight: $font-weight-medium;
+  text-align: left;
   text-decoration: none;
   transition: all $transition-base;
   cursor: pointer;
@@ -231,8 +280,8 @@
   }
 
   svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1.15rem;
+    height: 1.15rem;
     flex-shrink: 0;
     opacity: 0.9;
   }
@@ -241,8 +290,18 @@
 // Responsive
 @include respond-to('md') {
   .headerContent {
+    position: static;
+    left: auto;
+    right: auto;
+    width: 100%;
+    height: auto;
+    min-height: $header-bar-height;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .header::before {
+    display: none;
   }
 
   .headerActions {
@@ -258,15 +317,38 @@
     font-size: $portal-title-size;
   }
 
+  // Sidebar collapses back to an in-flow horizontal bar on small screens.
+  .logoHiddenDesktop {
+    display: block;
+  }
+
   .navigation {
-    padding: 0.65rem $spacing-lg;
+    position: static;
+    width: 100%;
+    border-right: none;
+    border-top: 1px solid rgba(0, 51, 51, 0.08);
+    overflow-y: visible;
+    padding: 0.55rem $spacing-lg;
+  }
+
+  .navBrand {
+    display: none;
+  }
+
+  .navContent {
+    padding: 0;
   }
 
   .navLinks {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 0.35rem;
   }
 
   .navLink {
+    justify-content: center;
     padding: 0.4rem 0.75rem;
     font-size: $font-size-xs;
   }
@@ -300,7 +382,7 @@
     flex-direction: column;
     gap: $spacing-xs;
     width: 100%;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .navLink {
