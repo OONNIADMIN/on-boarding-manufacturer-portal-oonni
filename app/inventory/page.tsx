@@ -325,7 +325,7 @@ export default function InventoryPage() {
     | { kind: 'variant'; productId: number; variant: InventoryVariantRow }
     | null
   >(null)
-  const didBootstrapSync = useRef(false)
+  const bootstrappedManufacturerId = useRef<number | null>(null)
   const isAdmin = Boolean(user && authAPI.isAdmin(user))
   const manufacturerId = isAdmin
     ? selectedManufacturerId
@@ -400,23 +400,23 @@ export default function InventoryPage() {
           search,
           sorting
         )
-        if (
+        const shouldBootstrapSync =
           isAdmin &&
           manufacturerId &&
           !cancelled &&
-          !didBootstrapSync.current &&
+          bootstrappedManufacturerId.current !== manufacturerId &&
           !search &&
           pagination.pageIndex === 0 &&
           (listed.total ?? 0) === 0
-        ) {
-          didBootstrapSync.current = true
+        if (shouldBootstrapSync) {
           setIsSyncing(true)
           await inventoryAPI.sync(manufacturerId)
+          bootstrappedManufacturerId.current = manufacturerId
           if (!cancelled) {
             await loadProducts(pagination.pageIndex + 1, pagination.pageSize, search, sorting)
           }
-        } else {
-          didBootstrapSync.current = true
+        } else if (manufacturerId && (listed.total ?? 0) > 0) {
+          bootstrappedManufacturerId.current = manufacturerId
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load your catalog')
