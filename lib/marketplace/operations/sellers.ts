@@ -57,10 +57,11 @@ async function collectSellers(
   let after: string | null = null;
 
   for (let page = 0; page < SELLER_PAGE_LIMIT; page += 1) {
-    const data = await executeMarketplaceQuery<SellerConnection>(queryName, {
-      ...variables,
-      after,
-    });
+    const requestVariables: Record<string, unknown> = { ...variables, after };
+    const data: SellerConnection = await executeMarketplaceQuery<SellerConnection>(
+      queryName,
+      requestVariables
+    );
     for (const edge of data.sellers?.edges ?? []) {
       if (edge?.node?.id) nodes.push(edge.node);
     }
