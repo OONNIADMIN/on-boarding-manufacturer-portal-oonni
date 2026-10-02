@@ -834,7 +834,7 @@ export default function InventoryPage() {
                       setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
                       setExpanded({})
                       setVariantsByProduct({})
-                      didBootstrapSync.current = false
+                      bootstrappedManufacturerId.current = null
                     }}
                     aria-label="Select manufacturer"
                   >
