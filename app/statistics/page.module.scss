@@ -15,56 +15,12 @@
   @include flex-column;
 }
 
-.header {
-  background-color: $oonni-teal;
-  padding: $spacing-lg $spacing-xl;
-  box-shadow: $shadow-md;
-  color: $white;
-}
-
-.backButton {
-  display: inline-flex;
-  align-items: center;
-  gap: $spacing-sm;
-  background: none;
-  border: none;
-  color: $white;
-  font-size: $font-size-base;
-  cursor: pointer;
-  padding: $spacing-sm;
-  border-radius: $radius-md;
-  transition: all $transition-fast;
-  margin-bottom: $spacing-md;
-
-  &:hover {
-    background: rgba($white, 0.1);
-  }
-
-  svg {
-    width: 20px;
-    height: 20px;
-  }
-}
-
-.title {
-  font-size: $font-size-3xl;
-  font-weight: $font-weight-bold;
-  margin: 0 0 $spacing-sm 0;
-  color: $white;
-}
-
-.subtitle {
-  font-size: $font-size-lg;
-  margin: 0;
-  color: rgba($white, 0.9);
-}
-
 .content {
   flex: 1;
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
-  padding: $spacing-xl;
+  padding: 0;
   @include flex-column;
   gap: $spacing-2xl;
 }
@@ -337,10 +293,6 @@
 
 // Responsive Design
 @include respond-to('md') {
-  .content {
-    padding: $spacing-lg;
-  }
-
   .metricsGrid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: $spacing-lg;
@@ -357,20 +309,7 @@
 }
 
 @include respond-to('sm') {
-  .header {
-    padding: $spacing-md $spacing-lg;
-  }
-
-  .title {
-    font-size: $font-size-2xl;
-  }
-
-  .subtitle {
-    font-size: $font-size-base;
-  }
-
   .content {
-    padding: $spacing-md;
     gap: $spacing-lg;
   }
 

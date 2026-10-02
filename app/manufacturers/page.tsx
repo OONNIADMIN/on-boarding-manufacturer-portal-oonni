@@ -71,10 +71,6 @@ export default function ManufacturersPage() {
     router.push('/profile')
   }
 
-  const handleNavigateToDashboard = () => {
-    router.push('/dashboard')
-  }
-
   const handleManufacturerClick = async (manufacturer: ManufacturerListItem) => {
     const token = authAPI.getToken()
     if (!token) return
@@ -380,19 +376,6 @@ export default function ManufacturersPage() {
         />
 
         <div className={styles.content}>
-          {/* Back to Dashboard */}
-          <div className={styles.backButton}>
-            <button 
-              onClick={handleNavigateToDashboard}
-              className={styles.backBtn}
-            >
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Dashboard
-            </button>
-          </div>
-
           {/* Error Message */}
           {error && (
             <div className={styles.errorMessage}>

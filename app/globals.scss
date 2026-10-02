@@ -114,6 +114,21 @@ button {
   }
 }
 
+// Full-bleed shells (catalog template) draw their own edges.
+// Higher specificity than the sibling inset above, including inside the
+// breakpoint overrides.
+.oonni-app-header:has(.oonni-sidebar-nav) ~ .oonni-page-bleed {
+  padding: 0;
+}
+
+// Onboard, wide desktop: welcome + upload span the row beside the sidebar.
+@media (min-width: 1400px) {
+  .oonni-app-header:has(.oonni-sidebar-nav) ~ .oonni-page-wide {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
 // Scrollbar styling
 ::-webkit-scrollbar {
   width: 8px;

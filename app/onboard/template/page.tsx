@@ -118,7 +118,7 @@ export default function CatalogTemplatePage() {
           currentPage="catalogTemplate"
         />
 
-        <div className={styles.contentFrame}>
+        <div className={`${styles.contentFrame} oonni-page-bleed`}>
           <div className={styles.contentStripe} aria-hidden="true" />
           <div className={styles.content}>
             <section className={styles.introCard} aria-labelledby="template-intro-heading">
