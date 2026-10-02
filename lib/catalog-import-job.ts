@@ -1,7 +1,10 @@
 import { randomUUID } from "crypto";
+import { existsSync } from "fs";
 import { mkdir, unlink, writeFile, readFile } from "fs/promises";
 import os from "os";
 import path from "path";
+import { backgroundJobQueue } from "@/lib/background-job-queue";
+import { parseSpreadsheetRowsOffThread } from "@/lib/spreadsheet-parse-worker";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { slugify } from "@/lib/api-response";
@@ -16,7 +19,6 @@ import {
   extractHeaderRowCells,
   fillMissingSkuHeader,
   findHeaderColumnIndex,
-  parseSpreadsheetRows,
   compactSpreadsheetRows,
   workbookBufferFromRows,
 } from "@/lib/catalog-file-headers";
@@ -28,10 +30,12 @@ import { listCatalogColumnRules } from "@/lib/catalog-column-rules-service";
 import { sendCatalogUploadNotification } from "@/lib/email";
 import { prepareCatalogFileForRemoteStore, stripXlsxEmbeddedMedia } from "@/lib/xlsx-embedded-images";
 import { isUniqueConstraintError } from "@/lib/image-record";
+import { recordSystemError } from "@/lib/error-log";
+import { publicSupportMessage } from "@/lib/support";
 
 const running = new Set<string>();
 
-function friendlyCatalogImportError(error: unknown): string {
+function expectedCatalogImportMessage(error: unknown): string | null {
   const raw = error instanceof Error ? error.message : "Catalog import failed";
   if (/104857600|file size exceeds/i.test(raw) || /invalid file parameter/i.test(raw)) {
     return "The catalog file is too large to store as a single file. Try again — photos are imported from the spreadsheet separately.";
@@ -39,7 +43,10 @@ function friendlyCatalogImportError(error: unknown): string {
   if (/Unique constraint failed/i.test(raw) || (error && typeof error === "object" && "code" in error && (error as { code: string }).code === "P2002")) {
     return "A photo was already in the catalog. Duplicate photos were skipped so the import could continue.";
   }
-  return raw;
+  if (/uploaded file is empty/i.test(raw) || /Header row .+ is outside/i.test(raw) || /Manufacturer not found/i.test(raw)) {
+    return raw;
+  }
+  return null;
 }
 
 export type CatalogImportJobStatus =
@@ -136,12 +143,63 @@ export async function enqueueCatalogImport(params: {
     },
   });
 
-  void processCatalogImport(publicId);
+  kickCatalogImport(publicId);
   return serializeImportJob(job);
 }
 
 export function kickCatalogImport(publicId: string): void {
-  void processCatalogImport(publicId);
+  backgroundJobQueue.enqueue(publicId, () => processCatalogImport(publicId));
+}
+
+export const CATALOG_IMPORT_ACTIVE_STATUSES = [
+  "queued",
+  "analyzing",
+  "creating_products",
+  "saving_file",
+  "importing_images",
+] as const;
+
+// Jobs run inside this Node process, so a server restart orphans any job that
+// was active. On the polling endpoint: re-enqueue jobs that never started and
+// still have their file on disk; mark the rest as failed so the user retries.
+// The age threshold avoids racing a job enqueued a moment ago.
+const ORPHANED_AFTER_MS = 2 * 60 * 1000;
+const ORPHANED_JOB_MESSAGE =
+  "The import was interrupted by a server restart. Please upload the file again.";
+
+export async function recoverOrphanedCatalogImportJobs(userId: number): Promise<void> {
+  const staleBefore = new Date(Date.now() - ORPHANED_AFTER_MS);
+  const candidates = await prisma.catalogImportJob.findMany({
+    where: {
+      user_id: userId,
+      status: { in: [...CATALOG_IMPORT_ACTIVE_STATUSES] },
+      updated_at: { lt: staleBefore },
+    },
+    select: { public_id: true, status: true, storage_path: true },
+  });
+
+  const toFail: string[] = [];
+  for (const job of candidates) {
+    if (backgroundJobQueue.has(job.public_id)) continue;
+    if (job.status === "queued" && existsSync(job.storage_path)) {
+      // Nothing was processed yet and the file survived — safe to resume.
+      kickCatalogImport(job.public_id);
+    } else {
+      toFail.push(job.public_id);
+    }
+  }
+  if (!toFail.length) return;
+
+  await prisma.catalogImportJob.updateMany({
+    where: { public_id: { in: toFail } },
+    data: {
+      status: "failed",
+      phase: "failed",
+      error: ORPHANED_JOB_MESSAGE,
+      message: ORPHANED_JOB_MESSAGE,
+      finished_at: new Date(),
+    },
+  });
 }
 
 async function patchJob(
@@ -182,7 +240,7 @@ async function processCatalogImport(publicId: string): Promise<void> {
         ? await stripXlsxEmbeddedMedia(originalBuffer)
         : originalBuffer;
 
-    const rows = parseSpreadsheetRows(workBuffer, job.original_filename);
+    const rows = await parseSpreadsheetRowsOffThread(workBuffer, job.original_filename);
     if (!rows.length) throw new Error("The uploaded file is empty");
     if (job.header_row_index >= rows.length) {
       throw new Error(
@@ -479,8 +537,23 @@ async function processCatalogImport(publicId: string): Promise<void> {
       }).catch(() => undefined);
       return;
     }
-    const message = friendlyCatalogImportError(e);
-    console.error("Catalog import job failed:", e);
+    const expected = expectedCatalogImportMessage(e);
+    const failedJob = expected
+      ? null
+      : await prisma.catalogImportJob.findUnique({
+          where: { public_id: publicId },
+          select: { user_id: true, manufacturer_id: true },
+        });
+    const message = expected
+      ? expected
+      : publicSupportMessage(
+          recordSystemError(e, {
+            source: "catalog-import",
+            userId: failedJob?.user_id,
+            manufacturerId: failedJob?.manufacturer_id,
+          })
+        );
+    if (!expected) console.error("Catalog import job failed:", e);
     await patchJob(publicId, {
       status: "failed",
       phase: "failed",

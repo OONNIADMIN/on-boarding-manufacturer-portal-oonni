@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 /** Bump when Prisma schema fields change so the Next.js singleton is recreated. */
-const PRISMA_CLIENT_GENERATION = 4;
+const PRISMA_CLIENT_GENERATION = 10;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -12,6 +12,9 @@ const globalForPrisma = globalThis as unknown as {
 function getPrisma(): PrismaClient {
   if (globalForPrisma.prisma && globalForPrisma.prismaGeneration === PRISMA_CLIENT_GENERATION) {
     return globalForPrisma.prisma;
+  }
+  if (globalForPrisma.prisma) {
+    void globalForPrisma.prisma.$disconnect().catch(() => undefined);
   }
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");

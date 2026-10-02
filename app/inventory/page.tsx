@@ -103,9 +103,9 @@ function ImageGallery({
 
 function catalogSaveNotice(
   kind: 'product' | 'variant',
-  result: { traide_synced?: number; traide_errors?: string[] }
+  result: { marketplace_synced?: number; marketplace_errors?: string[] }
 ) {
-  if (!result.traide_errors?.length) {
+  if (!result.marketplace_errors?.length) {
     return kind === 'product' ? 'Product saved to your catalog.' : 'Variant saved to your catalog.'
   }
   return kind === 'product'
@@ -651,7 +651,7 @@ export default function InventoryPage() {
     try {
       const result = await inventoryAPI.syncCategories()
       setCategories(result.categories ?? [])
-      setNotice(`Fetched ${result.synced} categories from Traide.`)
+      setNotice(`Fetched ${result.synced} categories from the marketplace.`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch categories')
     } finally {
@@ -912,7 +912,7 @@ export default function InventoryPage() {
                   onClick={() => void handleSync()}
                   disabled={!manufacturerId || isSyncing || isBulkBusy || isFetchingCategories}
                 >
-                  {isSyncing ? 'Syncing…' : 'Refresh from Traide'}
+                  {isSyncing ? 'Syncing…' : 'Refresh from marketplace'}
                 </button>
               ) : null}
             </div>
@@ -925,7 +925,7 @@ export default function InventoryPage() {
             {isSyncing ? (
               <div className={styles.loadingRow}>
                 <div className={styles.spinner} />
-                <p>Syncing products from Traide…</p>
+                <p>Syncing products from the marketplace…</p>
               </div>
             ) : (
               <DataTable

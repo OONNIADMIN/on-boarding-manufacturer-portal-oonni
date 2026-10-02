@@ -92,8 +92,6 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const hint = imageKitUploadFailureMessage(e);
     if (hint) return err(hint, 503);
-    console.error("imagekit templates:", e);
-    const msg = e instanceof Error ? e.message : "Failed to resolve templates";
-    return err(msg, 502);
+    return err("Failed to resolve templates", 502, e);
   }
 }

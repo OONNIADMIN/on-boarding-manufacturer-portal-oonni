@@ -13,7 +13,7 @@ import {
   MAX_REMOTE_IMAGE_BYTES,
   normalizeMimeType,
 } from "@/lib/remote-image-import";
-import { isTraideImageId, parseVariantImages, toInventoryImages } from "@/lib/traide/mappers/variant-images";
+import { isMarketplaceImageId, parseVariantImages, toInventoryImages } from "@/lib/marketplace/mappers/variant-images";
 
 const IMPORT_IMAGE_PRE_TRANSFORM = "w-1600,h-1600,c-at_max,q-80";
 
@@ -21,7 +21,7 @@ export type DamInventoryImage = { id: string | null; url: string };
 
 /**
  * Upload new variant images into the manufacturer ImageKit DAM folder (same path as catalog
- * image ingest / Images page). Already-public ImageKit URLs are kept. Traide must receive
+ * image ingest / Images page). Already-public ImageKit URLs are kept. Marketplace must receive
  * the ImageKit public URL returned by upload.
  */
 export async function ensureVariantImagesInImageKit(params: {
@@ -41,10 +41,10 @@ export async function ensureVariantImagesInImageKit(params: {
   if (!parsed.length) return { images: [], errors: [] };
 
   const keepAsIs = parsed.filter(
-    (image) => (image.id && isTraideImageId(image.id)) || isImageKitPublicUrl(image.url)
+    (image) => (image.id && isMarketplaceImageId(image.id)) || isImageKitPublicUrl(image.url)
   );
   const needsUpload = parsed.filter(
-    (image) => !(image.id && isTraideImageId(image.id)) && !isImageKitPublicUrl(image.url)
+    (image) => !(image.id && isMarketplaceImageId(image.id)) && !isImageKitPublicUrl(image.url)
   );
   if (needsUpload.length && !isImageKitUploadConfigured()) {
     return {

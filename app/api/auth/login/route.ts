@@ -5,6 +5,11 @@ import { ok, err, tooManyRequests } from "@/lib/api-response";
 import { applySessionCookie, clientIp } from "@/lib/session-cookie";
 import { contentLengthTooLarge } from "@/lib/request-limits";
 import { LOGIN_FAILURE_DETAIL, consumeLoginAttempt, passwordsMatch } from "@/lib/login-guard";
+import {
+  isMarketplaceProvisionComplete,
+  provisionMarketplaceUserOnPasswordSet,
+} from "@/lib/marketplace/operations/seller-provision";
+import { recordSystemError } from "@/lib/error-log";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +33,49 @@ export async function POST(req: NextRequest) {
     const valid = await passwordsMatch(password, user?.password_hash);
     if (!valid || !user || !user.is_active) {
       return err(LOGIN_FAILURE_DETAIL, 401);
+    }
+
+    if (user.role.name === "manufacturer" && user.manufacturer) {
+      let provisionComplete = false;
+      try {
+        provisionComplete = await isMarketplaceProvisionComplete({
+          localUserId: user.id,
+          manufacturer: user.manufacturer,
+          email: user.email,
+        });
+      } catch (statusError) {
+        console.error("login-marketplace-status", statusError);
+        recordSystemError(statusError, {
+          source: "login-marketplace",
+          path: "/api/auth/login",
+          userId: user.id,
+          manufacturerId: user.manufacturer.id,
+        });
+      }
+
+      if (!provisionComplete) {
+        try {
+          await provisionMarketplaceUserOnPasswordSet({
+            localUserId: user.id,
+            manufacturer: user.manufacturer,
+            email: user.email,
+            name: user.name,
+            password,
+            logContext: {
+              path: "/api/auth/login",
+              userId: user.id,
+            },
+          });
+        } catch (marketplaceError) {
+          console.error("login-marketplace", marketplaceError);
+          recordSystemError(marketplaceError, {
+            source: "login-marketplace",
+            path: "/api/auth/login",
+            userId: user.id,
+            manufacturerId: user.manufacturer.id,
+          });
+        }
+      }
     }
 
     const token = await signToken({ sub: String(user.id), email: user.email, role: user.role.name });

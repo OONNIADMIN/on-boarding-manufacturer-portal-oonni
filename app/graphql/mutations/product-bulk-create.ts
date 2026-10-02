@@ -27,7 +27,7 @@ mutation ($products: [ProductBulkCreateInput!]!) {
 }
 `;
 
-export type TraideBulkProductError = {
+export type MarketplaceBulkProductError = {
   field?: string | null;
   message?: string | null;
   code?: string | null;
@@ -43,6 +43,6 @@ export type ProductBulkCreatePayload = {
       name: string;
       externalId?: string | null;
     }>;
-    bulkProductErrors: TraideBulkProductError[];
+    bulkProductErrors: MarketplaceBulkProductError[];
   };
 };

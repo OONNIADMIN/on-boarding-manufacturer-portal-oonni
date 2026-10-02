@@ -9,7 +9,7 @@ import {
   resolveCatalogAttributes,
 } from "@/lib/inventory-attribute-catalog";
 import { resolveCategoryJson } from "@/lib/inventory-categories";
-import { pushInventoryProductsToTraide } from "@/lib/traide/services/inventory-bulk-push";
+import { pushInventoryProductsToMarketplace } from "@/lib/marketplace/services/inventory-bulk-push";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +105,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   });
 
-  const traide = await pushInventoryProductsToTraide(auth.manufacturerId, [product.id]);
+  const marketplace = await pushInventoryProductsToMarketplace(auth.manufacturerId, [product.id]);
   const refreshed = (await findOwnedProduct(auth.manufacturerId, product.id)) ?? product;
   const variantCount = await prisma.inventoryVariant.count({
     where: { inventory_product_id: product.id },
@@ -114,8 +114,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return ok({
     ...refreshed,
     variant_count: variantCount,
-    traide_synced: traide.traide_synced,
-    traide_errors: traide.traide_errors,
+    marketplace_synced: marketplace.marketplace_synced,
+    marketplace_errors: marketplace.marketplace_errors,
   });
 }
 

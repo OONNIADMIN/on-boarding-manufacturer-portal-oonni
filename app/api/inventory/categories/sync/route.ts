@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { err, ok } from "@/lib/api-response";
 import { requireInventoryAdmin } from "@/lib/inventory-access";
-import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/traide/graphql/client";
-import { listStoredCategoryTree, syncTraideCategories } from "@/lib/traide/services/category-sync";
+import { getNauticalConfig, nauticalNotConfiguredMessage } from "@/lib/marketplace/graphql/client";
+import { listStoredCategoryTree, syncMarketplaceCategories } from "@/lib/marketplace/services/category-sync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await syncTraideCategories();
+    const result = await syncMarketplaceCategories();
     const categories = await listStoredCategoryTree();
     return ok({
       synced: result.synced,
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       categories,
     });
   } catch (e) {
-    console.error("Failed to fetch Traide categories", e);
-    return err(e instanceof Error ? e.message : "Failed to fetch categories", 500);
+    console.error("Failed to fetch Marketplace categories", e);
+    return err("Failed to fetch categories", 500, e);
   }
 }

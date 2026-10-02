@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { err, ok } from "@/lib/api-response";
 import { requireInventoryUser } from "@/lib/inventory-access";
-import { listStoredCategoryTree } from "@/lib/traide/services/category-sync";
+import { listStoredCategoryTree } from "@/lib/marketplace/services/category-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,6 @@ export async function GET(req: NextRequest) {
     const categories = await listStoredCategoryTree();
     return ok({ categories, total: categories.length });
   } catch (e) {
-    return err(e instanceof Error ? e.message : "Failed to load categories", 500);
+    return err("Failed to load categories", 500, e);
   }
 }

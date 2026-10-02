@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { effectiveManufacturerId, isAdminUser, requireAdmin, requireAuth } from "@/lib/auth";
 import { ok, created, err, unauthorized, forbidden } from "@/lib/api-response";
-import { slugify } from "@/lib/api-response";
+import { slugify } from "@/lib/slugify";
 import { ensureManufacturerImageKitFolders } from "@/lib/imagekit";
 import { parseBoundedInt } from "@/lib/bounded-int";
 
@@ -55,6 +55,6 @@ export async function POST(req: NextRequest) {
     return created(mfr);
   } catch (e) {
     console.error("Create manufacturer error:", e);
-    return err("Failed to create manufacturer", 500);
+    return err("Failed to create manufacturer", 500, e);
   }
 }

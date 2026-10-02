@@ -1,4 +1,4 @@
-import type { TraideBulkProductError } from "./product-bulk-create";
+import type { MarketplaceBulkProductError } from "./product-bulk-create";
 
 export const PRODUCT_VARIANT_BULK_CREATE_MUTATION = `
 mutation ($product: ID!, $variants: [ProductVariantBulkCreateInput!]!) {
@@ -28,6 +28,6 @@ export type ProductVariantBulkCreatePayload = {
       name?: string | null;
       quantityAvailable?: number | null;
     }>;
-    bulkProductErrors: TraideBulkProductError[];
+    bulkProductErrors: MarketplaceBulkProductError[];
   };
 };

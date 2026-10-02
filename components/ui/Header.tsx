@@ -14,21 +14,15 @@ interface HeaderProps {
   title?: string
   subtitle: string
   user: User | null
-  showBackButton?: boolean
-  backButtonText?: string
-  onBackClick?: () => void
   onLogout?: () => void
   showNavigation?: boolean
-  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory'
+  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory' | 'logs'
   navStyle?: 'default' | 'flat'
 }
 
 export default function Header({
   title = PORTAL_TITLE,
   user,
-  showBackButton = false,
-  backButtonText = 'Back',
-  onBackClick,
   onLogout,
   showNavigation = false,
   currentPage,
@@ -42,17 +36,6 @@ export default function Header({
     } else {
       authAPI.logout()
       router.push('/login')
-    }
-  }
-
-
-  const handleBackClick = () => {
-    if (onBackClick) {
-      onBackClick()
-    } else if (user && authAPI.isAdmin(user)) {
-      router.push('/dashboard')
-    } else {
-      router.push('/onboard/template')
     }
   }
 
@@ -83,15 +66,22 @@ export default function Header({
       case 'catalogcolumns':
         router.push('/admin/catalog-columns')
         break
+      case 'logs':
+        router.push('/admin/logs')
+        break
       default:
         break
     }
   }
 
   return (
-    <header className={styles.header}>
+    <header className={`${styles.header} oonni-app-header`}>
       <div className={styles.headerContent}>
-        <img src="/logo.svg" alt="Oonni Logo" className={styles.logo} />
+        <img
+          src="/logo.svg"
+          alt="Oonni Logo"
+          className={`${styles.logo} ${showNavigation ? styles.logoHiddenDesktop : ''}`}
+        />
         <div>
           <h1 className={styles.title}>
             <span className={styles.titleWithIcon}>
@@ -140,22 +130,6 @@ export default function Header({
           </h1>
         </div>
         <div className={styles.headerActions}>
-          {showBackButton && (
-            <button 
-              onClick={handleBackClick} 
-              className={styles.homeButton}
-              title={backButtonText}
-            >
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                />
-              </svg>
-            </button>
-          )}
           {user && (
             <div className={styles.welcomeBlock}>
               <CircleUserRound className={styles.welcomeIcon} aria-hidden="true" strokeWidth={1.6} />
@@ -207,7 +181,12 @@ export default function Header({
       {user ? <CatalogImportBanner userId={user.id} /> : null}
       
       {showNavigation && (
-        <nav className={`${styles.navigation} ${navStyle === 'flat' ? styles.navigationFlat : ''}`}>
+        <nav
+          className={`${styles.navigation} oonni-sidebar-nav ${navStyle === 'flat' ? styles.navigationFlat : ''}`}
+        >
+          <div className={styles.navBrand}>
+            <img src="/logo.svg" alt="Oonni Logo" />
+          </div>
           <div className={styles.navContent}>
             <div className={styles.navLinks}>
               {user && authAPI.isAdmin(user) && (
@@ -253,6 +232,16 @@ export default function Header({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
                     </svg>
                     Items Management
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigation('logs')}
+                    className={`${styles.navLink} ${currentPage === 'logs' ? styles.active : ''}`}
+                  >
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Error logs
                   </button>
                 </>
               )}

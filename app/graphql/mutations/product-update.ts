@@ -17,7 +17,7 @@ mutation ($id: ID!, $input: ProductInput!) {
 }
 `;
 
-export type TraideProductError = {
+export type MarketplaceProductError = {
   field?: string | null;
   message?: string | null;
   code?: string | null;
@@ -32,6 +32,6 @@ export type ProductUpdatePayload = {
       slug?: string | null;
       externalId?: string | null;
     } | null;
-    productErrors: TraideProductError[];
+    productErrors: MarketplaceProductError[];
   };
 };

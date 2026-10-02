@@ -38,11 +38,11 @@ import {
   categoryJsonFromOption,
   matchCategoryOption,
 } from "@/lib/inventory-categories";
-import { listStoredCategoryTree } from "@/lib/traide/services/category-sync";
+import { listStoredCategoryTree } from "@/lib/marketplace/services/category-sync";
 import {
-  pushInventoryProductsToTraide,
-  pushInventoryVariantsToTraide,
-} from "@/lib/traide/services/inventory-bulk-push";
+  pushInventoryProductsToMarketplace,
+  pushInventoryVariantsToMarketplace,
+} from "@/lib/marketplace/services/inventory-bulk-push";
 
 export const BULK_KIND_PRODUCTS = "products";
 export const BULK_KIND_VARIANTS = "variants";
@@ -57,7 +57,7 @@ const REVIEW_CELL_FILL = "FFFFF3CD";
 const HEADER_FILL = "FFE8F4F1";
 const REQUIRED_MISSING_FILL = "FFF87171";
 
-const PRODUCT_LOCKED = ["product_id", "traide_id", "Status", "Published"] as const;
+const PRODUCT_LOCKED = ["product_id", "marketplace_id", "Status", "Published"] as const;
 const PRODUCT_CORE = [
   "Name",
   "Slug",
@@ -74,7 +74,7 @@ const PRODUCT_CORE = [
   "Unit",
 ] as const;
 
-const VARIANT_LOCKED = ["variant_id", "product_id", "product_name", "traide_id"] as const;
+const VARIANT_LOCKED = ["variant_id", "product_id", "product_name", "marketplace_id"] as const;
 const VARIANT_CORE = [
   "Name",
   "SKU",
@@ -124,8 +124,8 @@ export type InventoryBulkImportResult = {
   updated: number;
   skipped: number;
   errors: string[];
-  traide_synced: number;
-  traide_errors: string[];
+  marketplace_synced: number;
+  marketplace_errors: string[];
 };
 
 export type InventoryBulkProgress = {
@@ -382,7 +382,7 @@ function paintReviewCell(
 
 function columnWidth(header: string): number {
   if (header === "Description" || header === "SEO description" || header === "Images") return 36;
-  if (header.endsWith("_id") || header === "traide_id") return 16;
+  if (header.endsWith("_id") || header === "marketplace_id") return 16;
   return Math.min(28, Math.max(14, header.length + 2));
 }
 
@@ -820,14 +820,14 @@ async function applyProductRows(
     total,
     message: "Publishing product updates…",
   });
-  const traide = await pushInventoryProductsToTraide(manufacturerId, updatedIds);
+  const marketplace = await pushInventoryProductsToMarketplace(manufacturerId, updatedIds);
   return {
     kind: BULK_KIND_PRODUCTS,
     updated,
     skipped,
-    errors: [...errors, ...traide.traide_errors].slice(0, 50),
-    traide_synced: traide.traide_synced,
-    traide_errors: traide.traide_errors,
+    errors: [...errors, ...marketplace.marketplace_errors].slice(0, 50),
+    marketplace_synced: marketplace.marketplace_synced,
+    marketplace_errors: marketplace.marketplace_errors,
   };
 }
 
@@ -940,16 +940,16 @@ async function applyVariantRows(
     total,
     message: "Publishing variant updates…",
   });
-  const traide = await pushInventoryVariantsToTraide(manufacturerId, updatedIds, {
+  const marketplace = await pushInventoryVariantsToMarketplace(manufacturerId, updatedIds, {
     previousImagesById,
   });
   return {
     kind: BULK_KIND_VARIANTS,
     updated,
     skipped,
-    errors: [...errors, ...traide.traide_errors].slice(0, 50),
-    traide_synced: traide.traide_synced,
-    traide_errors: traide.traide_errors,
+    errors: [...errors, ...marketplace.marketplace_errors].slice(0, 50),
+    marketplace_synced: marketplace.marketplace_synced,
+    marketplace_errors: marketplace.marketplace_errors,
   };
 }
 

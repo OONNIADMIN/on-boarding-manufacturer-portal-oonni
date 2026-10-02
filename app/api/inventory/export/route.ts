@@ -41,6 +41,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error("inventory export:", e);
-    return err(e instanceof Error ? e.message : "Failed to export inventory", 500);
+    return err("Failed to export inventory", 500, e);
   }
 }

@@ -1845,8 +1845,8 @@ export type InventoryProductRow = {
   variant_count?: number
   completeness?: ProductCompleteness
   synced_at: string
-  traide_synced?: number
-  traide_errors?: string[]
+  marketplace_synced?: number
+  marketplace_errors?: string[]
 }
 
 export type InventoryAttributeWrite = {
@@ -2014,8 +2014,8 @@ export const inventoryAPI = {
     manufacturerId?: number | null
   ): Promise<{
     variant: InventoryVariantRow
-    traide_synced?: number
-    traide_errors?: string[]
+    marketplace_synced?: number
+    marketplace_errors?: string[]
   }> {
     return inventoryRequest(`/inventory/products/${productId}/variants`, {
       method: 'POST',
@@ -2031,8 +2031,8 @@ export const inventoryAPI = {
     manufacturerId?: number | null
   ): Promise<{
     variant: InventoryVariantRow
-    traide_synced?: number
-    traide_errors?: string[]
+    marketplace_synced?: number
+    marketplace_errors?: string[]
   }> {
     return inventoryRequest(`/inventory/products/${productId}/variants/${variantId}`, {
       method: 'PATCH',
@@ -2157,6 +2157,46 @@ export const inventoryAPI = {
     categories: InventoryCategoryOption[]
   }> {
     return inventoryRequest('/inventory/categories/sync', { method: 'POST' })
+  },
+}
+
+export type SystemErrorLogRow = {
+  id: string
+  source: string
+  level: 'error' | 'ok'
+  message: string
+  stack: string | null
+  path: string | null
+  user_id: number | null
+  user_email: string | null
+  user_name: string | null
+  manufacturer_id: number | null
+  created_at: string
+}
+
+export const systemLogsAPI = {
+  async list(params?: { page?: number; limit?: number; q?: string }): Promise<{
+    logs: SystemErrorLogRow[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const search = new URLSearchParams()
+    if (params?.page) search.set('page', String(params.page))
+    if (params?.limit) search.set('limit', String(params.limit))
+    if (params?.q?.trim()) search.set('q', params.q.trim())
+    const qs = search.toString()
+    const response = await apiFetch(`${API_URL}/admin/logs${qs ? `?${qs}` : ''}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to load logs')
+    }
+    return response.json()
   },
 }
 

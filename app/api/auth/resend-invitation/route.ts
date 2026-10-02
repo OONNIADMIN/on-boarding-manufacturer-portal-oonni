@@ -5,9 +5,10 @@ import { sendManufacturerInvitation } from "@/lib/email";
 import { ok, err, unauthorized, notFound, tooManyRequests } from "@/lib/api-response";
 import { clientIp } from "@/lib/session-cookie";
 import { AUTH_WINDOW_MS, RESEND_INVITE_LIMIT, consumeRateLimit } from "@/lib/rate-limit";
+import { unexpectedError, recordSystemOk, recordSystemError } from "@/lib/error-log";
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAdmin(req);
+  const { user: admin, error } = await requireAdmin(req);
   if (error) return unauthorized(error);
 
   const ip = clientIp(req);
@@ -46,14 +47,32 @@ export async function POST(req: NextRequest) {
 
     // Awaitar garantiza que el token en el correo == token actualizado en DB.
     const emailSent = await sendManufacturerInvitation(user.email, user.name, token);
-    if (!emailSent) console.error("[resend-invitation] Email not sent for", user.email);
+    if (!emailSent) {
+      console.error("[resend-invitation] Email not sent for", user.email);
+      recordSystemError("Invitation email was not resent", {
+        source: "resend-invitation",
+        path: "/api/auth/resend-invitation",
+        userId: user.id,
+        manufacturerId: user.manufacturer_id,
+      });
+    } else {
+      recordSystemOk(`Invitation email resent to ${user.email}`, {
+        source: "resend-invitation",
+        path: "/api/auth/resend-invitation",
+        userId: user.id,
+        manufacturerId: user.manufacturer_id,
+      });
+    }
 
     return ok({
       message: "Invitation email resent successfully",
       email: user.email,
     });
   } catch (e) {
-    console.error("Resend invitation error:", e);
-    return err("Failed to resend invitation", 500);
+    return unexpectedError(e, {
+      source: "resend-invitation",
+      path: "/api/auth/resend-invitation",
+      userId: admin?.id ?? null,
+    });
   }
 }

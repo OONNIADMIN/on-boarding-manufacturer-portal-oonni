@@ -235,7 +235,7 @@ export default function CatalogsPage() {
           currentPage="Onboard"
         />
 
-        <div className={styles.content}>
+        <div className={`${styles.content} oonni-page-wide`}>
           {uploadReport && (
             <section className={styles.uploadReport} aria-labelledby="catalog-upload-report-title">
               <div className={styles.uploadReportHeader}>

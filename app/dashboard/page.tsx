@@ -234,7 +234,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className={styles.cardTitle}>Manage Inventory</h3>
                 <p className={styles.cardDescription}>
-                  View manufacturer products, fetch Traide categories, and refresh inventory
+                  View manufacturer products, fetch marketplace categories, and refresh inventory
                 </p>
               </div>
             </div>

@@ -1,7 +1,11 @@
 import { randomUUID } from "crypto";
+import { existsSync } from "fs";
 import { mkdir, unlink, writeFile, readFile } from "fs/promises";
 import os from "os";
 import path from "path";
+import { backgroundJobQueue } from "@/lib/background-job-queue";
+import { recordSystemError } from "@/lib/error-log";
+import { publicSupportMessage } from "@/lib/support";
 import { prisma } from "@/lib/db";
 import {
   importInventoryWorkbook,
@@ -104,12 +108,55 @@ export async function enqueueInventoryBulkImport(params: {
     },
   });
 
-  void processInventoryBulkImport(publicId);
+  kickInventoryBulkImport(publicId);
   return serializeInventoryBulkJob(job);
 }
 
 export function kickInventoryBulkImport(publicId: string): void {
-  void processInventoryBulkImport(publicId);
+  backgroundJobQueue.enqueue(publicId, () => processInventoryBulkImport(publicId));
+}
+
+// Jobs run inside this Node process, so a server restart orphans any job that
+// was active. On the polling endpoint: re-enqueue jobs that never started and
+// still have their file on disk; mark the rest as failed so the user retries.
+// The age threshold avoids racing a job that was enqueued a moment ago.
+const ORPHANED_AFTER_MS = 2 * 60 * 1000;
+const ORPHANED_JOB_MESSAGE =
+  "The import was interrupted by a server restart. Please upload the file again.";
+
+export async function failOrphanedInventoryBulkJobs(userId: number): Promise<void> {
+  const staleBefore = new Date(Date.now() - ORPHANED_AFTER_MS);
+  const candidates = await prisma.inventoryBulkJob.findMany({
+    where: {
+      user_id: userId,
+      status: { in: [...INVENTORY_BULK_ACTIVE_STATUSES] },
+      updated_at: { lt: staleBefore },
+    },
+    select: { public_id: true, status: true, storage_path: true },
+  });
+
+  const toFail: string[] = [];
+  for (const job of candidates) {
+    if (backgroundJobQueue.has(job.public_id)) continue;
+    if (job.status === "queued" && existsSync(job.storage_path)) {
+      // Nothing was processed yet and the file survived — safe to resume.
+      kickInventoryBulkImport(job.public_id);
+    } else {
+      toFail.push(job.public_id);
+    }
+  }
+  if (!toFail.length) return;
+
+  await prisma.inventoryBulkJob.updateMany({
+    where: { public_id: { in: toFail } },
+    data: {
+      status: "failed",
+      phase: "failed",
+      error: ORPHANED_JOB_MESSAGE,
+      message: ORPHANED_JOB_MESSAGE,
+      finished_at: new Date(),
+    },
+  });
 }
 
 async function patchJob(
@@ -157,7 +204,7 @@ async function processInventoryBulkImport(publicId: string): Promise<void> {
     );
 
     const extra = result.errors.length ? ` ${result.errors.slice(0, 2).join(" ")}` : "";
-    const publishedNote = result.traide_errors.length
+    const publishedNote = result.marketplace_errors.length
       ? " Some items could not be published yet."
       : "";
     await patchJob(publicId, {
@@ -173,8 +220,18 @@ async function processInventoryBulkImport(publicId: string): Promise<void> {
       finished_at: new Date(),
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to apply spreadsheet edits";
     console.error("inventory bulk job failed:", e);
+    const failedJob = await prisma.inventoryBulkJob.findUnique({
+      where: { public_id: publicId },
+      select: { user_id: true, manufacturer_id: true },
+    });
+    const message = publicSupportMessage(
+      recordSystemError(e, {
+        source: "inventory-bulk-import",
+        userId: failedJob?.user_id,
+        manufacturerId: failedJob?.manufacturer_id,
+      })
+    );
     await patchJob(publicId, {
       status: "failed",
       phase: "failed",

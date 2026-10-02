@@ -80,10 +80,6 @@ export default function StatisticsPage() {
     router.push('/login')
   }
 
-  const handleBackToDashboard = () => {
-    router.push('/dashboard')
-  }
-
   if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
@@ -100,23 +96,10 @@ export default function StatisticsPage() {
         currentPage="statistics"
         user={user}
         onLogout={handleLogout}
+        showNavigation={true}
       />
-      
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <button 
-            onClick={handleBackToDashboard}
-            className={styles.backButton}
-          >
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Dashboard
-          </button>
-          <h1 className={styles.title}>Platform Statistics</h1>
-          <p className={styles.subtitle}>Comprehensive analytics and insights</p>
-        </div>
 
+      <div className={styles.container}>
         {statsLoading ? (
           <div className={styles.loadingSection}>
             <div className={styles.spinner}></div>

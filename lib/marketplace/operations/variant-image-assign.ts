@@ -1,0 +1,18 @@
+import { executeMarketplaceMutation } from "@/lib/marketplace/graphql/client";
+import type { ProductVariantImageAssignPayload } from "@/app/graphql";
+
+export async function productVariantImageAssign(
+  imageId: string,
+  variantId: string,
+  countryCode = "US"
+): Promise<{ errors: string[] }> {
+  const data = await executeMarketplaceMutation<ProductVariantImageAssignPayload>("productVariantImageAssign", {
+    imageId,
+    variantId,
+    countryCode,
+  });
+  const errors = (data.productVariantImageAssign.productErrors ?? [])
+    .map((error) => [error.field, error.code, error.message].filter(Boolean).join(": "))
+    .filter(Boolean);
+  return { errors };
+}
