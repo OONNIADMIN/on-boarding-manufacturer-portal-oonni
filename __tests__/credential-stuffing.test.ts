@@ -81,6 +81,19 @@ describe("credential stuffing defenses", () => {
     expect(await passwordsMatch("wrong-password-value", hash)).toBe(false);
   });
 
+  test("password set and login queue Traide provision instead of awaiting it", () => {
+    const loginSrc = readFileSync(join(__dirname, "../app/api/auth/login/route.ts"), "utf8");
+    const setPasswordSrc = readFileSync(
+      join(__dirname, "../app/api/auth/set-password/route.ts"),
+      "utf8"
+    );
+    expect(loginSrc).toContain("scheduleMarketplaceProvisionOnAuth");
+    expect(loginSrc).not.toMatch(/await provisionMarketplaceUserOnPasswordSet/);
+    expect(loginSrc).not.toMatch(/await isMarketplaceProvisionComplete/);
+    expect(setPasswordSrc).toContain("scheduleMarketplaceProvisionOnAuth");
+    expect(setPasswordSrc).not.toMatch(/await provisionMarketplaceUserOnPasswordSet/);
+  });
+
   test("login route does not return distinct errors for unknown vs known emails", () => {
     const files = walkTsFiles(join(__dirname, "../app/api/auth"));
     const login = files.find((f) => f.replace(/\\/g, "/").endsWith("/login/route.ts"));

@@ -6,8 +6,8 @@ import { applySessionCookie, clientIp } from "@/lib/session-cookie";
 import { AUTH_WINDOW_MS, SET_PASSWORD_LIMIT, consumeRateLimit } from "@/lib/rate-limit";
 import { passwordPolicyError } from "@/lib/password-policy";
 import { contentLengthTooLarge } from "@/lib/request-limits";
-import { provisionMarketplaceUserOnPasswordSet } from "@/lib/marketplace/operations/seller-provision";
-import { recordSystemError, recordSystemOk, unexpectedError } from "@/lib/error-log";
+import { scheduleMarketplaceProvisionOnAuth } from "@/lib/marketplace/operations/seller-provision";
+import { recordSystemOk, unexpectedError } from "@/lib/error-log";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,39 +42,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    let marketplaceProvisioned = true;
-    try {
-      await provisionMarketplaceUserOnPasswordSet({
-        localUserId: user.id,
-        manufacturer: user.manufacturer,
-        email: user.email,
-        name: user.name,
-        password: String(password),
-        logContext: {
-          path: "/api/auth/set-password",
-          userId: user.id,
-        },
-      });
-    } catch (marketplaceError) {
-      marketplaceProvisioned = false;
-      console.error("set-password-marketplace", marketplaceError);
-      recordSystemError(marketplaceError, {
-        source: "set-password-marketplace",
-        path: "/api/auth/set-password",
-        userId: user.id,
-        manufacturerId: user.manufacturer.id,
-      });
-      recordSystemOk(
-        `Local account activation continued for ${user.email}; integration will retry at login`,
-        {
-          source: "set-password",
-          path: "/api/auth/set-password",
-          userId: user.id,
-          manufacturerId: user.manufacturer.id,
-        }
-      );
-    }
-
     const passwordHash = await hashPassword(password);
     const updated = await prisma.user.update({
       where: { id: user.id },
@@ -94,6 +61,18 @@ export async function POST(req: NextRequest) {
       manufacturerId: updated.manufacturer_id,
     });
 
+    scheduleMarketplaceProvisionOnAuth({
+      localUserId: updated.id,
+      manufacturer: updated.manufacturer ?? user.manufacturer,
+      email: updated.email,
+      name: updated.name,
+      password: String(password),
+      logContext: {
+        path: "/api/auth/set-password",
+        userId: updated.id,
+      },
+    });
+
     const accessToken = await signToken({
       sub: String(updated.id),
       email: updated.email,
@@ -102,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     const res = ok({
       token_type: "bearer",
-      integration_pending: !marketplaceProvisioned,
+      integration_pending: true,
       user: {
         id: updated.id,
         email: updated.email,

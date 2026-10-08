@@ -35,6 +35,7 @@ model Manufacturer {
   images             Image[]
   products           Product[]
   inventory_products InventoryProduct[]
+  distributors       AuthorizedDistributor[]
 
   @@map("manufacturers")
 }
@@ -52,6 +53,8 @@ model User {
   password_set_at             DateTime? @db.Timestamptz
   /// Marketplace GraphQL staff user id. Empty until the manufacturer sets their password.
   nautical_user_id            String?   @db.VarChar(255)
+  /// pending | complete | failed. Failed/pending rows retry Traide provision on the next login.
+  marketplace_provision_status String?  @db.VarChar(32)
   created_at                  DateTime  @default(now()) @db.Timestamptz
   updated_at                  DateTime  @default(now()) @updatedAt @db.Timestamptz
   deleted_at                  DateTime? @db.Timestamptz
@@ -61,6 +64,30 @@ model User {
   images       Image[]
 
   @@map("users")
+}
+
+/// Brand-authorized distributors that a manufacturer can invite to sell on Oonni.
+model AuthorizedDistributor {
+  id                 Int       @id @default(autoincrement())
+  manufacturer_id    Int
+  company_name       String    @db.VarChar(255)
+  contact_name       String    @db.VarChar(255)
+  email              String    @db.VarChar(255)
+  phone              String?   @db.VarChar(50)
+  region             String?   @db.VarChar(120)
+  valid_until        DateTime? @db.Date
+  /// active | invite_sent | not_invited
+  status             String    @default("not_invited") @db.VarChar(32)
+  invitation_sent_at DateTime? @db.Timestamptz
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at         DateTime? @db.Timestamptz
+
+  manufacturer Manufacturer @relation(fields: [manufacturer_id], references: [id], onDelete: Cascade)
+
+  @@index([manufacturer_id, deleted_at])
+  @@index([manufacturer_id, status])
+  @@map("authorized_distributors")
 }
 
 model Catalog {

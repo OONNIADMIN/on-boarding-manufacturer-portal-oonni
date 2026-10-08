@@ -6,10 +6,9 @@ import { applySessionCookie, clientIp } from "@/lib/session-cookie";
 import { contentLengthTooLarge } from "@/lib/request-limits";
 import { LOGIN_FAILURE_DETAIL, consumeLoginAttempt, passwordsMatch } from "@/lib/login-guard";
 import {
-  isMarketplaceProvisionComplete,
-  provisionMarketplaceUserOnPasswordSet,
+  needsMarketplaceProvisionRetry,
+  scheduleMarketplaceProvisionOnAuth,
 } from "@/lib/marketplace/operations/seller-provision";
-import { recordSystemError } from "@/lib/error-log";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,45 +35,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.role.name === "manufacturer" && user.manufacturer) {
-      let provisionComplete = false;
-      try {
-        provisionComplete = await isMarketplaceProvisionComplete({
+      if (needsMarketplaceProvisionRetry(user.marketplace_provision_status)) {
+        scheduleMarketplaceProvisionOnAuth({
           localUserId: user.id,
           manufacturer: user.manufacturer,
           email: user.email,
-        });
-      } catch (statusError) {
-        console.error("login-marketplace-status", statusError);
-        recordSystemError(statusError, {
-          source: "login-marketplace",
-          path: "/api/auth/login",
-          userId: user.id,
-          manufacturerId: user.manufacturer.id,
-        });
-      }
-
-      if (!provisionComplete) {
-        try {
-          await provisionMarketplaceUserOnPasswordSet({
-            localUserId: user.id,
-            manufacturer: user.manufacturer,
-            email: user.email,
-            name: user.name,
-            password,
-            logContext: {
-              path: "/api/auth/login",
-              userId: user.id,
-            },
-          });
-        } catch (marketplaceError) {
-          console.error("login-marketplace", marketplaceError);
-          recordSystemError(marketplaceError, {
-            source: "login-marketplace",
+          name: user.name,
+          password,
+          logContext: {
             path: "/api/auth/login",
             userId: user.id,
-            manufacturerId: user.manufacturer.id,
-          });
-        }
+          },
+        });
       }
     }
 

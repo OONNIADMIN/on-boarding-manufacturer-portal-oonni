@@ -242,6 +242,50 @@ export async function sendManufacturerInvitation(
   return result.ok;
 }
 
+export async function sendDistributorInvitation(opts: {
+  email: string;
+  contactName: string;
+  companyName: string;
+  brandName: string;
+}): Promise<boolean> {
+  const html = emailWrapper(`
+    ${oonniHeader()}
+    <tr><td style="padding:40px 36px;">
+      <h2 style="margin:0 0 24px;font-size:22px;font-weight:600;color:#003333;">You're invited to sell on OONNI</h2>
+      <p style="margin:0 0 16px;font-size:16px;color:#333;">Hello <strong>${escapeHtml(opts.contactName)}</strong>,</p>
+      <p style="margin:0 0 20px;font-size:16px;color:#333;">
+        <strong>${escapeHtml(opts.brandName)}</strong> authorized
+        <strong>${escapeHtml(opts.companyName)}</strong> as a distributor on OONNI —
+        the B2B marketplace for the hospitality and foodservice industry.
+      </p>
+      <p style="margin:0 0 28px;font-size:16px;color:#333;">
+        We'll be in touch with next steps so you can start selling this brand.
+      </p>
+      ${
+        APP_URL
+          ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr><td align="center" style="padding:8px 0 8px;">
+          <a href="${APP_URL}"
+             style="display:inline-block;background:#5a9e8e;color:#fff;padding:14px 36px;
+                    text-decoration:none;border-radius:8px;font-size:16px;font-weight:600;">
+            Visit OONNI
+          </a>
+        </td></tr>
+      </table>`
+          : ""
+      }
+    </td></tr>
+    ${oonniFooter()}`);
+
+  const result = await sendViaBrevo(
+    opts.email,
+    `${opts.brandName} invited ${opts.companyName} to sell on OONNI`,
+    html
+  );
+  if (!result.ok) console.error("[email] sendDistributorInvitation failed:", result.error);
+  return result.ok;
+}
+
 /** Notificación a admins cuando se sube un catálogo. */
 export async function sendCatalogUploadNotification(opts: {
   adminEmails: string[];

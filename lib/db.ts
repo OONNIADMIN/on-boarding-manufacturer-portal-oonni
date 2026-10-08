@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 /** Bump when Prisma schema fields change so the Next.js singleton is recreated. */
-const PRISMA_CLIENT_GENERATION = 10;
+const PRISMA_CLIENT_GENERATION = 13;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -10,11 +10,16 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function getPrisma(): PrismaClient {
-  if (globalForPrisma.prisma && globalForPrisma.prismaGeneration === PRISMA_CLIENT_GENERATION) {
-    return globalForPrisma.prisma;
+  const existing = globalForPrisma.prisma;
+  if (
+    existing &&
+    globalForPrisma.prismaGeneration === PRISMA_CLIENT_GENERATION &&
+    "authorizedDistributor" in existing
+  ) {
+    return existing;
   }
-  if (globalForPrisma.prisma) {
-    void globalForPrisma.prisma.$disconnect().catch(() => undefined);
+  if (existing) {
+    void existing.$disconnect().catch(() => undefined);
   }
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
@@ -23,6 +28,11 @@ function getPrisma(): PrismaClient {
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
+  if (!("authorizedDistributor" in client)) {
+    throw new Error(
+      "Prisma client is missing AuthorizedDistributor. Stop Next.js, run yarn db:generate, then start yarn dev again."
+    );
+  }
   globalForPrisma.prisma = client;
   globalForPrisma.prismaGeneration = PRISMA_CLIENT_GENERATION;
   return client;

@@ -6,8 +6,9 @@ import './globals.scss'
 const quicksand = Quicksand({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-quicksand',
   display: 'swap',
+  preload: true,
+  fallback: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
 })
 
 export const metadata: Metadata = {
@@ -21,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={quicksand.variable}>
-      <body className={quicksand.className}>{children}</body>
+    <html lang="en" className={quicksand.className}>
+      <body>{children}</body>
     </html>
   )
 }
