@@ -28,6 +28,7 @@ export {
 export { resolveManufacturerSellerId, searchApprovedSellerId } from "./operations/sellers";
 export {
   ensureMarketplaceSeller,
+  provisionMarketplaceDistributorSeller,
   provisionMarketplaceUserOnPasswordSet,
   persistMarketplaceStaffUserId,
   loadMarketplaceStaffUserId,

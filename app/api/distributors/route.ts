@@ -2,8 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
 import { created, err, forbidden, ok, unauthorized } from "@/lib/api-response";
-import { parseDistributorFields, serializeDistributor } from "@/lib/distributors";
-import { sendDistributorInvitation } from "@/lib/email";
+import { inviteAuthorizedDistributor, parseDistributorFields, serializeDistributor } from "@/lib/distributors";
 
 async function manufacturerScope(req: NextRequest) {
   const { user, error } = await requireAuth(req);
@@ -49,22 +48,6 @@ export async function POST(req: NextRequest) {
   });
   if (duplicate) return err("A distributor with this email already exists", 409);
 
-  let status = parsed.status ?? "not_invited";
-  let invitationSentAt: Date | null = null;
-  if (parsed.send_invite) {
-    const brandName = scoped.user.manufacturer?.name?.trim() || "Your brand";
-    const sent = await sendDistributorInvitation({
-      email: parsed.email,
-      contactName: parsed.contact_name,
-      companyName: parsed.company_name,
-      brandName,
-    });
-    if (sent) {
-      status = "invite_sent";
-      invitationSentAt = new Date();
-    }
-  }
-
   const createdRow = await prisma.authorizedDistributor.create({
     data: {
       manufacturer_id: scoped.manufacturerId,
@@ -74,10 +57,21 @@ export async function POST(req: NextRequest) {
       phone: parsed.phone ?? null,
       region: parsed.region ?? null,
       valid_until: parsed.valid_until ?? null,
-      status,
-      invitation_sent_at: invitationSentAt,
+      status: parsed.status ?? "not_invited",
     },
   });
+
+  if (parsed.send_invite) {
+    const invited = await inviteAuthorizedDistributor({
+      distributor: createdRow,
+      brandName: scoped.user.manufacturer?.name?.trim() || "Your brand",
+    });
+    if ("error" in invited) return err(invited.error, 502);
+    const updated = await prisma.authorizedDistributor.findFirst({
+      where: { id: createdRow.id, deleted_at: null },
+    });
+    return created(serializeDistributor(updated ?? createdRow));
+  }
 
   return created(serializeDistributor(createdRow));
 }

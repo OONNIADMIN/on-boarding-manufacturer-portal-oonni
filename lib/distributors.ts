@@ -1,3 +1,12 @@
+import { prisma } from "@/lib/db";
+import { distributorSetPasswordUrl, sendDistributorInvitation } from "@/lib/email";
+import {
+  distributorInvitationExpiry,
+  hashDistributorInvitationToken,
+  newDistributorInvitationToken,
+} from "@/lib/distributor-invitation-token";
+import { provisionMarketplaceDistributorSeller } from "@/lib/marketplace/operations/seller-provision";
+
 export const DISTRIBUTOR_STATUSES = ["active", "invite_sent", "not_invited"] as const;
 
 export type DistributorStatus = (typeof DISTRIBUTOR_STATUSES)[number];
@@ -113,4 +122,59 @@ export function parseDistributorFields(body: Record<string, unknown>, partial = 
     status,
     send_invite: body.send_invite === true,
   };
+}
+
+export async function inviteAuthorizedDistributor(opts: {
+  distributor: {
+    id: number;
+    manufacturer_id: number;
+    company_name: string;
+    contact_name: string;
+    email: string;
+    status: string;
+    nautical_seller_id?: string | null;
+    nautical_user_id?: string | null;
+  };
+  brandName: string;
+}): Promise<{ error: string } | { ok: true }> {
+  const resend = opts.distributor.status === "invite_sent" || opts.distributor.status === "active";
+  try {
+    await provisionMarketplaceDistributorSeller(opts.distributor);
+  } catch (error) {
+    const raw = error instanceof Error ? error.message.trim() : "";
+    const alreadyExists = /unique|already exists|uq_user_email_normalized_per_tenant/i.test(raw);
+    if (!(resend && alreadyExists)) {
+      return { error: raw || "The distributor seller account could not be created." };
+    }
+  }
+
+  const token = newDistributorInvitationToken();
+  const expiresAt = distributorInvitationExpiry();
+  await prisma.$executeRaw`
+    UPDATE authorized_distributors
+    SET invitation_token_hash = ${hashDistributorInvitationToken(token)},
+        invitation_token_expires_at = ${expiresAt},
+        updated_at = NOW()
+    WHERE id = ${opts.distributor.id}
+  `;
+
+  const sent = await sendDistributorInvitation({
+    email: opts.distributor.email,
+    contactName: opts.distributor.contact_name,
+    companyName: opts.distributor.company_name,
+    brandName: opts.brandName,
+    acceptUrl: distributorSetPasswordUrl(token),
+  });
+  if (!sent) {
+    return { error: "The marketplace account was created, but the invitation email could not be sent. Try again later." };
+  }
+
+  await prisma.authorizedDistributor.update({
+    where: { id: opts.distributor.id },
+    data: {
+      status: opts.distributor.status === "active" ? "active" : "invite_sent",
+      invitation_sent_at: new Date(),
+    },
+  });
+  return { ok: true };
 }

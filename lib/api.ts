@@ -565,6 +565,27 @@ export const authAPI = {
     }
 
     return response.json()
+  },
+
+  /**
+   * Change the email of an invited manufacturer user (admin only).
+   */
+  async updateManufacturerUserEmail(token: string, userId: number, email: string): Promise<User> {
+    const response = await apiFetch(`${API_URL}/auth/users/${userId}/email`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to update email')
+    }
+
+    return response.json()
   }
 }
 

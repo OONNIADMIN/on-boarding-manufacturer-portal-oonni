@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { authAPI, manufacturerAPI } from '@/lib/api'
 import { passwordPolicyError } from '@/lib/password-policy'
@@ -33,7 +32,14 @@ export default function ManufacturersPage() {
   const [activatePassword, setActivatePassword] = useState('')
   const [activateConfirm, setActivateConfirm] = useState('')
   const [activateSubmitting, setActivateSubmitting] = useState(false)
+  const [emailDrafts, setEmailDrafts] = useState<Record<number, string>>({})
+  const [savingEmailUserId, setSavingEmailUserId] = useState<number | null>(null)
   const router = useRouter()
+
+  const rememberUsers = (users: User[]) => {
+    setManufacturerUsers(users)
+    setEmailDrafts(Object.fromEntries(users.map((item) => [item.id, item.email])))
+  }
 
   useEffect(() => {
     // Check if user is logged in and is admin
@@ -85,7 +91,7 @@ export default function ManufacturersPage() {
     try {
       setIsLoadingUsers(true)
       const users = await manufacturerAPI.getManufacturerUsers(token, manufacturer.id)
-      setManufacturerUsers(asList<User>(users))
+      rememberUsers(asList<User>(users))
     } catch (err) {
       setUsersError(err instanceof Error ? err.message : 'Failed to load users')
       setManufacturerUsers([])
@@ -122,7 +128,7 @@ export default function ManufacturersPage() {
       await authAPI.resendInvitation(token, userId)
       setResendMessage('Invitation email resent successfully.')
       const users = await manufacturerAPI.getManufacturerUsers(token, selectedManufacturer.id)
-      setManufacturerUsers(asList<User>(users))
+      rememberUsers(asList<User>(users))
     } catch (err) {
       setUsersError(err instanceof Error ? err.message : 'Failed to resend invitation')
     } finally {
@@ -160,7 +166,7 @@ export default function ManufacturersPage() {
       setResendMessage('User activated. They can now log in with the password you set.')
       resetActivateForm()
       const users = await manufacturerAPI.getManufacturerUsers(token, selectedManufacturer.id)
-      setManufacturerUsers(asList<User>(users))
+      rememberUsers(asList<User>(users))
     } catch (err) {
       setUsersError(err instanceof Error ? err.message : 'Failed to activate user')
     } finally {
@@ -168,14 +174,30 @@ export default function ManufacturersPage() {
     }
   }
 
-  useEffect(() => {
-    if (!showUsersModal) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
+  const handleChangeEmail = async (userId: number) => {
+    const token = authAPI.getToken()
+    if (!token || !selectedManufacturer) return
+
+    const nextEmail = (emailDrafts[userId] ?? '').trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      setUsersError('Enter a valid email address')
+      return
     }
-  }, [showUsersModal])
+
+    setSavingEmailUserId(userId)
+    setUsersError('')
+    setResendMessage('')
+    try {
+      await authAPI.updateManufacturerUserEmail(token, userId, nextEmail)
+      setResendMessage('Email updated. Resend the invitation if this user still needs the link.')
+      const users = await manufacturerAPI.getManufacturerUsers(token, selectedManufacturer.id)
+      rememberUsers(asList<User>(users))
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to update email')
+    } finally {
+      setSavingEmailUserId(null)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -283,6 +305,38 @@ export default function ManufacturersPage() {
                               </span>
                             </div>
                           </div>
+                          <form
+                            className={styles.emailForm}
+                            onSubmit={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleChangeEmail(mfrUser.id)
+                            }}
+                          >
+                            <label className={styles.emailLabel}>
+                              Email
+                              <input
+                                type="email"
+                                className={styles.activateInput}
+                                value={emailDrafts[mfrUser.id] ?? mfrUser.email}
+                                onChange={(e) =>
+                                  setEmailDrafts((current) => ({
+                                    ...current,
+                                    [mfrUser.id]: e.target.value,
+                                  }))
+                                }
+                                autoComplete="off"
+                                required
+                              />
+                            </label>
+                            <button
+                              type="submit"
+                              className={styles.resendButton}
+                              disabled={savingEmailUserId !== null}
+                            >
+                              {savingEmailUserId === mfrUser.id ? 'Saving email...' : 'Save email'}
+                            </button>
+                          </form>
                           {activatingUserId !== mfrUser.id && (
                             <button
                               type="button"
@@ -449,9 +503,7 @@ export default function ManufacturersPage() {
             )}
           </section>
 
-          {typeof document !== 'undefined' && usersModal
-            ? createPortal(usersModal, document.body)
-            : null}
+          {usersModal}
         </div>
       </div>
     </main>

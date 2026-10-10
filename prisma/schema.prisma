@@ -79,6 +79,13 @@ model AuthorizedDistributor {
   /// active | invite_sent | not_invited
   status             String    @default("not_invited") @db.VarChar(32)
   invitation_sent_at DateTime? @db.Timestamptz
+  nautical_seller_id String?   @db.VarChar(255)
+  nautical_user_id   String?   @db.VarChar(255)
+  /// SHA-256 of the one-time link in the brand invitation email.
+  invitation_token_hash String? @db.VarChar(64)
+  invitation_token_expires_at DateTime? @db.Timestamptz
+  /// Temporary marketplace password, encrypted until the distributor chooses their own.
+  marketplace_password_ciphertext String? @db.Text
   created_at         DateTime  @default(now()) @db.Timestamptz
   updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
   deleted_at         DateTime? @db.Timestamptz

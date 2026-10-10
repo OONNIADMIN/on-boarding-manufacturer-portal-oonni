@@ -1,11 +1,14 @@
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { BackgroundJobQueue } from "@/lib/background-job-queue";
 import { recordSystemError, recordSystemOk } from "@/lib/error-log";
+import { encryptDistributorPassword } from "@/lib/distributor-invitation-token";
 import {
   executeMarketplaceMutation,
   executeMarketplaceQuery,
   createMarketplaceUserAccessToken,
   getNauticalConfig,
+  nauticalGraphql,
 } from "@/lib/marketplace/graphql/client";
 import type {
   AgreementBySlugPayload,
@@ -550,6 +553,219 @@ async function createSellerWithOwner(input: {
   });
   input.manufacturer.nautical_seller_id = sellerId;
   await setSellerBrandPrivateMetadata(sellerId);
+  return { sellerId, staffUserId };
+}
+
+function randomDistributorPassword(): string {
+  return `Ds${randomBytes(12).toString("base64url")}9a`;
+}
+
+export type DistributorMarketplaceRecord = {
+  id: number;
+  manufacturer_id: number;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  nautical_seller_id?: string | null;
+  nautical_user_id?: string | null;
+};
+
+/**
+ * Create a Traide seller + owner for an authorized distributor.
+ * Unlike brand manufacturers, this does not set brand metadata, assign/sign an
+ * agreement, or approve the seller. The owner signs in on the seller portal.
+ */
+async function loadDistributorMarketplaceIds(
+  distributorId: number
+): Promise<{ sellerId: string; staffUserId: string }> {
+  const rows = await prisma.$queryRaw<
+    Array<{ nautical_seller_id: string | null; nautical_user_id: string | null }>
+  >`
+    SELECT nautical_seller_id, nautical_user_id
+    FROM authorized_distributors
+    WHERE id = ${distributorId}
+    LIMIT 1
+  `;
+  return {
+    sellerId: rows[0]?.nautical_seller_id?.trim() || "",
+    staffUserId: rows[0]?.nautical_user_id?.trim() || "",
+  };
+}
+
+async function persistDistributorMarketplaceIds(
+  distributorId: number,
+  sellerId: string,
+  staffUserId: string
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE authorized_distributors
+    SET nautical_seller_id = ${sellerId},
+        nautical_user_id = ${staffUserId},
+        updated_at = NOW()
+    WHERE id = ${distributorId}
+  `;
+}
+
+async function loadManufacturerSellerId(manufacturerId: number): Promise<string> {
+  const rows = await prisma.$queryRaw<Array<{ nautical_seller_id: string | null }>>`
+    SELECT nautical_seller_id
+    FROM manufacturers
+    WHERE id = ${manufacturerId}
+    LIMIT 1
+  `;
+  return rows[0]?.nautical_seller_id?.trim() || "";
+}
+
+/**
+ * Keep the distributor seller as the user's default, then add the inviting
+ * manufacturer's seller. sellerUserMappingCreate is additive and a repeat is a no-op.
+ * Do not set this user as the manufacturer seller's owner: that would move their default seller.
+ */
+const DISTRIBUTOR_OWNER_BY_EMAIL_QUERY = `
+query DistributorOwnerByEmail($search: String!) {
+  sellers(first: 10, filter: { search: $search }) {
+    edges { node { id owner { id email } } }
+  }
+}
+`;
+
+async function findDistributorSellerOwner(
+  email: string,
+): Promise<{ sellerId: string; ownerId: string } | null> {
+  const data = await nauticalGraphql<{
+    sellers: {
+      edges: Array<{ node: { id: string; owner: { id: string; email: string | null } | null } | null }>;
+    } | null;
+  }>(DISTRIBUTOR_OWNER_BY_EMAIL_QUERY, { search: email }, { preserveTechnicalError: true });
+  const wanted = email.trim().toLowerCase();
+  const match = (data.sellers?.edges ?? []).find(
+    (edge) => (edge.node?.owner?.email ?? "").trim().toLowerCase() === wanted,
+  );
+  const sellerId = match?.node?.id?.trim() || "";
+  const ownerId = match?.node?.owner?.id?.trim() || "";
+  if (!sellerId || !ownerId) return null;
+  return { sellerId, ownerId };
+}
+
+async function mapDistributorUserToManufacturerSeller(
+  manufacturerId: number,
+  userId: string,
+): Promise<void> {
+  const manufacturerSellerId = await loadManufacturerSellerId(manufacturerId);
+  if (!manufacturerSellerId) {
+    throw new Error("The manufacturer does not have a marketplace seller yet.");
+  }
+  await mapStaffUserToSeller(manufacturerSellerId, userId);
+}
+
+async function persistDistributorBootstrapPassword(
+  distributorId: number,
+  password: string,
+): Promise<void> {
+  const ciphertext = encryptDistributorPassword(password);
+  await prisma.$executeRaw`
+    UPDATE authorized_distributors
+    SET marketplace_password_ciphertext = ${ciphertext},
+        updated_at = NOW()
+    WHERE id = ${distributorId}
+  `;
+}
+
+export async function provisionMarketplaceDistributorSeller(
+  distributor: DistributorMarketplaceRecord,
+  options?: { ownerPassword?: string; replaceExisting?: boolean },
+): Promise<{ sellerId: string; staffUserId: string }> {
+  const stored = options?.replaceExisting
+    ? { sellerId: "", staffUserId: "" }
+    : await loadDistributorMarketplaceIds(distributor.id).catch(() => null);
+  const existingSeller = stored?.sellerId || distributor.nautical_seller_id?.trim() || "";
+  const existingUser = stored?.staffUserId || distributor.nautical_user_id?.trim() || "";
+  if (existingSeller && existingUser) {
+    await mapDistributorUserToManufacturerSeller(distributor.manufacturer_id, existingUser);
+    return { sellerId: existingSeller, staffUserId: existingUser };
+  }
+
+  if (!getNauticalConfig()) {
+    throw new Error("Marketplace integration is not configured.");
+  }
+
+  const companyName = distributor.company_name.trim();
+  const email = distributor.email.trim().toLowerCase();
+  if (!companyName) throw new Error("Distributor company name is required.");
+  if (!email) throw new Error("Distributor email is required.");
+
+  const ctx = {
+    source: "distributor-invite",
+    path: "/api/distributors",
+    manufacturerId: distributor.manufacturer_id,
+  };
+  const { firstName, lastName } = splitPersonName(distributor.contact_name);
+  const groupId = await resolveSellerAdminGroupId();
+  let sellerId = existingSeller;
+  let staffUserId = existingUser;
+  let createdTemporaryPassword: string | null = null;
+
+  if (sellerId && !staffUserId) {
+    staffUserId = await createOrReuseStaffUser({
+      email,
+      firstName,
+      lastName,
+      companyName,
+      sellerId,
+      isActive: true,
+      addGroups: [groupId],
+    });
+  } else if (!sellerId) {
+    const ownerPassword = options?.ownerPassword ?? randomDistributorPassword();
+    if (!options?.ownerPassword) createdTemporaryPassword = ownerPassword;
+    const data = await executeMarketplaceMutation<SellerWithOwnerCreatePayload>(
+      "sellerWithOwnerCreate",
+      {
+        user: {
+          email,
+          firstName,
+          lastName,
+          password: ownerPassword,
+        },
+        seller: { companyName },
+      },
+      TECHNICAL
+    );
+    const payload = data.sellerWithOwnerCreate;
+    const errors = payload?.sellerErrors ?? [];
+    sellerId = payload?.seller?.id?.trim() || "";
+    staffUserId = payload?.seller?.owner?.id?.trim() || "";
+    if (errors.length || !sellerId || !staffUserId) {
+      const alreadyExists = errors.some((error) => isAlreadyExistsError(error.code, error.message));
+      const existing = alreadyExists ? await findDistributorSellerOwner(email) : null;
+      if (existing) {
+        sellerId = existing.sellerId;
+        staffUserId = existing.ownerId;
+        createdTemporaryPassword = null;
+      } else {
+        throw new Error(
+          joinMutationErrors(errors) || "Marketplace distributor seller and user could not be created."
+        );
+      }
+    }
+  }
+
+  await assignSellerAdminGroup(staffUserId, groupId);
+  await mapStaffUserToSeller(sellerId, staffUserId);
+  await mapDistributorUserToManufacturerSeller(distributor.manufacturer_id, staffUserId);
+
+  await persistDistributorMarketplaceIds(distributor.id, sellerId, staffUserId);
+  if (createdTemporaryPassword) {
+    await persistDistributorBootstrapPassword(distributor.id, createdTemporaryPassword);
+  }
+  distributor.nautical_seller_id = sellerId;
+  distributor.nautical_user_id = staffUserId;
+
+  recordSystemOk(
+    `Marketplace distributor seller and user created (${sellerId}, ${staffUserId}) for ${email}`,
+    ctx
+  );
+
   return { sellerId, staffUserId };
 }
 

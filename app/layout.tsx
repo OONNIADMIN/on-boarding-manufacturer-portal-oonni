@@ -14,6 +14,9 @@ const quicksand = Quicksand({
 export const metadata: Metadata = {
   title: PORTAL_TITLE,
   description: 'Platform for onboarding manufacturers product catalogs',
+  icons: {
+    icon: '/oonni.ico',
+  },
 }
 
 export default function RootLayout({
