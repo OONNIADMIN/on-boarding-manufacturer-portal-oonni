@@ -8,7 +8,29 @@
  *   SMTP_FROM_EMAIL   – Remitente verificado en Brevo (Configuración → Remitentes)
  *   SMTP_FROM_NAME    – Nombre visible del remitente
  *   NEXT_PUBLIC_APP_URL – URL base de la app (ej: https://tu-app.vercel.app)
+ *   SELLER_PORTAL_URL   – URL base del seller portal (invitación: /set-password y /login)
+ *   AGREEMENT_NOTIFY_EMAIL – Aviso de seller listo para acuerdo (default: mis@oonni.com)
  */
+
+import { SELLER_PORTAL_LOGIN_URL } from "@/lib/constants";
+
+export function distributorPortalBaseUrl(): string {
+  const configured = process.env.SELLER_PORTAL_URL?.trim().replace(/\/+$/, "");
+  const fallback = SELLER_PORTAL_LOGIN_URL.replace(/\/login$/i, "");
+  return (configured || fallback).replace(/\/login$/i, "");
+}
+
+/** Login link for distributor invitations. SELLER_PORTAL_URL overrides the production default. */
+export function distributorLoginUrl(): string {
+  return `${distributorPortalBaseUrl()}/login`;
+}
+
+/** Page where an invited distributor creates a password from the brand email. */
+export function distributorSetPasswordUrl(token?: string): string {
+  const base = `${distributorPortalBaseUrl()}/set-password`;
+  if (!token) return base;
+  return `${base}?token=${encodeURIComponent(token)}`;
+}
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
 const BREVO_API_URL =
@@ -239,6 +261,118 @@ export async function sendManufacturerInvitation(
 
   const result = await sendViaBrevo(email, "Welcome to OONNI – Set Your Password", html);
   if (!result.ok) console.error("[email] sendManufacturerInvitation failed:", result.error);
+  return result.ok;
+}
+
+export async function sendDistributorInvitation(opts: {
+  email: string;
+  contactName: string;
+  companyName: string;
+  brandName: string;
+  acceptUrl: string;
+}): Promise<boolean> {
+  const acceptUrl = opts.acceptUrl;
+  const hours = process.env.INVITATION_TOKEN_EXPIRE_HOURS ?? "72";
+  const html = emailWrapper(`
+    ${oonniHeader()}
+    <tr><td style="padding:40px 36px;">
+      <h2 style="margin:0 0 24px;font-size:22px;font-weight:600;color:#003333;">You're invited to sell on OONNI</h2>
+      <p style="margin:0 0 16px;font-size:16px;color:#333;">Hello <strong>${escapeHtml(opts.contactName)}</strong>,</p>
+      <p style="margin:0 0 20px;font-size:16px;color:#333;">
+        <strong>${escapeHtml(opts.brandName)}</strong> invited
+        <strong>${escapeHtml(opts.companyName)}</strong> to sell on OONNI.
+      </p>
+      <p style="margin:0 0 28px;font-size:16px;color:#333;">
+        To accept this invitation, click the link and create a password.
+        You can then start selling ${escapeHtml(opts.brandName)} products on OONNI.
+      </p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr><td align="center" style="padding:8px 0 32px;">
+          <a href="${acceptUrl}"
+             style="display:inline-block;background:#5a9e8e;color:#fff;padding:14px 36px;
+                    text-decoration:none;border-radius:8px;font-size:16px;font-weight:600;">
+            Accept invitation
+          </a>
+        </td></tr>
+      </table>
+      <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Or copy and paste this link into your browser:</p>
+      <p style="margin:0 0 24px;word-break:break-all;color:#003333;background:#f5f5f0;
+                padding:12px 14px;border-radius:6px;font-size:12px;border-left:3px solid #5A9E8E;">${acceptUrl}</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+             style="background:#f5f5f0;border-radius:8px;border-left:4px solid #5A9E8E;">
+        <tr><td style="padding:16px 20px;">
+          <p style="margin:0;color:#134444;font-size:14px;">
+            <strong>Important:</strong> This link expires in <strong>${hours} hours</strong>.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+    ${oonniFooter()}`);
+
+  const result = await sendViaBrevo(
+    opts.email,
+    `${opts.brandName} invited ${opts.companyName} to sell on OONNI`,
+    html
+  );
+  if (!result.ok) console.error("[email] sendDistributorInvitation failed:", result.error);
+  return result.ok;
+}
+
+/**
+ * Tells MIS an authorized distributor created a password in the seller portal
+ * and which seller needs an agreement. Does not include the password.
+ */
+export async function sendSellerAgreementNeededNotice(opts: {
+  manufacturerName: string;
+  companyName: string;
+  userName: string;
+  userEmail: string;
+  sellerId: string;
+  marketplaceUserId: string;
+}): Promise<boolean> {
+  const to = process.env.AGREEMENT_NOTIFY_EMAIL?.trim() || "mis@oonni.com";
+  const html = emailWrapper(`
+    ${oonniHeader()}
+    <tr><td style="padding:36px;">
+      <h2 style="color:#003333;margin:0 0 16px;">Authorized distributor registered</h2>
+      <p style="margin:0 0 16px;font-size:16px;color:#333;">
+        An authorized distributor created a password in the seller portal and is now active.
+        Please create an agreement and add it to this seller.
+      </p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px;color:#555;font-size:14px;">Brand</td>
+          <td style="padding:8px;font-weight:600;">${escapeHtml(opts.manufacturerName)}</td>
+        </tr>
+        <tr style="background:#f5f5f0;">
+          <td style="padding:8px;color:#555;font-size:14px;">Company</td>
+          <td style="padding:8px;font-weight:600;">${escapeHtml(opts.companyName)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;color:#555;font-size:14px;">User</td>
+          <td style="padding:8px;">${escapeHtml(opts.userName)} (${escapeHtml(opts.userEmail)})</td>
+        </tr>
+        <tr style="background:#f5f5f0;">
+          <td style="padding:8px;color:#555;font-size:14px;">Seller ID</td>
+          <td style="padding:8px;font-family:monospace;">${escapeHtml(opts.sellerId || "Not available yet")}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;color:#555;font-size:14px;">Marketplace user ID</td>
+          <td style="padding:8px;font-family:monospace;">${escapeHtml(opts.marketplaceUserId || "Not available yet")}</td>
+        </tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:14px;color:#134444;">
+        Add the agreement to the seller above. Do not change the seller owner.
+      </p>
+    </td></tr>
+    ${oonniFooter()}`);
+
+  const result = await sendViaBrevo(
+    to,
+    `Agreement needed for authorized distributor ${opts.companyName}`,
+    html,
+  );
+  if (!result.ok) console.error("[email] sendSellerAgreementNeededNotice failed:", result.error);
   return result.ok;
 }
 

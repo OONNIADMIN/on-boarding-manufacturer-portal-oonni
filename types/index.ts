@@ -8,6 +8,7 @@ export * from './catalog';
 export * from './product';
 export * from './role';
 export * from './user';
+export * from './distributor';
 
 // API types
 export * from './api';

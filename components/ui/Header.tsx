@@ -16,7 +16,7 @@ interface HeaderProps {
   user: User | null
   onLogout?: () => void
   showNavigation?: boolean
-  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory' | 'logs'
+  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory' | 'logs' | 'distributors'
   navStyle?: 'default' | 'flat'
 }
 
@@ -45,6 +45,9 @@ export default function Header({
       case 'dashboard':
         router.push('/dashboard')
         break
+      case 'manufacturers':
+        router.push('/manufacturers')
+        break
       case 'catalogtemplate':
         router.push('/onboard/template')
         break
@@ -56,6 +59,9 @@ export default function Header({
           break
       case 'inventory':
           router.push('/inventory')
+          break
+      case 'distributors':
+          router.push('/distributors')
           break
       case 'profile':
           router.push('/profile')
@@ -192,6 +198,15 @@ export default function Header({
               {user && authAPI.isAdmin(user) && (
                 <>
                   <button
+                    onClick={() => handleNavigation('manufacturers')}
+                    className={`${styles.navLink} ${currentPage === 'manufacturers' ? styles.active : ''}`}
+                  >
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Manufacturers
+                  </button>
+                  <button
                     onClick={() => handleNavigation('dashboard')}
                     className={`${styles.navLink} ${currentPage === 'dashboard' ? styles.active : ''}`}
                   >
@@ -288,6 +303,16 @@ export default function Header({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
                   </svg>
                   Your catalog
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigation('distributors')}
+                  className={`${styles.navLink} ${currentPage === 'distributors' ? styles.active : ''}`}
+                >
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Authorized Distributors
                 </button>
               </>
               )}

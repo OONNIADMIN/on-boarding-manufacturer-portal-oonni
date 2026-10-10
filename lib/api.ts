@@ -8,6 +8,8 @@ import {
   ApiError,
   ManufacturerListItem,
   Manufacturer,
+  AuthorizedDistributor,
+  DistributorInput,
   Catalog,
   Product,
   ProductListResponse
@@ -560,6 +562,27 @@ export const authAPI = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.detail || 'Failed to activate user')
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Change the email of an invited manufacturer user (admin only).
+   */
+  async updateManufacturerUserEmail(token: string, userId: number, email: string): Promise<User> {
+    const response = await apiFetch(`${API_URL}/auth/users/${userId}/email`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to update email')
     }
 
     return response.json()
@@ -2172,6 +2195,79 @@ export type SystemErrorLogRow = {
   user_name: string | null
   manufacturer_id: number | null
   created_at: string
+}
+
+export const distributorAPI = {
+  async list(): Promise<AuthorizedDistributor[]> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const response = await apiFetch(`${API_URL}/distributors`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string }
+      throw new Error(error.detail || 'Failed to load distributors')
+    }
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
+  },
+
+  async create(input: DistributorInput): Promise<AuthorizedDistributor> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const response = await apiFetch(`${API_URL}/distributors`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string }
+      throw new Error(error.detail || 'Failed to add distributor')
+    }
+    return response.json()
+  },
+
+  async update(id: number, input: Partial<DistributorInput>): Promise<AuthorizedDistributor> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const response = await apiFetch(`${API_URL}/distributors/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string }
+      throw new Error(error.detail || 'Failed to update distributor')
+    }
+    return response.json()
+  },
+
+  async remove(id: number): Promise<void> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const response = await apiFetch(`${API_URL}/distributors/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string }
+      throw new Error(error.detail || 'Failed to delete distributor')
+    }
+  },
+
+  async invite(id: number): Promise<AuthorizedDistributor> {
+    const token = authAPI.getToken()
+    if (!token) throw new Error('Authentication required')
+    const response = await apiFetch(`${API_URL}/distributors/${id}/invite`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string }
+      throw new Error(error.detail || 'Failed to send invitation')
+    }
+    return response.json()
+  },
 }
 
 export const systemLogsAPI = {

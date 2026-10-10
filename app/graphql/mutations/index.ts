@@ -60,6 +60,10 @@ import {
   type SellerWithOwnerCreatePayload,
 } from "./seller-with-owner-create";
 import {
+  SELLER_DATA_UPDATE_MUTATION,
+  type SellerDataUpdatePayload,
+} from "./seller-data-update";
+import {
   PERMISSION_GROUP_UPDATE_MUTATION,
   type PermissionGroupUpdatePayload,
 } from "./permission-group-update";
@@ -93,6 +97,7 @@ export {
   STAFF_UPDATE_MUTATION,
   SELLER_USER_MAPPING_CREATE_MUTATION,
   SELLER_WITH_OWNER_CREATE_MUTATION,
+  SELLER_DATA_UPDATE_MUTATION,
   PERMISSION_GROUP_UPDATE_MUTATION,
   TOKEN_CREATE_MUTATION,
   AGREEMENT_CREATE_MUTATION,
@@ -117,6 +122,7 @@ export {
   type StaffUpdatePayload,
   type SellerUserMappingCreatePayload,
   type SellerWithOwnerCreatePayload,
+  type SellerDataUpdatePayload,
   type PermissionGroupUpdatePayload,
   type TokenCreatePayload,
   type AgreementCreatePayload,
@@ -140,6 +146,7 @@ export const MARKETPLACE_MUTATIONS = {
   staffUpdate: STAFF_UPDATE_MUTATION,
   sellerUserMappingCreate: SELLER_USER_MAPPING_CREATE_MUTATION,
   sellerWithOwnerCreate: SELLER_WITH_OWNER_CREATE_MUTATION,
+  sellerDataUpdate: SELLER_DATA_UPDATE_MUTATION,
   permissionGroupUpdate: PERMISSION_GROUP_UPDATE_MUTATION,
   agreementCreate: AGREEMENT_CREATE_MUTATION,
   sellerAgreementAssign: SELLER_AGREEMENT_ASSIGN_MUTATION,

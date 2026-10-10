@@ -2,6 +2,7 @@ export const SELLER_AGREEMENT_STATE_QUERY = `
 query ($id: ID!) {
   seller(id: $id) {
     id
+    status
     privateMetadata {
       key
       value
@@ -32,6 +33,7 @@ query ($id: ID!) {
 export type SellerAgreementStatePayload = {
   seller: {
     id: string;
+    status?: string | null;
     privateMetadata: Array<{ key: string; value: string }>;
     agreement: {
       id: string;

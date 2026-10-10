@@ -150,6 +150,20 @@ export async function createMarketplaceUserAccessToken(
   return requestMarketplaceAccessToken(cfg.url, email, password);
 }
 
+/**
+ * User JWT for marketplace operator actions the app token cannot perform,
+ * such as removing a seller owner. Uses NAUTICAL_USERNAME / NAUTICAL_PASSWORD.
+ */
+export async function createMarketplaceOperatorAccessToken(): Promise<string> {
+  const cfg = getNauticalConfig();
+  if (!cfg) throw new Error(nauticalNotConfiguredMessage());
+  const credentials = marketplaceLoginCredentials();
+  if (!credentials) {
+    throw new Error("Marketplace operator login is not configured.");
+  }
+  return requestMarketplaceAccessToken(cfg.url, credentials.email, credentials.password);
+}
+
 async function resolveMarketplaceToken(cfg: MarketplaceConfig): Promise<string> {
   if (cfg.token) return cfg.token;
   return loginMarketplace(cfg.url);

@@ -1,10 +1,14 @@
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
-import { recordSystemOk } from "@/lib/error-log";
+import { BackgroundJobQueue } from "@/lib/background-job-queue";
+import { recordSystemError, recordSystemOk } from "@/lib/error-log";
+import { encryptDistributorPassword } from "@/lib/distributor-invitation-token";
 import {
   executeMarketplaceMutation,
   executeMarketplaceQuery,
   createMarketplaceUserAccessToken,
   getNauticalConfig,
+  nauticalGraphql,
 } from "@/lib/marketplace/graphql/client";
 import type {
   AgreementBySlugPayload,
@@ -13,6 +17,7 @@ import type {
   PermissionGroupsPayload,
   PermissionGroupUpdatePayload,
   PrivateMetadataUpdatePayload,
+  SellerDataUpdatePayload,
   SellerShellCreatePayload,
   SellerStaffUsersPayload,
   SellerUserMappingCreatePayload,
@@ -35,6 +40,11 @@ const TECHNICAL = { preserveTechnicalError: true } as const;
 const SELLER_ADMIN_GROUP_NAME = "seller admin";
 const BRAND_AGREEMENT_SLUG = "brand-0";
 const BRAND_AGREEMENT_TITLE = "Brand 0%";
+const APPROVED_SELLER_STATUS = "APPROVED";
+
+export type MarketplaceProvisionStatus = "pending" | "complete" | "failed";
+
+const marketplaceProvisionQueue = new BackgroundJobQueue(2);
 
 export type ManufacturerSellerRecord = {
   id: number;
@@ -82,6 +92,23 @@ function passwordLogContext(
     userId: extra?.userId ?? null,
     manufacturerId,
   };
+}
+
+async function approveMarketplaceSeller(sellerId: string, planId: string): Promise<void> {
+  const data = await executeMarketplaceMutation<SellerDataUpdatePayload>(
+    "sellerDataUpdate",
+    { id: sellerId, input: { status: APPROVED_SELLER_STATUS, plan: planId } },
+    TECHNICAL
+  );
+  const payload = data.sellerDataUpdate;
+  const errors = payload?.sellerErrors ?? [];
+  const status = payload?.seller?.status?.trim().toUpperCase();
+  if (errors.length || !payload?.seller?.id) {
+    throw new Error(joinMutationErrors(errors) || "Marketplace seller could not be approved.");
+  }
+  if (status && status !== APPROVED_SELLER_STATUS) {
+    throw new Error(`Marketplace seller status is ${status}, expected ${APPROVED_SELLER_STATUS}.`);
+  }
 }
 
 async function setSellerBrandPrivateMetadata(sellerId: string): Promise<void> {
@@ -212,6 +239,30 @@ export async function loadMarketplaceStaffUserId(userId: number): Promise<string
   return rows[0]?.nautical_user_id?.trim() || null;
 }
 
+export async function persistMarketplaceProvisionStatus(
+  userId: number,
+  status: MarketplaceProvisionStatus
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE users SET marketplace_provision_status = ${status} WHERE id = ${userId}
+  `;
+}
+
+export async function loadMarketplaceProvisionStatus(
+  userId: number
+): Promise<MarketplaceProvisionStatus | null> {
+  const rows = await prisma.$queryRaw<Array<{ marketplace_provision_status: string | null }>>`
+    SELECT marketplace_provision_status FROM users WHERE id = ${userId} LIMIT 1
+  `;
+  const value = rows[0]?.marketplace_provision_status?.trim() ?? "";
+  if (value === "pending" || value === "complete" || value === "failed") return value;
+  return null;
+}
+
+export function needsMarketplaceProvisionRetry(status: string | null | undefined): boolean {
+  return status !== "complete";
+}
+
 async function assignSellerAdminGroup(staffUserId: string, groupId: string): Promise<void> {
   const updateData = await executeMarketplaceMutation<StaffUpdatePayload>(
     "staffUpdate",
@@ -303,6 +354,7 @@ export async function isMarketplaceProvisionComplete(input: {
     TECHNICAL
   );
   if (!state.seller || !sellerHasCompleteBrandAgreement(state.seller)) return false;
+  if ((state.seller.status ?? "").trim().toUpperCase() !== APPROVED_SELLER_STATUS) return false;
 
   await assertSellerHasMappedUser(sellerId, staffUserId, input.email);
   return true;
@@ -472,6 +524,7 @@ async function createSellerWithOwner(input: {
   firstName: string;
   lastName: string;
   password: string;
+  planId: string;
 }): Promise<{ sellerId: string; staffUserId: string }> {
   const data = await executeMarketplaceMutation<SellerWithOwnerCreatePayload>(
     "sellerWithOwnerCreate",
@@ -482,7 +535,7 @@ async function createSellerWithOwner(input: {
         lastName: input.lastName,
         password: input.password,
       },
-      seller: { companyName: input.manufacturer.name.trim() },
+      seller: { companyName: input.manufacturer.name.trim(), plan: input.planId },
     },
     TECHNICAL
   );
@@ -500,6 +553,219 @@ async function createSellerWithOwner(input: {
   });
   input.manufacturer.nautical_seller_id = sellerId;
   await setSellerBrandPrivateMetadata(sellerId);
+  return { sellerId, staffUserId };
+}
+
+function randomDistributorPassword(): string {
+  return `Ds${randomBytes(12).toString("base64url")}9a`;
+}
+
+export type DistributorMarketplaceRecord = {
+  id: number;
+  manufacturer_id: number;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  nautical_seller_id?: string | null;
+  nautical_user_id?: string | null;
+};
+
+/**
+ * Create a Traide seller + owner for an authorized distributor.
+ * Unlike brand manufacturers, this does not set brand metadata, assign/sign an
+ * agreement, or approve the seller. The owner signs in on the seller portal.
+ */
+async function loadDistributorMarketplaceIds(
+  distributorId: number
+): Promise<{ sellerId: string; staffUserId: string }> {
+  const rows = await prisma.$queryRaw<
+    Array<{ nautical_seller_id: string | null; nautical_user_id: string | null }>
+  >`
+    SELECT nautical_seller_id, nautical_user_id
+    FROM authorized_distributors
+    WHERE id = ${distributorId}
+    LIMIT 1
+  `;
+  return {
+    sellerId: rows[0]?.nautical_seller_id?.trim() || "",
+    staffUserId: rows[0]?.nautical_user_id?.trim() || "",
+  };
+}
+
+async function persistDistributorMarketplaceIds(
+  distributorId: number,
+  sellerId: string,
+  staffUserId: string
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE authorized_distributors
+    SET nautical_seller_id = ${sellerId},
+        nautical_user_id = ${staffUserId},
+        updated_at = NOW()
+    WHERE id = ${distributorId}
+  `;
+}
+
+async function loadManufacturerSellerId(manufacturerId: number): Promise<string> {
+  const rows = await prisma.$queryRaw<Array<{ nautical_seller_id: string | null }>>`
+    SELECT nautical_seller_id
+    FROM manufacturers
+    WHERE id = ${manufacturerId}
+    LIMIT 1
+  `;
+  return rows[0]?.nautical_seller_id?.trim() || "";
+}
+
+/**
+ * Keep the distributor seller as the user's default, then add the inviting
+ * manufacturer's seller. sellerUserMappingCreate is additive and a repeat is a no-op.
+ * Do not set this user as the manufacturer seller's owner: that would move their default seller.
+ */
+const DISTRIBUTOR_OWNER_BY_EMAIL_QUERY = `
+query DistributorOwnerByEmail($search: String!) {
+  sellers(first: 10, filter: { search: $search }) {
+    edges { node { id owner { id email } } }
+  }
+}
+`;
+
+async function findDistributorSellerOwner(
+  email: string,
+): Promise<{ sellerId: string; ownerId: string } | null> {
+  const data = await nauticalGraphql<{
+    sellers: {
+      edges: Array<{ node: { id: string; owner: { id: string; email: string | null } | null } | null }>;
+    } | null;
+  }>(DISTRIBUTOR_OWNER_BY_EMAIL_QUERY, { search: email }, { preserveTechnicalError: true });
+  const wanted = email.trim().toLowerCase();
+  const match = (data.sellers?.edges ?? []).find(
+    (edge) => (edge.node?.owner?.email ?? "").trim().toLowerCase() === wanted,
+  );
+  const sellerId = match?.node?.id?.trim() || "";
+  const ownerId = match?.node?.owner?.id?.trim() || "";
+  if (!sellerId || !ownerId) return null;
+  return { sellerId, ownerId };
+}
+
+async function mapDistributorUserToManufacturerSeller(
+  manufacturerId: number,
+  userId: string,
+): Promise<void> {
+  const manufacturerSellerId = await loadManufacturerSellerId(manufacturerId);
+  if (!manufacturerSellerId) {
+    throw new Error("The manufacturer does not have a marketplace seller yet.");
+  }
+  await mapStaffUserToSeller(manufacturerSellerId, userId);
+}
+
+async function persistDistributorBootstrapPassword(
+  distributorId: number,
+  password: string,
+): Promise<void> {
+  const ciphertext = encryptDistributorPassword(password);
+  await prisma.$executeRaw`
+    UPDATE authorized_distributors
+    SET marketplace_password_ciphertext = ${ciphertext},
+        updated_at = NOW()
+    WHERE id = ${distributorId}
+  `;
+}
+
+export async function provisionMarketplaceDistributorSeller(
+  distributor: DistributorMarketplaceRecord,
+  options?: { ownerPassword?: string; replaceExisting?: boolean },
+): Promise<{ sellerId: string; staffUserId: string }> {
+  const stored = options?.replaceExisting
+    ? { sellerId: "", staffUserId: "" }
+    : await loadDistributorMarketplaceIds(distributor.id).catch(() => null);
+  const existingSeller = stored?.sellerId || distributor.nautical_seller_id?.trim() || "";
+  const existingUser = stored?.staffUserId || distributor.nautical_user_id?.trim() || "";
+  if (existingSeller && existingUser) {
+    await mapDistributorUserToManufacturerSeller(distributor.manufacturer_id, existingUser);
+    return { sellerId: existingSeller, staffUserId: existingUser };
+  }
+
+  if (!getNauticalConfig()) {
+    throw new Error("Marketplace integration is not configured.");
+  }
+
+  const companyName = distributor.company_name.trim();
+  const email = distributor.email.trim().toLowerCase();
+  if (!companyName) throw new Error("Distributor company name is required.");
+  if (!email) throw new Error("Distributor email is required.");
+
+  const ctx = {
+    source: "distributor-invite",
+    path: "/api/distributors",
+    manufacturerId: distributor.manufacturer_id,
+  };
+  const { firstName, lastName } = splitPersonName(distributor.contact_name);
+  const groupId = await resolveSellerAdminGroupId();
+  let sellerId = existingSeller;
+  let staffUserId = existingUser;
+  let createdTemporaryPassword: string | null = null;
+
+  if (sellerId && !staffUserId) {
+    staffUserId = await createOrReuseStaffUser({
+      email,
+      firstName,
+      lastName,
+      companyName,
+      sellerId,
+      isActive: true,
+      addGroups: [groupId],
+    });
+  } else if (!sellerId) {
+    const ownerPassword = options?.ownerPassword ?? randomDistributorPassword();
+    if (!options?.ownerPassword) createdTemporaryPassword = ownerPassword;
+    const data = await executeMarketplaceMutation<SellerWithOwnerCreatePayload>(
+      "sellerWithOwnerCreate",
+      {
+        user: {
+          email,
+          firstName,
+          lastName,
+          password: ownerPassword,
+        },
+        seller: { companyName },
+      },
+      TECHNICAL
+    );
+    const payload = data.sellerWithOwnerCreate;
+    const errors = payload?.sellerErrors ?? [];
+    sellerId = payload?.seller?.id?.trim() || "";
+    staffUserId = payload?.seller?.owner?.id?.trim() || "";
+    if (errors.length || !sellerId || !staffUserId) {
+      const alreadyExists = errors.some((error) => isAlreadyExistsError(error.code, error.message));
+      const existing = alreadyExists ? await findDistributorSellerOwner(email) : null;
+      if (existing) {
+        sellerId = existing.sellerId;
+        staffUserId = existing.ownerId;
+        createdTemporaryPassword = null;
+      } else {
+        throw new Error(
+          joinMutationErrors(errors) || "Marketplace distributor seller and user could not be created."
+        );
+      }
+    }
+  }
+
+  await assignSellerAdminGroup(staffUserId, groupId);
+  await mapStaffUserToSeller(sellerId, staffUserId);
+  await mapDistributorUserToManufacturerSeller(distributor.manufacturer_id, staffUserId);
+
+  await persistDistributorMarketplaceIds(distributor.id, sellerId, staffUserId);
+  if (createdTemporaryPassword) {
+    await persistDistributorBootstrapPassword(distributor.id, createdTemporaryPassword);
+  }
+  distributor.nautical_seller_id = sellerId;
+  distributor.nautical_user_id = staffUserId;
+
+  recordSystemOk(
+    `Marketplace distributor seller and user created (${sellerId}, ${staffUserId}) for ${email}`,
+    ctx
+  );
+
   return { sellerId, staffUserId };
 }
 
@@ -525,6 +791,16 @@ export async function provisionMarketplaceUserOnPasswordSet(options: {
   const { firstName, lastName } = splitPersonName(options.name);
   const groupId = await resolveSellerAdminGroupId();
   recordSystemOk(`Marketplace Seller Admin group resolved (${groupId})`, ctx);
+  const planId = await resolveBrandAgreementId();
+  recordSystemOk(`Marketplace 0 commission agreement resolved (${planId})`, ctx);
+
+  const storedSeller = await prisma.manufacturer.findUnique({
+    where: { id: options.manufacturer.id },
+    select: { nautical_seller_id: true },
+  });
+  if (storedSeller?.nautical_seller_id) {
+    options.manufacturer.nautical_seller_id = storedSeller.nautical_seller_id;
+  }
 
   let sellerId = options.manufacturer.nautical_seller_id?.trim() || "";
   let staffUserId = await loadMarketplaceStaffUserId(options.localUserId) ?? "";
@@ -555,6 +831,7 @@ export async function provisionMarketplaceUserOnPasswordSet(options: {
       firstName,
       lastName,
       password: options.password,
+      planId,
     });
     sellerId = created.sellerId;
     staffUserId = created.staffUserId;
@@ -585,5 +862,50 @@ export async function provisionMarketplaceUserOnPasswordSet(options: {
     `Marketplace 0 commission agreement ${agreement.agreementId} assigned and acknowledged (${agreement.sellerAgreementId})`,
     ctx
   );
+
+  await approveMarketplaceSeller(sellerId, planId);
+  recordSystemOk(`Marketplace seller approved (${sellerId}) after agreement ${agreement.sellerAgreementId}`, ctx);
   return { sellerId, staffUserId };
+}
+
+export type MarketplaceProvisionJobOptions = {
+  localUserId: number;
+  manufacturer: ManufacturerSellerRecord;
+  email: string;
+  name: string;
+  password: string;
+  logContext?: MarketplaceInviteLogContext;
+};
+
+export async function runMarketplaceProvisionJob(
+  options: MarketplaceProvisionJobOptions
+): Promise<void> {
+  const ctx = passwordLogContext(options.manufacturer.id, options.logContext);
+  await persistMarketplaceProvisionStatus(options.localUserId, "pending");
+  try {
+    const alreadyComplete = await isMarketplaceProvisionComplete({
+      localUserId: options.localUserId,
+      manufacturer: options.manufacturer,
+      email: options.email,
+    });
+    if (!alreadyComplete) {
+      await provisionMarketplaceUserOnPasswordSet(options);
+    }
+    await persistMarketplaceProvisionStatus(options.localUserId, "complete");
+    recordSystemOk(`Marketplace provision completed for ${options.email}`, ctx);
+  } catch (error) {
+    await persistMarketplaceProvisionStatus(options.localUserId, "failed");
+    recordSystemError(error, ctx);
+    console.error("marketplace-provision-background", error);
+  }
+}
+
+/** Queue Traide integration without blocking password-set or login. */
+export function scheduleMarketplaceProvisionOnAuth(options: MarketplaceProvisionJobOptions): void {
+  if (!getNauticalConfig()) return;
+  const jobId = `marketplace-provision:${options.localUserId}`;
+  void persistMarketplaceProvisionStatus(options.localUserId, "pending").catch((error) => {
+    console.error("marketplace-provision-mark-pending", error);
+  });
+  marketplaceProvisionQueue.enqueue(jobId, () => runMarketplaceProvisionJob(options));
 }

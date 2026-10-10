@@ -8,6 +8,10 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(async ({ data }: { data: { nautical_seller_id: string } }) => ({
         nautical_seller_id: data.nautical_seller_id,
       })),
+      findUnique: vi.fn(async () => ({ nautical_seller_id: null })),
+    },
+    authorizedDistributor: {
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => data),
     },
     $executeRaw: vi.fn(async () => 1),
     $queryRaw: vi.fn(async () => [{ nautical_user_id: null }]),
@@ -20,6 +24,7 @@ const createMarketplaceUserAccessToken = vi.fn(
   async (_email: string, _password: string) => "seller-token"
 );
 const getNauticalConfig = vi.fn(() => ({ url: "https://marketplace.example/graphql", token: "token" }));
+const nauticalGraphql = vi.fn();
 
 vi.mock("@/lib/marketplace/graphql/client", () => ({
   executeMarketplaceMutation: (...args: unknown[]) => executeMarketplaceMutation(...args),
@@ -27,6 +32,7 @@ vi.mock("@/lib/marketplace/graphql/client", () => ({
   createMarketplaceUserAccessToken: (email: string, password: string) =>
     createMarketplaceUserAccessToken(email, password),
   getNauticalConfig: () => getNauticalConfig(),
+  nauticalGraphql: (...args: unknown[]) => nauticalGraphql(...args),
 }));
 
 vi.mock("@/lib/error-log", () => ({
@@ -82,6 +88,7 @@ function mockSellerAdminGroups() {
       return {
         seller: {
           id: "U2VsbGVyOjEw",
+          status: "APPROVED",
           privateMetadata: [{ key: "brand", value: "true" }],
           agreement: acknowledged
             ? { id: "QWdyZWVtZW50Ojk=", slug: "brand-0", defaultCommission: 0 }
@@ -108,12 +115,14 @@ describe("marketplace seller provision", () => {
   beforeEach(() => {
     executeMarketplaceMutation.mockReset();
     executeMarketplaceQuery.mockReset();
+    nauticalGraphql.mockReset();
     createMarketplaceUserAccessToken.mockClear();
     getNauticalConfig.mockReturnValue({ url: "https://marketplace.example/graphql", token: "token" });
   });
 
   it("uses sellerWithOwnerCreate when a password can be set, not agreementCommissionCreate", () => {
     expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("sellerWithOwnerCreate");
+    expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("sellerDataUpdate");
     expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("staffCreate");
     expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("permissionGroupUpdate");
     expect(Object.keys(MARKETPLACE_MUTATIONS)).toContain("sellerAgreementAssign");
@@ -160,6 +169,15 @@ describe("marketplace seller provision", () => {
               companyName: "Acme",
               owner: { id: "VXNlcjox", email: "ada@example.com" },
             },
+            sellerErrors: [],
+          },
+        };
+      }
+      if (name === "sellerDataUpdate") {
+        return {
+          sellerDataUpdate: {
+            ok: true,
+            seller: { id: "U2VsbGVyOjEw", companyName: "Acme", status: "APPROVED" },
             sellerErrors: [],
           },
         };
@@ -229,11 +247,20 @@ describe("marketplace seller provision", () => {
         lastName: "Lovelace",
         password: "SecretPass1!",
       },
-      seller: { companyName: "Acme" },
+      seller: { companyName: "Acme", plan: "QWdyZWVtZW50Ojk=" },
     });
-    expect(executeMarketplaceMutation.mock.calls.map((call) => call[0])).toContain("permissionGroupUpdate");
-    expect(executeMarketplaceMutation.mock.calls.map((call) => call[0])).toContain("sellerAgreementAssign");
-    expect(executeMarketplaceMutation.mock.calls.map((call) => call[0])).toContain("sellerAgreementAcknowledge");
+    const mutationOrder = executeMarketplaceMutation.mock.calls.map((call) => call[0]);
+    expect(mutationOrder.indexOf("sellerAgreementAssign")).toBeLessThan(
+      mutationOrder.indexOf("sellerAgreementAcknowledge")
+    );
+    expect(mutationOrder.indexOf("sellerAgreementAcknowledge")).toBeLessThan(
+      mutationOrder.indexOf("sellerDataUpdate")
+    );
+    expect(executeMarketplaceMutation.mock.calls.find((call) => call[0] === "sellerDataUpdate")?.[1]).toEqual({
+      id: "U2VsbGVyOjEw",
+      input: { status: "APPROVED", plan: "QWdyZWVtZW50Ojk=" },
+    });
+    expect(mutationOrder).toContain("permissionGroupUpdate");
     const acknowledgeCall = executeMarketplaceMutation.mock.calls.find(
       (call) => call[0] === "sellerAgreementAcknowledge"
     );
@@ -258,6 +285,15 @@ describe("marketplace seller provision", () => {
     );
     mockSellerAdminGroups();
     executeMarketplaceMutation.mockImplementation(async (name: string) => {
+      if (name === "sellerDataUpdate") {
+        return {
+          sellerDataUpdate: {
+            ok: true,
+            seller: { id: "U2VsbGVyOjEw", companyName: "Acme", status: "APPROVED" },
+            sellerErrors: [],
+          },
+        };
+      }
       if (name === "staffCreate") {
         return { staffCreate: { user: { id: "VXNlcjox", email: "ada@example.com" }, staffErrors: [] } };
       }
@@ -325,6 +361,17 @@ describe("marketplace seller provision", () => {
     });
     expect(JSON.stringify(staffCreateInput)).not.toContain("passwordUrl");
     expect(executeMarketplaceMutation.mock.calls.map((call) => call[0])).not.toContain("sellerWithOwnerCreate");
+    const mutationOrder = executeMarketplaceMutation.mock.calls.map((call) => call[0]);
+    expect(mutationOrder.indexOf("sellerAgreementAssign")).toBeLessThan(
+      mutationOrder.indexOf("sellerAgreementAcknowledge")
+    );
+    expect(mutationOrder.indexOf("sellerAgreementAcknowledge")).toBeLessThan(
+      mutationOrder.indexOf("sellerDataUpdate")
+    );
+    expect(executeMarketplaceMutation.mock.calls.find((call) => call[0] === "sellerDataUpdate")?.[1]).toEqual({
+      id: "U2VsbGVyOjEw",
+      input: { status: "APPROVED", plan: "QWdyZWVtZW50Ojk=" },
+    });
   });
 
   it("detects a fully provisioned seller so login does not repeat the flow", async () => {
@@ -339,6 +386,7 @@ describe("marketplace seller provision", () => {
         return {
           seller: {
             id: "U2VsbGVyOjEw",
+            status: "APPROVED",
             privateMetadata: [{ key: "brand", value: "true" }],
             agreement: {
               id: "QWdyZWVtZW50Ojk=",
@@ -383,5 +431,343 @@ describe("marketplace seller provision", () => {
       })
     ).resolves.toBe(true);
     expect(executeMarketplaceMutation).not.toHaveBeenCalled();
+  });
+
+  it("treats a seller without APPROVED status as incomplete", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { isMarketplaceProvisionComplete } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+    queryRawMock.mockResolvedValueOnce([{ nautical_user_id: "VXNlcjox" }]);
+    executeMarketplaceQuery.mockImplementation(async (name: string) => {
+      if (name === "sellerAgreementState") {
+        return {
+          seller: {
+            id: "U2VsbGVyOjEw",
+            status: "PENDING",
+            privateMetadata: [{ key: "brand", value: "true" }],
+            agreement: { id: "QWdyZWVtZW50Ojk=", slug: "brand-0", defaultCommission: 0 },
+            agreementAcknowledged: "2026-10-01T12:00:00Z",
+            sellerAgreements: { edges: [] },
+          },
+        };
+      }
+      throw new Error(`unexpected query ${name}`);
+    });
+
+    await expect(
+      isMarketplaceProvisionComplete({
+        localUserId: 12,
+        manufacturer: { id: 3, name: "Acme", nautical_seller_id: "U2VsbGVyOjEw" },
+        email: "ada@example.com",
+      })
+    ).resolves.toBe(false);
+  });
+
+  it("marks provision complete when Traide is already fully set up", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { runMarketplaceProvisionJob } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+    queryRawMock.mockResolvedValue([{ nautical_user_id: "VXNlcjox" }]);
+    executeMarketplaceQuery.mockImplementation(async (name: string) => {
+      if (name === "sellerAgreementState") {
+        return {
+          seller: {
+            id: "U2VsbGVyOjEw",
+            status: "APPROVED",
+            privateMetadata: [{ key: "brand", value: "true" }],
+            agreement: { id: "QWdyZWVtZW50Ojk=", slug: "brand-0", defaultCommission: 0 },
+            agreementAcknowledged: "2026-10-01T12:00:00Z",
+            sellerAgreements: { edges: [] },
+          },
+        };
+      }
+      if (name === "sellerStaffUsers") {
+        return {
+          seller: {
+            id: "U2VsbGVyOjEw",
+            sellerusers: {
+              edges: [
+                {
+                  node: {
+                    id: "bWFwcGluZzox",
+                    isDefault: true,
+                    user: { id: "VXNlcjox", email: "ada@example.com" },
+                  },
+                },
+              ],
+            },
+          },
+        };
+      }
+      throw new Error(`unexpected query ${name}`);
+    });
+
+    await runMarketplaceProvisionJob({
+      localUserId: 12,
+      manufacturer: { id: 3, name: "Acme", nautical_seller_id: "U2VsbGVyOjEw" },
+      email: "ada@example.com",
+      name: "Ada Lovelace",
+      password: "SecretPass1!",
+    });
+
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    const sqlValues = (prisma.$executeRaw as unknown as ReturnType<typeof vi.fn>).mock.calls.flat();
+    expect(sqlValues).toContain("complete");
+    expect(executeMarketplaceMutation).not.toHaveBeenCalled();
+  });
+
+  it("marks provision failed so the next login can retry", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { runMarketplaceProvisionJob } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+    queryRawMock.mockResolvedValue([{ nautical_user_id: null }]);
+    getNauticalConfig.mockReturnValue(null);
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await runMarketplaceProvisionJob({
+      localUserId: 12,
+      manufacturer: { id: 3, name: "Acme", nautical_seller_id: null },
+      email: "ada@example.com",
+      name: "Ada Lovelace",
+      password: "SecretPass1!",
+    });
+
+    const sqlValues = (prisma.$executeRaw as unknown as ReturnType<typeof vi.fn>).mock.calls.flat();
+    expect(sqlValues).toContain("failed");
+    errSpy.mockRestore();
+  });
+
+  it("retries failed or pending provision and skips completed ones", async () => {
+    const { needsMarketplaceProvisionRetry } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    expect(needsMarketplaceProvisionRetry("failed")).toBe(true);
+    expect(needsMarketplaceProvisionRetry("pending")).toBe(true);
+    expect(needsMarketplaceProvisionRetry(null)).toBe(true);
+    expect(needsMarketplaceProvisionRetry("complete")).toBe(false);
+  });
+
+  it("creates a distributor seller and user without brand metadata or agreement", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { provisionMarketplaceDistributorSeller } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    process.env.JWT_SECRET ??= "test-jwt-secret-must-be-32-chars!!";
+    mockSellerAdminGroups();
+    executeMarketplaceMutation.mockImplementation(async (name: string) => {
+      if (name === "sellerWithOwnerCreate") {
+        return {
+          sellerWithOwnerCreate: {
+            seller: {
+              id: "U2VsbGVyOjIw",
+              companyName: "Harbor Supply",
+              owner: { id: "VXNlcjoy", email: "daniel@harborsupply.com" },
+            },
+            sellerErrors: [],
+          },
+        };
+      }
+      if (name === "staffUpdate") {
+        return { staffUpdate: { user: { id: "VXNlcjoy" }, staffErrors: [] } };
+      }
+      if (name === "permissionGroupUpdate") {
+        return {
+          permissionGroupUpdate: {
+            group: { id: "R3JvdXA6Mg==", name: "Seller Admin" },
+            permissionGroupErrors: [],
+          },
+        };
+      }
+      if (name === "sellerUserMappingCreate") {
+        return {
+          sellerUserMappingCreate: {
+            ok: true,
+            sellerUser: { id: "bWFwcGluZzoy", isDefault: true },
+            sellerErrors: [],
+          },
+        };
+      }
+      throw new Error(`unexpected mutation ${name}`);
+    });
+
+    const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+    let distributorIdLookup = true;
+    queryRawMock.mockImplementation(async () => {
+      if (distributorIdLookup) {
+        distributorIdLookup = false;
+        return [{ nautical_seller_id: null, nautical_user_id: null }];
+      }
+      return [{ nautical_seller_id: "U2VsbGVyOjQy" }];
+    });
+
+    const result = await provisionMarketplaceDistributorSeller({
+      id: 4,
+      manufacturer_id: 3,
+      company_name: "Harbor Supply",
+      contact_name: "Daniel Ortiz",
+      email: "daniel@harborsupply.com",
+    });
+
+    expect(result).toEqual({ sellerId: "U2VsbGVyOjIw", staffUserId: "VXNlcjoy" });
+    expect(executeMarketplaceMutation.mock.calls[0][0]).toBe("sellerWithOwnerCreate");
+    expect(executeMarketplaceMutation.mock.calls[0][1]).toEqual({
+      user: {
+        email: "daniel@harborsupply.com",
+        firstName: "Daniel",
+        lastName: "Ortiz",
+        password: expect.any(String),
+      },
+      seller: { companyName: "Harbor Supply" },
+    });
+    const mutations = executeMarketplaceMutation.mock.calls.map((call) => call[0]);
+    expect(mutations).not.toContain("privateMetadataUpdate");
+    expect(mutations).not.toContain("sellerAgreementAssign");
+    expect(mutations).not.toContain("sellerAgreementAcknowledge");
+    expect(mutations).not.toContain("sellerDataUpdate");
+    const mappings = executeMarketplaceMutation.mock.calls.filter(
+      (call) => call[0] === "sellerUserMappingCreate",
+    );
+    expect(mappings.map((call) => call[1])).toEqual([
+      { input: { seller: "U2VsbGVyOjIw", user: "VXNlcjoy" } },
+      { input: { seller: "U2VsbGVyOjQy", user: "VXNlcjoy" } },
+    ]);
+    const savedIds = (prisma.$executeRaw as unknown as ReturnType<typeof vi.fn>).mock.calls.flat();
+    expect(savedIds).toContain("U2VsbGVyOjIw");
+    expect(savedIds).toContain("VXNlcjoy");
+  });
+
+  it("maps an existing distributor user to the manufacturer seller when the email is already taken", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { provisionMarketplaceDistributorSeller } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    mockSellerAdminGroups();
+    const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+    let distributorIdLookup = true;
+    queryRawMock.mockImplementation(async () => {
+      if (distributorIdLookup) {
+        distributorIdLookup = false;
+        return [{ nautical_seller_id: null, nautical_user_id: null }];
+      }
+      return [{ nautical_seller_id: "U2VsbGVyOjQy" }];
+    });
+    nauticalGraphql.mockResolvedValue({
+      sellers: {
+        edges: [
+          {
+            node: {
+              id: "U2VsbGVyOjIw",
+              owner: { id: "VXNlcjoy", email: "daniel@harborsupply.com" },
+            },
+          },
+        ],
+      },
+    });
+    executeMarketplaceMutation.mockImplementation(async (name: string) => {
+      if (name === "sellerWithOwnerCreate") {
+        return {
+          sellerWithOwnerCreate: {
+            seller: null,
+            sellerErrors: [
+              {
+                field: "email",
+                code: "UNIQUE",
+                message: "User with this Tenant and Email already exists.",
+              },
+            ],
+          },
+        };
+      }
+      if (name === "staffUpdate") {
+        return { staffUpdate: { user: { id: "VXNlcjoy" }, staffErrors: [] } };
+      }
+      if (name === "permissionGroupUpdate") {
+        return {
+          permissionGroupUpdate: {
+            group: { id: "R3JvdXA6Mg==", name: "Seller Admin" },
+            permissionGroupErrors: [],
+          },
+        };
+      }
+      if (name === "sellerUserMappingCreate") {
+        return {
+          sellerUserMappingCreate: {
+            ok: true,
+            sellerUser: { id: "bWFwcGluZzoy", isDefault: false },
+            sellerErrors: [],
+          },
+        };
+      }
+      throw new Error(`unexpected mutation ${name}`);
+    });
+
+    const result = await provisionMarketplaceDistributorSeller({
+      id: 4,
+      manufacturer_id: 3,
+      company_name: "Harbor Supply",
+      contact_name: "Daniel Ortiz",
+      email: "daniel@harborsupply.com",
+    });
+
+    expect(result).toEqual({ sellerId: "U2VsbGVyOjIw", staffUserId: "VXNlcjoy" });
+    const mappings = executeMarketplaceMutation.mock.calls.filter(
+      (call) => call[0] === "sellerUserMappingCreate",
+    );
+    expect(mappings.map((call) => call[1])).toEqual([
+      { input: { seller: "U2VsbGVyOjIw", user: "VXNlcjoy" } },
+      { input: { seller: "U2VsbGVyOjQy", user: "VXNlcjoy" } },
+    ]);
+  });
+
+  it("reuses an existing distributor marketplace seller and still maps the user to the manufacturer seller", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { provisionMarketplaceDistributorSeller } = await import(
+      "@/lib/marketplace/operations/seller-provision"
+    );
+    const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+    let distributorIdLookup = true;
+    queryRawMock.mockImplementation(async () => {
+      if (distributorIdLookup) {
+        distributorIdLookup = false;
+        return [{ nautical_seller_id: null, nautical_user_id: null }];
+      }
+      return [{ nautical_seller_id: "U2VsbGVyOjQy" }];
+    });
+    executeMarketplaceMutation.mockImplementation(async (name: string) => {
+      if (name === "sellerUserMappingCreate") {
+        return {
+          sellerUserMappingCreate: {
+            ok: true,
+            sellerUser: { id: "bWFwcGluZzoy", isDefault: false },
+            sellerErrors: [],
+          },
+        };
+      }
+      throw new Error(`unexpected mutation ${name}`);
+    });
+
+    const result = await provisionMarketplaceDistributorSeller({
+      id: 4,
+      manufacturer_id: 3,
+      company_name: "Harbor Supply",
+      contact_name: "Daniel Ortiz",
+      email: "daniel@harborsupply.com",
+      nautical_seller_id: "U2VsbGVyOjIw",
+      nautical_user_id: "VXNlcjoy",
+    });
+
+    expect(result).toEqual({ sellerId: "U2VsbGVyOjIw", staffUserId: "VXNlcjoy" });
+    expect(executeMarketplaceMutation.mock.calls.map((call) => call[0])).toEqual([
+      "sellerUserMappingCreate",
+    ]);
+    expect(executeMarketplaceMutation.mock.calls[0][1]).toEqual({
+      input: { seller: "U2VsbGVyOjQy", user: "VXNlcjoy" },
+    });
   });
 });

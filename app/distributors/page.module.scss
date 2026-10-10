@@ -1,0 +1,397 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background-color: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.toolbar {
+  @include flex-between;
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+  align-items: flex-end;
+}
+
+.title {
+  margin: 0 0 $spacing-xs;
+  font-size: $font-size-2xl;
+  color: $gray-900;
+}
+
+.subtitle {
+  margin: 0;
+  color: $gray-600;
+  font-size: $font-size-sm;
+  max-width: 42rem;
+}
+
+.addButton {
+  @include button-primary;
+  white-space: nowrap;
+  gap: 0.4rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.statCard {
+  background: $white;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.statLabel {
+  font-size: $font-size-sm;
+  color: $gray-600;
+}
+
+.statValue {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-semibold;
+  color: $gray-900;
+  line-height: 1.1;
+}
+
+.statActive {
+  color: $oonni-green;
+}
+
+.statPending {
+  color: #b45309;
+}
+
+.tableCard {
+  background: $white;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+}
+
+.tableToolbar {
+  @include flex-between;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  border-bottom: 1px solid $gray-200;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 28rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid $gray-300;
+  border-radius: $radius-full;
+  background: $oonni-bg-light;
+  color: $gray-500;
+
+  input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    font-size: $font-size-sm;
+    color: $gray-800;
+    outline: none;
+  }
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filterChip {
+  @include button-base;
+  padding: 0.35rem 0.85rem;
+  background: $white;
+  color: $gray-700;
+  border: 1px solid $gray-300;
+  border-radius: $radius-full;
+  font-size: $font-size-sm;
+
+  &:hover:not(:disabled) {
+    border-color: $oonni-green;
+    color: $oonni-teal;
+  }
+}
+
+.filterChipActive {
+  background: $oonni-teal;
+  border-color: $oonni-teal;
+  color: $white;
+
+  &:hover:not(:disabled) {
+    background: $oonni-teal-dark;
+    border-color: $oonni-teal-dark;
+    color: $white;
+  }
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.9rem $spacing-lg;
+    vertical-align: middle;
+  }
+
+  th {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $gray-500;
+    background: $white;
+    border-bottom: 1px solid $gray-200;
+    white-space: nowrap;
+  }
+
+  td {
+    font-size: $font-size-sm;
+    color: $gray-800;
+    border-bottom: 1px solid $gray-100;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.distributorCell,
+.contactCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.distributorCell {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+
+  strong,
+  .muted {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: $gray-900;
+  }
+}
+
+.muted {
+  color: $gray-500;
+  font-size: $font-size-xs;
+}
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: $radius-lg;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.teal {
+  background: #dcece8;
+  color: $oonni-teal;
+}
+
+.green {
+  background: #e7f4ef;
+  color: #2f6f62;
+}
+
+.sage {
+  background: #e8eee4;
+  color: #3d5248;
+}
+
+.mint {
+  background: #e4f2ea;
+  color: #1f5c4d;
+}
+
+.dateCell {
+  white-space: nowrap;
+  color: $gray-600;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: $radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+
+  &::before {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+}
+
+.status_active {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.status_invite_sent {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.status_not_invited {
+  background: $gray-100;
+  color: $gray-600;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.inviteButton {
+  @include button-base;
+  padding: 0.35rem 0.7rem;
+  background: $white;
+  color: $oonni-teal;
+  border: 1px solid $gray-300;
+  border-radius: $radius-full;
+  font-size: $font-size-xs;
+
+  &:hover:not(:disabled) {
+    border-color: $oonni-green;
+    background: $oonni-bg-light;
+  }
+}
+
+.iconButton {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  color: $gray-500;
+  border-radius: $radius-md;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover {
+    background: $gray-100;
+    color: $gray-800;
+  }
+
+  &.danger:hover {
+    background: #fef2f2;
+    color: $error;
+  }
+}
+
+.empty {
+  text-align: center;
+  color: $gray-500;
+  padding: $spacing-2xl $spacing-lg !important;
+}
+
+.error {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-lg;
+  color: $error;
+}
+
+.notice {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
+  border-radius: $radius-lg;
+  color: #166534;
+  font-size: $font-size-sm;
+}
+
+.loadingScreen {
+  @include flex-center;
+  flex-direction: column;
+  gap: $spacing-sm;
+  min-height: 100vh;
+  padding: $spacing-2xl;
+  color: $gray-600;
+}
+
+.spinner {
+  @include spinner(40px, $oonni-green);
+}
+
+@include respond-to('md') {
+  .toolbar,
+  .tableToolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search {
+    max-width: none;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@include respond-to('sm') {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
