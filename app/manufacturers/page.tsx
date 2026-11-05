@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { authAPI, manufacturerAPI } from '@/lib/api'
 import { passwordPolicyError } from '@/lib/password-policy'
 import { User, ManufacturerListItem } from '@/types'
-import { Header } from '@/components'
+import { Header, PasswordInput } from '@/components'
 import styles from './page.module.scss'
 
 function asList<T>(value: unknown): T[] {
@@ -34,6 +34,11 @@ export default function ManufacturersPage() {
   const [activateSubmitting, setActivateSubmitting] = useState(false)
   const [emailDrafts, setEmailDrafts] = useState<Record<number, string>>({})
   const [savingEmailUserId, setSavingEmailUserId] = useState<number | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ManufacturerListItem | null>(null)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteNotice, setDeleteNotice] = useState('')
   const router = useRouter()
 
   const rememberUsers = (users: User[]) => {
@@ -171,6 +176,50 @@ export default function ManufacturersPage() {
       setUsersError(err instanceof Error ? err.message : 'Failed to activate user')
     } finally {
       setActivateSubmitting(false)
+    }
+  }
+
+  const handleOpenDelete = (manufacturer: ManufacturerListItem) => {
+    setPendingDelete(manufacturer)
+    setDeleteConfirmName('')
+    setDeleteError('')
+    setDeleteNotice('')
+  }
+
+  const handleCloseDelete = () => {
+    if (isDeleting) return
+    setPendingDelete(null)
+    setDeleteConfirmName('')
+    setDeleteError('')
+  }
+
+  const handleDeleteManufacturer = async () => {
+    const token = authAPI.getToken()
+    if (!token || !pendingDelete) return
+    if (deleteConfirmName.trim() !== pendingDelete.name.trim()) {
+      setDeleteError('Type the manufacturer name exactly to confirm.')
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError('')
+    try {
+      const result = await manufacturerAPI.deleteManufacturer(token, pendingDelete.id)
+      if (selectedManufacturer?.id === pendingDelete.id) {
+        handleCloseUsersModal()
+      }
+      setManufacturers((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setDeleteNotice(
+        result.imagekit_warning
+          ? `${result.name} was deleted. ${result.imagekit_warning}`
+          : `${result.name} and its related data were deleted.`
+      )
+      setPendingDelete(null)
+      setDeleteConfirmName('')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete manufacturer')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -364,8 +413,7 @@ export default function ManufacturersPage() {
                                 Set a password to activate this account. The user will be able to log in immediately.
                               </p>
                               <div className={styles.activateFields}>
-                                <input
-                                  type="password"
+                                <PasswordInput
                                   className={styles.activateInput}
                                   placeholder="New password (letters and numbers)"
                                   value={activatePassword}
@@ -374,8 +422,7 @@ export default function ManufacturersPage() {
                                   minLength={8}
                                   required
                                 />
-                                <input
-                                  type="password"
+                                <PasswordInput
                                   className={styles.activateInput}
                                   placeholder="Confirm password"
                                   value={activateConfirm}
@@ -418,6 +465,74 @@ export default function ManufacturersPage() {
             </div>
     ) : null
 
+  const deleteConfirmed =
+    pendingDelete != null && deleteConfirmName.trim() === pendingDelete.name.trim()
+
+  const deleteModal = pendingDelete ? (
+    <div
+      className={styles.modalOverlay}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleCloseDelete()
+      }}
+    >
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h2 className={styles.modalTitle}>Delete {pendingDelete.name}</h2>
+          <button
+            className={styles.closeButton}
+            onClick={handleCloseDelete}
+            aria-label="Close modal"
+            disabled={isDeleting}
+          >
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className={styles.modalBody}>
+          <p className={styles.deleteWarning}>
+            This permanently deletes the manufacturer, its ImageKit folder and every file already
+            stored in that folder, and the portal data: users, catalogs, products, inventory,
+            distributors, images, import jobs, and related logs. This cannot be undone.
+          </p>
+          <p className={styles.deleteWarningNote}>
+            The seller record in the marketplace is not removed by this action.
+          </p>
+          <label className={styles.emailLabel}>
+            Type <strong>{pendingDelete.name}</strong> to confirm
+            <input
+              type="text"
+              className={styles.activateInput}
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              autoComplete="off"
+              disabled={isDeleting}
+            />
+          </label>
+          {deleteError && <div className={styles.usersActionError}>{deleteError}</div>}
+          <div className={`${styles.activateFormActions} ${styles.deleteActions}`}>
+            <button
+              type="button"
+              className={styles.activateCancel}
+              onClick={handleCloseDelete}
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.deleteConfirmButton}
+              onClick={handleDeleteManufacturer}
+              disabled={isDeleting || !deleteConfirmed}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete manufacturer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   return (
     <main className={styles.main}>
       <div className={styles.container}>
@@ -438,6 +553,10 @@ export default function ManufacturersPage() {
               </svg>
               {error}
             </div>
+          )}
+
+          {deleteNotice && (
+            <div className={`${styles.resendSuccess} ${styles.pageNotice}`}>{deleteNotice}</div>
           )}
 
           {/* Manufacturers List */}
@@ -464,19 +583,19 @@ export default function ManufacturersPage() {
             ) : (
               <div className={styles.manufacturersGrid}>
                 {manufacturers.map((manufacturer) => (
-                  <div 
-                    key={manufacturer.id} 
-                    className={styles.manufacturerCard}
-                    onClick={() => handleManufacturerClick(manufacturer)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleManufacturerClick(manufacturer)
-                      }
-                    }}
-                  >
+                  <div key={manufacturer.id} className={styles.manufacturerCard}>
+                    <div
+                      className={styles.manufacturerCardMain}
+                      onClick={() => handleManufacturerClick(manufacturer)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleManufacturerClick(manufacturer)
+                        }
+                      }}
+                    >
                     <div className={styles.manufacturerThumbnail}>
                       {manufacturer.thumbnail ? (
                         <img 
@@ -497,6 +616,14 @@ export default function ManufacturersPage() {
                       <p className={styles.manufacturerSlug}>@{manufacturer.slug}</p>
                       <p className={styles.clickHint}>Click to view users</p>
                     </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.deleteButton}
+                      onClick={() => handleOpenDelete(manufacturer)}
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))}
               </div>
@@ -504,6 +631,7 @@ export default function ManufacturersPage() {
           </section>
 
           {usersModal}
+          {deleteModal}
         </div>
       </div>
     </main>
