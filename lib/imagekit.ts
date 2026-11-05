@@ -741,6 +741,207 @@ export async function createImageKitFolder(
   throw new Error(`ImageKit create folder failed (${res.status}): ${body || res.statusText}`);
 }
 
+export function normalizeImageKitFolderPath(folderPath: string): string {
+  let path = folderPath.trim();
+  if (!path.startsWith("/")) path = `/${path}`;
+  return path.replace(/\/+$/, "");
+}
+
+/** True when `candidate` is the root folder or a nested path inside it. */
+export function isImageKitPathWithin(candidate: string, root: string): boolean {
+  const child = normalizeImageKitFolderPath(candidate);
+  const parent = normalizeImageKitFolderPath(root);
+  return child === parent || child.startsWith(`${parent}/`);
+}
+
+export function chunkImageKitFileIds(fileIds: string[], size = 100): string[][] {
+  const unique = [...new Set(fileIds.map((id) => id.trim()).filter(Boolean))];
+  const chunks: string[][] = [];
+  const step = Math.max(1, size);
+  for (let index = 0; index < unique.length; index += step) {
+    chunks.push(unique.slice(index, index + step));
+  }
+  return chunks;
+}
+
+function assertDeletableImageKitFolder(folderPath: string): string {
+  const normalized = normalizeImageKitFolderPath(folderPath);
+  if (normalized.split("/").filter(Boolean).length < 1) {
+    throw new Error("Refusing to delete an unsafe ImageKit folder");
+  }
+  return normalized;
+}
+
+async function imageKitFetch(pathname: string, init: RequestInit): Promise<Response> {
+  const auth = Buffer.from(`${requireImageKitPrivateKey()}:`).toString("base64");
+  return fetch(`https://api.imagekit.io/v1${pathname}`, {
+    ...init,
+    headers: {
+      Authorization: `Basic ${auth}`,
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...init.headers,
+    },
+    cache: "no-store",
+  });
+}
+
+function imageKitChildFolderPath(parent: string, row: Record<string, unknown>): string | null {
+  const parentPath = normalizeImageKitFolderPath(parent);
+  const explicit = String(row.folderPath ?? row.filePath ?? "").trim();
+  if (explicit) {
+    const normalized = normalizeImageKitFolderPath(explicit);
+    if (isImageKitPathWithin(normalized, parentPath) && normalized !== parentPath) return normalized;
+  }
+  const name = String(row.name ?? "").trim().replace(/^\/+|\/+$/g, "");
+  if (!name || name.includes("/") || name === "." || name === "..") return null;
+  return `${parentPath}/${name}`;
+}
+
+async function listImageKitChildren(folderPath: string): Promise<{ fileIds: string[]; folders: string[] }> {
+  const folder = normalizeImageKitFolderPath(folderPath);
+  const fileIds: string[] = [];
+  const folders: string[] = [];
+
+  for (const type of ["file", "folder"] as const) {
+    let skip = 0;
+    const limit = 1000;
+    for (let page = 0; page < 200; page += 1) {
+      const query = new URLSearchParams({
+        path: normalizeFolderPathForListApi(folder),
+        type,
+        limit: String(limit),
+        skip: String(skip),
+      });
+      if (type === "file") query.set("fileType", "all");
+      const res = await imageKitFetch(`/files?${query.toString()}`, { method: "GET" });
+      if (res.status === 404) break;
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`ImageKit list failed (${res.status}): ${body || res.statusText}`);
+      }
+      const rows = parseImageKitAssetsListBody(await res.json());
+      if (type === "file") {
+        for (const row of rows) {
+          const fileId = String(row.fileId ?? "").trim();
+          if (fileId) fileIds.push(fileId);
+        }
+      } else {
+        for (const row of rows) {
+          const child = imageKitChildFolderPath(folder, row);
+          if (child) folders.push(child);
+        }
+      }
+      if (rows.length < limit) break;
+      skip += rows.length;
+    }
+  }
+
+  return { fileIds, folders };
+}
+
+export async function deleteImageKitFilesByIds(fileIds: string[]): Promise<void> {
+  for (const chunk of chunkImageKitFileIds(fileIds)) {
+    const res = await imageKitFetch("/files/batch/deleteByFileIds", {
+      method: "POST",
+      body: JSON.stringify({ fileIds: chunk }),
+    });
+    if (res.ok) continue;
+    const body = await res.text();
+    if (res.status === 404 || res.status === 405) {
+      for (const fileId of chunk) {
+        await deleteFromImageKit(fileId);
+      }
+      continue;
+    }
+    throw new Error(`ImageKit bulk delete failed (${res.status}): ${body || res.statusText}`);
+  }
+}
+
+export type ImageKitFolderIo = {
+  listChildren: (folderPath: string) => Promise<{ fileIds: string[]; folders: string[] }>;
+  deleteFileIds: (fileIds: string[]) => Promise<void>;
+  deleteFolder: (folderPath: string) => Promise<void>;
+};
+
+/**
+ * Deletes every file already stored under a manufacturer folder, then the nested folders,
+ * then the folder itself. ImageKit rejects deleting a folder that still has files.
+ */
+export async function purgeImageKitFolder(
+  folderPath: string,
+  options?: { extraFileIds?: string[]; io?: ImageKitFolderIo }
+): Promise<void> {
+  const root = assertDeletableImageKitFolder(folderPath);
+  const io = options?.io ?? {
+    listChildren: listImageKitChildren,
+    deleteFileIds: deleteImageKitFilesByIds,
+    deleteFolder: deleteImageKitFolder,
+  };
+
+  const fileIds: string[] = [...(options?.extraFileIds ?? [])];
+  const folders: string[] = [];
+  const seen = new Set<string>();
+
+  async function walk(folder: string): Promise<void> {
+    const current = normalizeImageKitFolderPath(folder);
+    if (seen.has(current) || !isImageKitPathWithin(current, root)) return;
+    if (seen.size > 5000) throw new Error("ImageKit folder is too large to delete in one request");
+    seen.add(current);
+    folders.push(current);
+    const children = await io.listChildren(current);
+    fileIds.push(...children.fileIds);
+    for (const child of children.folders) {
+      if (isImageKitPathWithin(child, root) && child !== current) await walk(child);
+    }
+  }
+
+  await walk(root);
+  await io.deleteFileIds(fileIds);
+
+  const deepestFirst = [...folders].sort((left, right) => {
+    const depth = right.split("/").length - left.split("/").length;
+    return depth || right.localeCompare(left);
+  });
+
+  for (const folder of deepestFirst) {
+    try {
+      await io.deleteFolder(folder);
+    } catch (firstError) {
+      const remaining = await io.listChildren(folder);
+      const nestedFiles = remaining.fileIds.filter(Boolean);
+      if (nestedFiles.length) await io.deleteFileIds(nestedFiles);
+      await io.deleteFolder(folder).catch((retryError) => {
+        const detail = retryError instanceof Error ? retryError.message : "ImageKit folder delete failed";
+        const original = firstError instanceof Error ? firstError.message : detail;
+        throw new Error(detail || original);
+      });
+    }
+  }
+}
+
+/** Delete a manufacturer media folder. Missing folders are ignored. The folder must be empty. */
+export async function deleteImageKitFolder(folderPath: string): Promise<void> {
+  const normalized = folderPath.trim().replace(/\/+$/, "");
+  const segments = normalized.split("/").filter(Boolean);
+  if (!normalized.startsWith("/") || segments.length < 1) {
+    throw new Error("Refusing to delete an unsafe ImageKit folder");
+  }
+
+  const auth = Buffer.from(`${requireImageKitPrivateKey()}:`).toString("base64");
+  const res = await fetch("https://api.imagekit.io/v1/folder", {
+    method: "DELETE",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folderPath: normalized }),
+  });
+
+  if (res.ok || res.status === 404) return;
+  const body = await res.text();
+  throw new Error(`ImageKit delete folder failed (${res.status}): ${body || res.statusText}`);
+}
+
 /**
  * Ensure `/{companyName}`, `/{companyName}/images` and `/{companyName}/catalogs` exist in ImageKit.
  * Does not throw — logs and returns false if ImageKit is not configured or the API fails.

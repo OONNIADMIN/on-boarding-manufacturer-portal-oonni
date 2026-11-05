@@ -1589,6 +1589,30 @@ export const manufacturerAPI = {
   },
 
   /**
+   * Permanently delete a manufacturer and portal data tied to it (admin only).
+   */
+  async deleteManufacturer(token: string, manufacturerId: number): Promise<{
+    ok: true
+    id: number
+    name: string
+    imagekit_warning: string | null
+  }> {
+    const response = await apiFetch(`${API_URL}/manufacturers/${manufacturerId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Failed to delete manufacturer')
+    }
+
+    return response.json()
+  },
+
+  /**
    * Get users for a specific manufacturer
    */
   async getManufacturerUsers(token: string, manufacturerId: number): Promise<User[]> {

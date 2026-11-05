@@ -139,22 +139,84 @@
   transition: all $transition-slow;
   border: 2px solid transparent;
   text-align: center;
-  cursor: pointer;
-  outline: none;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: $shadow-lg;
     border-color: $oonni-green;
   }
+}
+
+.manufacturerCardMain {
+  cursor: pointer;
+  outline: none;
 
   &:focus {
-    border-color: $oonni-green;
+    border-radius: $radius-xl;
     box-shadow: 0 0 0 3px rgba($oonni-green, 0.1);
   }
+}
 
-  &:active {
-    transform: translateY(0);
+.deleteButton {
+  margin-top: $spacing-md;
+  padding: $spacing-xs $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #fee2e2;
+    border-color: #fca5a5;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.deleteWarning {
+  margin: 0 0 $spacing-sm 0;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  color: $gray-700;
+}
+
+.deleteWarningNote {
+  margin: 0 0 $spacing-md 0;
+  font-size: $font-size-sm;
+  color: $gray-600;
+}
+
+.pageNotice {
+  margin-bottom: $spacing-xl;
+}
+
+.deleteActions {
+  margin-top: $spacing-lg;
+}
+
+.deleteConfirmButton {
+  padding: $spacing-xs $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $white;
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 

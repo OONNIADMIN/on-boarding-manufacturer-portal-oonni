@@ -1,9 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { effectiveManufacturerId, isAdminUser, requireAuth } from "@/lib/auth";
+import { effectiveManufacturerId, isAdminUser, requireAdmin, requireAuth } from "@/lib/auth";
 import { ok, err, unauthorized, forbidden, notFound } from "@/lib/api-response";
+import { deleteManufacturerAndRelatedData, ManufacturerDeleteError } from "@/lib/delete-manufacturer";
 
 type Params = { params: Promise<{ id: string }> };
+
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { user, error } = await requireAuth(req);
@@ -63,5 +66,27 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return ok(mfr);
   } catch {
     return notFound("Manufacturer not found");
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const { user, error } = await requireAdmin(req);
+  if (error === "Admin access required") return forbidden(error);
+  if (error || !user) return unauthorized(error ?? undefined);
+
+  const { id } = await params;
+  const manufacturerId = parseInt(id, 10);
+  if (!Number.isFinite(manufacturerId) || manufacturerId < 1) return err("Invalid manufacturer id");
+
+  try {
+    const result = await deleteManufacturerAndRelatedData(manufacturerId, { actorUserId: user.id });
+    return ok(result);
+  } catch (cause) {
+    if (cause instanceof ManufacturerDeleteError) {
+      if (cause.status === 404) return notFound(cause.message);
+      return err(cause.message, cause.status);
+    }
+    console.error("Delete manufacturer error:", cause);
+    return err("Failed to delete manufacturer", 500, cause);
   }
 }

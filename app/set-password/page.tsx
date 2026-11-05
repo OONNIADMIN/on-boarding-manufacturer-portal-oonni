@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { authAPI } from '@/lib/api'
+import PasswordInput from '@/components/ui/PasswordInput'
 import { passwordPolicyError } from '@/lib/password-policy'
 import styles from './page.module.scss'
 
@@ -174,9 +175,8 @@ function SetPasswordContent() {
               <label htmlFor="password" className={styles.label}>
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -184,6 +184,7 @@ function SetPasswordContent() {
                 placeholder="••••••••"
                 disabled={isLoading}
                 minLength={8}
+                autoComplete="new-password"
               />
               <p className={styles.hint}>At least 8 characters, with letters and numbers</p>
             </div>
@@ -192,15 +193,15 @@ function SetPasswordContent() {
               <label htmlFor="confirmPassword" className={styles.label}>
                 Confirm Password
               </label>
-              <input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 className={styles.input}
                 placeholder="••••••••"
                 disabled={isLoading}
+                autoComplete="new-password"
               />
             </div>
 
