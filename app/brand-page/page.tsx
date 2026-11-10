@@ -86,7 +86,7 @@ export default function BrandPage() {
   const applyRecord = (record: BrandPageRecord) => {
     const landing = record.landing
     if (!landing) {
-      setStep('choose')
+      setStep((current) => (current === 'edit' ? current : 'choose'))
       return
     }
     setLayout(landing.layout)
@@ -239,26 +239,44 @@ export default function BrandPage() {
                   <div
                     key={design.id}
                     className={`${styles.designCard} ${layout === design.id ? styles.selected : ''}`}
+                    onClick={() => {
+                      setLayout(design.id)
+                      setError('')
+                    }}
                   >
                     <div className={styles.previewFrame}>
                       <img src={design.image} alt="" className={styles.preview} />
                       <button
                         type="button"
                         className={styles.previewButton}
-                        onClick={() => setPreviewDesign(design)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setPreviewDesign(design)
+                        }}
                       >
                         Preview
                       </button>
                     </div>
-                    <button type="button" className={styles.designSelect} onClick={() => setLayout(design.id)}>
+                    <div className={styles.designSelect}>
                       <h3 className={styles.designTitle}>{design.title}</h3>
                       <p className={styles.designCopy}>{design.copy}</p>
-                    </button>
+                    </div>
                   </div>
                 ))}
               </div>
               <div className={styles.actions}>
-                <button type="button" className={styles.primary} disabled={!layout} onClick={() => setStep('edit')}>
+                <button
+                  type="button"
+                  className={styles.primary}
+                  onClick={() => {
+                    if (!layout) {
+                      setError('Select a design first.')
+                      return
+                    }
+                    setError('')
+                    setStep('edit')
+                  }}
+                >
                   Continue with this design
                 </button>
               </div>

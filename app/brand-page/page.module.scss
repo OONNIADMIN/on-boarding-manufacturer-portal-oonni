@@ -71,6 +71,7 @@
   border: 2px solid $gray-200;
   border-radius: $radius-2xl;
   box-shadow: $shadow-sm;
+  cursor: pointer;
 
   &:hover {
     border-color: rgba($oonni-green, 0.55);
