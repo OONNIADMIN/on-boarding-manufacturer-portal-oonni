@@ -20,8 +20,14 @@ export type BrandPageContent = {
   heroImageId: number | null
 }
 
+export type BrandPageDesigns = {
+  catalog: BrandPageMedia | null
+  category: BrandPageMedia | null
+}
+
 export type BrandPageRecord = {
   brand: { documentId: string; name: string; slug: string } | null
+  designs?: BrandPageDesigns
   landing: {
     documentId: string
     layout: BrandLayout

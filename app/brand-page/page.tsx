@@ -18,18 +18,21 @@ type DistributorDraft = {
   file: File | null
 }
 
-const DESIGNS: { id: BrandLayout; title: string; copy: string; image: string }[] = [
+const FALLBACK_IMAGES: Record<BrandLayout, string> = {
+  catalog: '/brand-layouts/catalog.png',
+  category: '/brand-layouts/category.png',
+}
+
+const DESIGNS: { id: BrandLayout; title: string; copy: string }[] = [
   {
     id: 'catalog',
     title: 'About the Brand',
     copy: 'Full-width banner, a short brand story, then the product grid with filters.',
-    image: '/brand-layouts/catalog.png',
   },
   {
     id: 'category',
     title: 'Browse by Category',
     copy: 'Banner beside a headline and description, then products grouped by category.',
-    image: '/brand-layouts/category.png',
   },
 ]
 
@@ -66,7 +69,19 @@ export default function BrandPage() {
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [products, setProducts] = useState<InventoryProductRow[]>([])
-  const [previewDesign, setPreviewDesign] = useState<(typeof DESIGNS)[number] | null>(null)
+  const [previewDesign, setPreviewDesign] = useState<{ id: BrandLayout; title: string; copy: string; image: string } | null>(null)
+  const [designImages, setDesignImages] = useState(FALLBACK_IMAGES)
+  const designs = DESIGNS.map((design) => ({
+    ...design,
+    image: designImages[design.id] || FALLBACK_IMAGES[design.id],
+  }))
+
+  const applyDesignImages = (record: BrandPageRecord) => {
+    setDesignImages({
+      catalog: record.designs?.catalog?.url || FALLBACK_IMAGES.catalog,
+      category: record.designs?.category?.url || FALLBACK_IMAGES.category,
+    })
+  }
 
   const applyRecord = (record: BrandPageRecord) => {
     const landing = record.landing
@@ -124,6 +139,7 @@ export default function BrandPage() {
           inventoryAPI.listProducts(1, 8).catch(() => ({ products: [] as InventoryProductRow[] })),
         ])
         applyRecord(page)
+        applyDesignImages(page)
         setProducts(catalog.products || [])
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Could not load the brand page')
@@ -182,6 +198,7 @@ export default function BrandPage() {
       setHeroFile(null)
       setShopFile(null)
       applyRecord(saved)
+      applyDesignImages(saved)
       setNotice('Brand page published. The storefront reads this design from the CMS.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the brand page')
@@ -218,7 +235,7 @@ export default function BrandPage() {
           {step === 'choose' ? (
             <>
               <div className={styles.designGrid}>
-                {DESIGNS.map((design) => (
+                {designs.map((design) => (
                   <div
                     key={design.id}
                     className={`${styles.designCard} ${layout === design.id ? styles.selected : ''}`}
@@ -254,7 +271,7 @@ export default function BrandPage() {
                   <button
                     type="button"
                     className={styles.secondary}
-                    onClick={() => setPreviewDesign(DESIGNS.find((design) => design.id === layout) ?? null)}
+                    onClick={() => setPreviewDesign(designs.find((design) => design.id === layout) ?? null)}
                   >
                     Preview design
                   </button>

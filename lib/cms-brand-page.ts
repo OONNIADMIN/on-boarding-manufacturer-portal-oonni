@@ -32,7 +32,7 @@ export async function fetchCmsBrandPage(slug: string): Promise<BrandPageRecord> 
   )
   if (!response.ok) throw new Error(await cmsError(response))
   const body = (await response.json()) as { data?: BrandPageRecord }
-  return body.data ?? { brand: null, landing: null }
+  return body.data ?? { brand: null, landing: null, designs: { catalog: null, category: null } }
 }
 
 export async function saveCmsBrandPage(form: FormData): Promise<BrandPageRecord> {
