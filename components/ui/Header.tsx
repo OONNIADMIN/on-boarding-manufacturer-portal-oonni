@@ -16,7 +16,7 @@ interface HeaderProps {
   user: User | null
   onLogout?: () => void
   showNavigation?: boolean
-  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory' | 'logs' | 'distributors'
+  currentPage?: 'dashboard' | 'catalogTemplate' | 'Onboard' | 'profile' | 'manufacturers' | 'statistics' | 'images' | 'historical' | 'catalogs' | 'catalogColumns' | 'inventory' | 'logs' | 'distributors' | 'brandPage'
   navStyle?: 'default' | 'flat'
 }
 
@@ -62,6 +62,9 @@ export default function Header({
           break
       case 'distributors':
           router.push('/distributors')
+          break
+      case 'brandpage':
+          router.push('/brand-page')
           break
       case 'profile':
           router.push('/profile')
@@ -263,6 +266,16 @@ export default function Header({
               
               {user && !authAPI.isAdmin(user) && (
                 <>
+                <button
+                  type="button"
+                  onClick={() => handleNavigation('brandPage')}
+                  className={`${styles.navLink} ${currentPage === 'brandPage' ? styles.active : ''}`}
+                >
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v6H4V5zm0 8h7v6H4v-6zm9 0h7v6h-7v-6z" />
+                  </svg>
+                  Brand page
+                </button>
                 <button
                   type="button"
                   onClick={() => handleNavigation('catalogTemplate')}

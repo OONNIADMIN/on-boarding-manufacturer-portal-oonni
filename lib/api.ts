@@ -18,6 +18,7 @@ import { mimeToListFileType } from '@/lib/image-list-json'
 import type { CatalogColumnRuleRecord } from '@/lib/catalog-column-validation'
 import type { CatalogImageIngestProgress } from '@/lib/catalog-image-ingest'
 import type { EntityCompleteness, ProductCompleteness } from '@/lib/inventory-completeness'
+import type { BrandPageContent, BrandPageRecord } from '@/lib/brand-page'
 
 export type { CatalogImageIngestProgress }
 
@@ -2289,6 +2290,37 @@ export const distributorAPI = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({})) as { detail?: string }
       throw new Error(error.detail || 'Failed to send invitation')
+    }
+    return response.json()
+  },
+}
+
+export const brandPageAPI = {
+  async get(): Promise<BrandPageRecord & { manufacturer: { id: number; name: string; slug: string } }> {
+    const response = await apiFetch(`${API_URL}/brand-page`, { cache: 'no-store' })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Could not load the brand page')
+    }
+    return response.json()
+  },
+
+  async save(
+    content: BrandPageContent,
+    files: { logo?: File | null; heroImage?: File | null; shopTheLook?: File | null; distributorLogos?: Array<File | null> }
+  ): Promise<BrandPageRecord> {
+    const form = new FormData()
+    form.append('payload', JSON.stringify(content))
+    if (files.logo) form.append('logo', files.logo)
+    if (files.heroImage) form.append('heroImage', files.heroImage)
+    if (files.shopTheLook) form.append('shopTheLook', files.shopTheLook)
+    files.distributorLogos?.forEach((file, index) => {
+      if (file) form.append(`distributorLogo_${index}`, file)
+    })
+    const response = await apiFetch(`${API_URL}/brand-page`, { method: 'PUT', body: form })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Could not save the brand page')
     }
     return response.json()
   },

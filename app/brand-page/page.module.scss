@@ -1,0 +1,381 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  background: $oonni-bg;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 0 $spacing-2xl;
+}
+
+.intro {
+  margin-bottom: $spacing-xl;
+}
+
+.title {
+  margin: 0 0 $spacing-xs;
+  font-size: $font-size-2xl;
+  color: $gray-900;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 46rem;
+  color: $gray-600;
+  line-height: 1.5;
+}
+
+.banner {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md $spacing-lg;
+  border-radius: $radius-xl;
+  font-size: $font-size-sm;
+}
+
+.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.notice {
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.designGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-lg;
+}
+
+.designCard {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  text-align: left;
+  background: $white;
+  border: 2px solid $gray-200;
+  border-radius: $radius-2xl;
+  box-shadow: $shadow-sm;
+
+  &:hover {
+    border-color: rgba($oonni-green, 0.55);
+  }
+
+  &.selected {
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.15);
+  }
+}
+
+.previewFrame {
+  position: relative;
+}
+
+.preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+  border-radius: $radius-xl;
+  background: $gray-100;
+}
+
+.previewButton {
+  position: absolute;
+  right: $spacing-sm;
+  bottom: $spacing-sm;
+  border: none;
+  border-radius: $radius-lg;
+  padding: 0.45rem 0.75rem;
+  background: rgba(0, 0, 0, 0.72);
+  color: $white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.86);
+  }
+}
+
+.designSelect {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.previewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-lg;
+  background: rgba(0, 20, 20, 0.72);
+}
+
+.previewDialog {
+  display: flex;
+  flex-direction: column;
+  width: min(920px, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow: hidden;
+  background: $white;
+  border-radius: $radius-2xl;
+}
+
+.previewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  border-bottom: 1px solid $gray-200;
+}
+
+.previewScroll {
+  overflow: auto;
+  background: $gray-100;
+}
+
+.previewFull {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.designTitle {
+  margin: 0;
+  font-size: $font-size-lg;
+  color: $gray-900;
+}
+
+.designCopy {
+  margin: $spacing-xs 0 0;
+  color: $gray-600;
+  font-size: $font-size-sm;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+  margin-top: $spacing-lg;
+}
+
+.primary,
+.secondary {
+  border-radius: $radius-lg;
+  padding: 0.7rem 1.1rem;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+}
+
+.primary {
+  border: none;
+  background: $oonni-green;
+  color: $white;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.secondary {
+  background: $white;
+  color: $gray-700;
+  border: 1px solid $gray-300;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.section {
+  padding: $spacing-lg;
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: $radius-2xl;
+}
+
+.sectionTitle {
+  margin: 0 0 $spacing-xs;
+  font-size: $font-size-lg;
+  color: $gray-900;
+}
+
+.sectionHint {
+  margin: 0 0 $spacing-md;
+  color: $gray-600;
+  font-size: $font-size-sm;
+  line-height: 1.45;
+}
+
+.fields {
+  display: grid;
+  gap: $spacing-md;
+}
+
+label.field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $gray-700;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid $gray-300;
+  border-radius: $radius-lg;
+  font: inherit;
+  font-weight: $font-weight-normal;
+  color: $gray-900;
+
+  &:focus {
+    outline: none;
+    border-color: $oonni-green;
+    box-shadow: 0 0 0 3px rgba($oonni-green, 0.12);
+  }
+}
+
+.textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.mediaRow {
+  display: flex;
+  gap: $spacing-md;
+  align-items: center;
+}
+
+.mediaPreview {
+  width: 8.5rem;
+  height: 5.5rem;
+  object-fit: contain;
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  background: $gray-50;
+}
+
+.fileButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  border-radius: $radius-lg;
+  border: 1px solid $gray-300;
+  background: $white;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  input {
+    display: none;
+  }
+}
+
+.distributor {
+  display: grid;
+  grid-template-columns: 7rem 1fr 1fr auto auto;
+  gap: $spacing-sm;
+  align-items: center;
+  padding-top: $spacing-sm;
+  border-top: 1px solid $gray-100;
+}
+
+.logoThumb {
+  width: 7rem;
+  height: 3.2rem;
+  object-fit: contain;
+  background: $gray-50;
+  border-radius: $radius-md;
+  border: 1px solid $gray-200;
+}
+
+.remove {
+  border: none;
+  background: transparent;
+  color: #b91c1c;
+  cursor: pointer;
+  font-weight: $font-weight-semibold;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $spacing-md;
+}
+
+.productCard {
+  border: 1px solid $gray-200;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  background: $gray-50;
+}
+
+.productImage {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: $white;
+}
+
+.productName {
+  margin: 0;
+  padding: $spacing-sm;
+  font-size: $font-size-sm;
+  color: $gray-800;
+}
+
+.emptyProducts {
+  margin: 0;
+  color: $gray-600;
+  font-size: $font-size-sm;
+}
+
+.selectedNote {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-md;
+  align-items: center;
+  margin-bottom: $spacing-md;
+
+  .actions {
+    margin-top: 0;
+  }
+}
+
+@include respond-to('md') {
+  .designGrid,
+  .productGrid,
+  .distributor {
+    grid-template-columns: 1fr;
+  }
+}
