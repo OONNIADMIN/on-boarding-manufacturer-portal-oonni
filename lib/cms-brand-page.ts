@@ -8,7 +8,7 @@ function cmsConfig(): { base: string; token: string } | { error: string } {
   const base = (readEnv('CMS_URL') || readEnv('STRAPI_URL')).replace(/\/+$/, '')
   const token = readEnv('CMS_PORTAL_TOKEN') || readEnv('PORTAL_CMS_TOKEN')
   if (!base || !token) {
-    return { error: 'Brand page CMS is not configured. Set CMS_URL and CMS_PORTAL_TOKEN.' }
+    return { error: 'Brand page CMS is  not configured. Set CMS_URL and CMS_PORTAL_TOKEN.' }
   }
   return { base, token }
 }
