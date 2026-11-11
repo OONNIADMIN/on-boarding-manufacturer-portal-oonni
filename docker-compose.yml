@@ -72,6 +72,8 @@ services:
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-OONNI Platform}
       INVITATION_TOKEN_EXPIRE_HOURS: ${INVITATION_TOKEN_EXPIRE_HOURS:-72}
+      CMS_URL: ${CMS_URL}
+      CMS_PORTAL_TOKEN: ${CMS_PORTAL_TOKEN}
     depends_on:
       db:
         condition: service_healthy
