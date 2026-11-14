@@ -6,6 +6,13 @@ export type BrandPageMedia = {
   alternativeText?: string | null
 }
 
+export type BrandMenuCategory = {
+  categoryId: string
+  name: string
+  slug: string
+  imageId: number | null
+}
+
 export type BrandPageContent = {
   layout: BrandLayout
   aboutTitle: string
@@ -14,6 +21,7 @@ export type BrandPageContent = {
   heroBody: string
   distributorsHeading: string
   shopTheLook: { title: string; url: string; imageId: number | null }
+  menuCategories: BrandMenuCategory[]
   distributors: { name: string; url: string; logoId: number | null }[]
   seo: { metaTitle: string; metaDescription: string }
   logoId: number | null
@@ -38,6 +46,12 @@ export type BrandPageRecord = {
     heroTitle: string
     heroBody: string
     shopTheLook: { title: string; url: string; image: BrandPageMedia | null }
+    menuCategories: {
+      categoryId: string
+      name: string
+      slug: string
+      image: BrandPageMedia | null
+    }[]
     distributorsHeading: string
     distributors: { name: string; url: string; logo: BrandPageMedia | null }[]
     seo: { metaTitle: string; metaDescription: string }
@@ -93,6 +107,22 @@ export function parseBrandPageContent(body: unknown): { ok: true; value: BrandPa
     distributors.push({ name, url, logoId: idOf(item.logoId) })
   }
 
+  const categoryRows = Array.isArray(raw.menuCategories) ? raw.menuCategories.slice(0, 40) : []
+  const menuCategories: BrandPageContent['menuCategories'] = []
+  for (const row of categoryRows) {
+    if (!row || typeof row !== 'object') continue
+    const item = row as Record<string, unknown>
+    const categoryId = clip(item.categoryId, 128)
+    const name = clip(item.name, 180)
+    if (!categoryId || !name || !/^[A-Za-z0-9:_=-]+$/.test(categoryId)) continue
+    menuCategories.push({
+      categoryId,
+      name,
+      slug: clip(item.slug, 160),
+      imageId: idOf(item.imageId),
+    })
+  }
+
   const seo = (raw.seo && typeof raw.seo === 'object' ? raw.seo : {}) as Record<string, unknown>
 
   return {
@@ -109,6 +139,7 @@ export function parseBrandPageContent(body: unknown): { ok: true; value: BrandPa
         url: lookUrl,
         imageId: idOf(look.imageId),
       },
+      menuCategories,
       distributors,
       seo: {
         metaTitle: clip(seo.metaTitle, 180),

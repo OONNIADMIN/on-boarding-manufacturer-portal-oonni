@@ -2295,7 +2295,23 @@ export const distributorAPI = {
   },
 }
 
+export type CatalogCategoryOption = {
+  id: string
+  name: string
+  slug: string
+  parentId: string | null
+}
+
 export const brandPageAPI = {
+  async categories(): Promise<CatalogCategoryOption[]> {
+    const response = await apiFetch(`${API_URL}/brand-page/categories`, { cache: 'no-store' })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || 'Could not load categories')
+    }
+    return response.json()
+  },
+
   async get(): Promise<BrandPageRecord & { manufacturer: { id: number; name: string; slug: string } }> {
     const response = await apiFetch(`${API_URL}/brand-page`, { cache: 'no-store' })
     if (!response.ok) {
@@ -2307,13 +2323,22 @@ export const brandPageAPI = {
 
   async save(
     content: BrandPageContent,
-    files: { logo?: File | null; heroImage?: File | null; shopTheLook?: File | null; distributorLogos?: Array<File | null> }
+    files: {
+      logo?: File | null
+      heroImage?: File | null
+      shopTheLook?: File | null
+      menuCategoryImages?: Array<File | null>
+      distributorLogos?: Array<File | null>
+    }
   ): Promise<BrandPageRecord> {
     const form = new FormData()
     form.append('payload', JSON.stringify(content))
     if (files.logo) form.append('logo', files.logo)
     if (files.heroImage) form.append('heroImage', files.heroImage)
     if (files.shopTheLook) form.append('shopTheLook', files.shopTheLook)
+    files.menuCategoryImages?.forEach((file, index) => {
+      if (file) form.append(`menuCategoryImage_${index}`, file)
+    })
     files.distributorLogos?.forEach((file, index) => {
       if (file) form.append(`distributorLogo_${index}`, file)
     })

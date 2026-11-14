@@ -26,6 +26,23 @@ describe('parseBrandPageContent', () => {
     ])
     expect(parsed.value.shopTheLook.imageId).toBe(12)
     expect(parsed.value.logoId).toBe(3)
+    expect(parsed.value.menuCategories).toEqual([])
+  })
+
+  it('keeps catalog category ids used to filter the brand menu', () => {
+    const parsed = parseBrandPageContent({
+      layout: 'catalog',
+      menuCategories: [
+        { categoryId: 'Q2F0ZWdvcnk6MQ', name: 'Baskets', slug: 'baskets', imageId: 9 },
+        { categoryId: 'not an id', name: 'Skipped' },
+        { categoryId: 'Q2F0ZWdvcnk6Mg', name: '   ' },
+      ],
+    })
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.menuCategories).toEqual([
+      { categoryId: 'Q2F0ZWdvcnk6MQ', name: 'Baskets', slug: 'baskets', imageId: 9 },
+    ])
   })
 
   it('rejects a link that is not a web address', () => {
