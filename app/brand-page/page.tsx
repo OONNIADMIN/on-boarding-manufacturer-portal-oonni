@@ -3,8 +3,9 @@
 import { Dispatch, FormEvent, SetStateAction, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components'
-import { authAPI, brandPageAPI, inventoryAPI } from '@/lib/api'
+import { authAPI, brandPageAPI, inventoryAPI, type CatalogCategoryOption } from '@/lib/api'
 import type { BrandLayout, BrandPageContent, BrandPageRecord } from '@/lib/brand-page'
+import { MenuCategoriesField, type MenuCategoryDraft } from './menu-categories'
 import type { InventoryProductRow } from '@/lib/api'
 import type { User } from '@/types'
 import styles from './page.module.scss'
@@ -69,6 +70,9 @@ export default function BrandPage() {
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [products, setProducts] = useState<InventoryProductRow[]>([])
+  const [catalogCategories, setCatalogCategories] = useState<CatalogCategoryOption[]>([])
+  const [categoryError, setCategoryError] = useState('')
+  const [menuCategories, setMenuCategories] = useState<MenuCategoryDraft[]>([])
   const [previewDesign, setPreviewDesign] = useState<{ id: BrandLayout; title: string; copy: string; image: string } | null>(null)
   const [designImages, setDesignImages] = useState(FALLBACK_IMAGES)
   const designs = DESIGNS.map((design) => ({
@@ -118,6 +122,16 @@ export default function BrandPage() {
     )
     setMetaTitle(landing.seo?.metaTitle || '')
     setMetaDescription(landing.seo?.metaDescription || '')
+    setMenuCategories(
+      (landing.menuCategories || []).map((row) => ({
+        categoryId: row.categoryId,
+        name: row.name,
+        slug: row.slug,
+        imageId: row.image?.id ?? null,
+        imageUrl: row.image?.url ?? null,
+        file: null,
+      }))
+    )
   }
 
   useEffect(() => {
@@ -134,13 +148,20 @@ export default function BrandPage() {
     setUser(stored)
     void (async () => {
       try {
-        const [page, catalog] = await Promise.all([
+        const [page, catalog, categories] = await Promise.all([
           brandPageAPI.get(),
           inventoryAPI.listProducts(1, 8).catch(() => ({ products: [] as InventoryProductRow[] })),
+          brandPageAPI.categories().catch((cause: unknown) => {
+            setCategoryError(
+              cause instanceof Error ? cause.message : 'Could not load categories'
+            )
+            return [] as CatalogCategoryOption[]
+          }),
         ])
         applyRecord(page)
         applyDesignImages(page)
         setProducts(catalog.products || [])
+        setCatalogCategories(categories)
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Could not load the brand page')
       } finally {
@@ -168,9 +189,15 @@ export default function BrandPage() {
       heroBody,
       distributorsHeading,
       shopTheLook: { title: shopTitle, url: shopUrl, imageId: shopImageId },
+      menuCategories: menuCategories.map((row) => ({
+        categoryId: row.categoryId,
+        name: row.name,
+        slug: row.slug,
+        imageId: row.imageId,
+      })),
       distributors: distributors
         .filter((row) => row.name.trim())
-        .map((row) => ({ name: row.name.trim(), url: row.url.trim(), logoId: row.logoId })),
+        .map((row) => ({ name: row.name.trim(), url: '', logoId: row.logoId })),
       seo: { metaTitle, metaDescription },
       logoId,
       heroImageId: heroId,
@@ -192,6 +219,7 @@ export default function BrandPage() {
         logo: logoFile,
         heroImage: heroFile,
         shopTheLook: shopFile,
+        menuCategoryImages: menuCategories.map((row) => row.file),
         distributorLogos: distributors.filter((row) => row.name.trim()).map((row) => row.file),
       })
       setLogoFile(null)
@@ -300,6 +328,22 @@ export default function BrandPage() {
               </div>
 
               <section className={styles.section}>
+                <h3 className={styles.sectionTitle}>Menu categories</h3>
+                <p className={styles.sectionHint}>
+                  Open a parent category to see the next level. Select the leaf categories
+                  that should appear in the brand menu and the category cards.
+                </p>
+                {categoryError ? (
+                  <p className={styles.sectionHint}>{categoryError}</p>
+                ) : null}
+                <MenuCategoriesField
+                  catalog={catalogCategories}
+                  selected={menuCategories}
+                  onChange={setMenuCategories}
+                />
+              </section>
+
+              <section className={styles.section}>
                 <h3 className={styles.sectionTitle}>Logo and banner</h3>
                 <p className={styles.sectionHint}>Used on both designs. The banner is the large image at the top of the page.</p>
                 <div className={styles.fields}>
@@ -368,12 +412,6 @@ export default function BrandPage() {
                       placeholder="Distributor name"
                       value={row.name}
                       onChange={(event) => updateDistributor(setDistributors, index, { name: event.target.value })}
-                    />
-                    <input
-                      className={styles.input}
-                      placeholder="https://"
-                      value={row.url}
-                      onChange={(event) => updateDistributor(setDistributors, index, { url: event.target.value })}
                     />
                     <label className={styles.fileButton}>
                       Logo

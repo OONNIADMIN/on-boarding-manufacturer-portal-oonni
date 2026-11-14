@@ -80,6 +80,10 @@ export async function PUT(req: NextRequest) {
       const file = form.get(key)
       if (file instanceof File && file.size > 0) appendFile(outbound, key, file)
     }
+    for (let index = 0; index < parsed.value.menuCategories.length; index += 1) {
+      const file = form.get(`menuCategoryImage_${index}`)
+      if (file instanceof File && file.size > 0) appendFile(outbound, `menuCategoryImage_${index}`, file)
+    }
     for (let index = 0; index < parsed.value.distributors.length; index += 1) {
       const file = form.get(`distributorLogo_${index}`)
       if (file instanceof File && file.size > 0) appendFile(outbound, `distributorLogo_${index}`, file)
