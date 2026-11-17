@@ -268,16 +268,6 @@ export default function Header({
                 <>
                 <button
                   type="button"
-                  onClick={() => handleNavigation('brandPage')}
-                  className={`${styles.navLink} ${currentPage === 'brandPage' ? styles.active : ''}`}
-                >
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v6H4V5zm0 8h7v6H4v-6zm9 0h7v6h-7v-6z" />
-                  </svg>
-                  Brand page
-                </button>
-                <button
-                  type="button"
                   onClick={() => handleNavigation('catalogTemplate')}
                   className={`${styles.navLink} ${currentPage === 'catalogTemplate' ? styles.active : ''}`}
                 >
@@ -316,6 +306,16 @@ export default function Header({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
                   </svg>
                   Your catalog
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigation('brandPage')}
+                  className={`${styles.navLink} ${currentPage === 'brandPage' ? styles.active : ''}`}
+                >
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v6H4V5zm0 8h7v6H4v-6zm9 0h7v6h-7v-6z" />
+                  </svg>
+                  Brand page
                 </button>
                 <button
                   type="button"
